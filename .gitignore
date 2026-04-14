@@ -34,3 +34,13 @@ export/
 # Python cache (from tileset generator script)
 __pycache__/
 *.pyc
+
+# gdUnit4 test reports
+reports/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Screenshots from visual smoke tests (root-level)
+*.png
+*.xwd
