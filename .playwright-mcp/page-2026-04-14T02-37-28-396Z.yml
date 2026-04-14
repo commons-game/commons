@@ -1,7 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic [ref=e3]:
-    - paragraph [ref=e4]: Sending handshake
-    - paragraph [ref=e5]
-    - progressbar [ref=e6]
-  - text: menu apps kitchen access_time cloud_upload cloud_download exit_to_app info info trending_up bug_report refresh exit_to_app filter fullscreen keyboard content_copy volume_off videogame_asset chevron_right
-  - textbox [ref=e8]
