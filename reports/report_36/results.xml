@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_36" tests="8" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_phase3_p2p_consistency" package="tests/integration" timestamp="2026-04-14T01:53:17" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.276">
+		<testcase name="test_place_from_peer_a_syncs_to_peer_b" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_remove_from_peer_b_syncs_to_peer_a" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+		<testcase name="test_concurrent_mutations_both_synced" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_apply_remote_idempotent" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_pressure_stops_ticking_after_peer_joins" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+		<testcase name="test_pressure_resets_on_merge" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+		<testcase name="test_authority_transfers_as_peers_move" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_authority_falls_back_to_local_when_peer_leaves" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+	</testsuite>
+</testsuites>

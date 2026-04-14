@@ -1,0 +1,138 @@
+[     257ms] [LOG] draw animation_cb 244.1 fps -1 vrefresh -1 @ http://localhost:14600/js/Utilities.js:0
+[     275ms] [LOG] document is ready, browser is Linux x86_64 64-bit: true @ http://localhost:14600/js/Utilities.js:0
+[     280ms] [LOG] draw animation_cb 260.8 fps 59 vrefresh -1 @ http://localhost:14600/js/Utilities.js:0
+[     282ms] [LOG] network got default settings: {blocked-hosts: xpra.org,www.xpra.org, min-quality: 10, min-speed: 50} @ http://localhost:14600/js/Utilities.js:0
+[     283ms] [LOG] initializing page @ http://localhost:14600/js/Utilities.js:0
+[     287ms] [LOG] mouse set_touchaction() touchaction= none label= zoom @ http://localhost:14600/js/Utilities.js:0
+[     289ms] [LOG] offscreen canvas requires https with Chrome @ http://localhost:14600/js/OffscreenDecodeWorkerHelper.js:0
+[     293ms] [LOG] debug enabled for: [] @ http://localhost:14600/js/Utilities.js:0
+[     346ms] [LOG] using min-speed = 50  from default settings @ http://localhost:14600/js/Utilities.js:0
+[     346ms] [LOG] encoding:  min-speed = 50 @ http://localhost:14600/js/Utilities.js:0
+[     346ms] [LOG] using min-quality = 10  from default settings @ http://localhost:14600/js/Utilities.js:0
+[     346ms] [LOG] encoding:  min-quality = 10 @ http://localhost:14600/js/Utilities.js:0
+[     346ms] [LOG] sound enabled, audio codec string: null @ http://localhost:14600/js/Utilities.js:0
+[     347ms] [LOG] connection_progress( Initializing ,   ,  20 ) @ http://localhost:14600/js/Utilities.js:0
+[     349ms] [LOG] audio codec MediaSource supported: [] @ http://localhost:14600/js/Utilities.js:0
+[     349ms] [LOG] audio codec MediaSource not available: {aac+mpeg4: audio/mp4; codecs="mp4a.40.2", mp3+mpeg4: audio/mp4; codecs="mp3", ogg: audio/ogg, wav: audio/wav, flac: audio/flac} @ http://localhost:14600/js/Utilities.js:0
+[     349ms] [LOG] audio aurora codecs supported: Map(0) @ http://localhost:14600/js/Utilities.js:0
+[     349ms] [LOG] audio aurora codecs not available: Map(0) @ http://localhost:14600/js/Utilities.js:0
+[     349ms] [LOG] using mediasource audio codec: opus+mka @ http://localhost:14600/js/Utilities.js:0
+[     350ms] [LOG] audio codecs:  [mp3, opus+mka, vorbis+mka, wav] @ http://localhost:14600/js/Utilities.js:0
+[     351ms] [LOG] using blocked-hosts = xpra.org,www.xpra.org  from default settings @ http://localhost:14600/js/Utilities.js:0
+[     351ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[     351ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[     351ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[     352ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[     352ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[     352ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[     352ms] [LOG] initializing subsystems @ http://localhost:14600/js/Utilities.js:0
+[     352ms] [LOG] initializing clipboard: enabled= true , poll= true , preferred format= text/plain @ http://localhost:14600/js/Utilities.js:0
+[     379ms] [LOG] got a keyboard layout map: KeyboardLayoutMap @ http://localhost:14600/js/Utilities.js:0
+[     379ms] [LOG] keys: [IntlYen, KeyK, KeyG, Digit2, Digit0, KeyV, KeyA, Backquote, KeyL, IntlBackslash, Quote, KeyW, Digit8, KeyM, KeyH, Period, Digit7, Digit1, KeyP, KeyD, KeyF, KeyO, KeyQ, KeyC, KeyN, BracketLeft, KeyZ, KeyY, Digit3, Digit6, Digit5, KeyX, Slash, Backslash, Comma, Minus, Digit4, KeyB, KeyT, Digit9, KeyS, KeyI, KeyU, Equal, KeyJ, Semicolon, KeyR, BracketRight, KeyE] @ http://localhost:14600/js/Utilities.js:0
+[     449ms] [INFO] decode worker checking: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/DecodeWorker.js:0
+[     450ms] [INFO] checking png with test image: 70 bytes @ http://localhost:14600/js/DecodeWorker.js:0
+[     452ms] [INFO] checking webp with test image: 66 bytes @ http://localhost:14600/js/DecodeWorker.js:0
+[     453ms] [INFO] checking jpeg with test image: 631 bytes @ http://localhost:14600/js/DecodeWorker.js:0
+[     488ms] [LOG] we can decode using a worker: Worker @ http://localhost:14600/js/Utilities.js:0
+[     488ms] [LOG] full list of supported encodings: [rgb24, rgb32, png, webp, jpeg] @ http://localhost:14600/js/Utilities.js:0
+[     499ms] [LOG] connection_progress( WebSocket connection established ,   ,  60 ) @ http://localhost:14600/js/Utilities.js:0
+[     501ms] [LOG] connection_progress( Sending handshake ,   ,  90 ) @ http://localhost:14600/js/Utilities.js:0
+[     505ms] [LOG] sending hello @ http://localhost:14600/js/Utilities.js:0
+[     509ms] [LOG] using new navigator.clipboard @ http://localhost:14600/js/Utilities.js:0
+[     509ms] [LOG] clipboard polling:  true @ http://localhost:14600/js/Utilities.js:0
+[     509ms] [LOG] no clipboard write support: no images, navigator.clipboard= Clipboard @ http://localhost:14600/js/Utilities.js:0
+[     509ms] [LOG] clipboard targets:  [text/plain, text/html, UTF8_STRING, TEXT, STRING] @ http://localhost:14600/js/Utilities.js:0
+[     509ms] [LOG] clipboard preferred format:  text/plain @ http://localhost:14600/js/Utilities.js:0
+[     510ms] [LOG] sending hello capabilities {version: 19, client_type: HTML5, display: Object, build: Object, platform: Object} @ http://localhost:14600/js/Utilities.js:0
+[    1102ms] [LOG] received hello capabilities {compressors: Array(3), encoders: Array(3), flush: true, lz4: Object, brotli: Object} @ http://localhost:14600/js/Utilities.js:0
+[    1103ms] [LOG] got hello: server version 6.4 accepted our connection @ http://localhost:14600/js/Utilities.js:0
+[    1103ms] [LOG] audio codecs supported by the server: [opus, flac, wav+lz4, wav, opus+ogg, vorbis+mka, vorbis+ogg, vorbis, mp3, mp3+id3v2, flac+ogg, aac+mpeg4, vorbis, opus+mka] @ http://localhost:14600/js/Utilities.js:0
+[    1105ms] [LOG] audio waiting for source open event on MediaSource @ http://localhost:14600/js/Utilities.js:0
+[    1105ms] [LOG] received xdg start menu data @ http://localhost:14600/js/Utilities.js:0
+[    1106ms] [LOG] server screen sizes: [Array(2), Array(2)] @ http://localhost:14600/js/Utilities.js:0
+[    1106ms] [LOG] connection_progress( Session started ,   ,  100 ) @ http://localhost:14600/js/Utilities.js:0
+[    1137ms] [LOG] title= Freeland (DEBUG) @ http://localhost:14600/js/Utilities.js:0
+[    1143ms] [LOG] decorated= true for windowtype= [NORMAL] @ http://localhost:14600/js/Window.js:0
+[    1151ms] [LOG] title= Freeland (DEBUG) @ http://localhost:14600/js/Utilities.js:0
+[    1154ms] [LOG] decorated= true for windowtype= [NORMAL] @ http://localhost:14600/js/Window.js:0
+[    1156ms] [LOG] startup complete @ http://localhost:14600/js/Utilities.js:0
+[    1156ms] [LOG] connection-established @ http://localhost:14600/js/Utilities.js:0
+[    1164ms] [LOG] audio media source open @ http://localhost:14600/js/Utilities.js:0
+[    1164ms] [LOG] using audio codec string for opus+mka: audio/webm; codecs="opus" @ http://localhost:14600/js/Utilities.js:0
+[    1164ms] [LOG] audio: requesting opus+mka stream from the server @ http://localhost:14600/js/Utilities.js:0
+[    1203ms] [LOG] received xdg start menu data @ http://localhost:14600/js/Utilities.js:0
+[    1485ms] [LOG] audio-state: waiting @ http://localhost:14600/js/Utilities.js:0
+[    1486ms] [LOG] audio play! @ http://localhost:14600/js/Utilities.js:0
+[    6115ms] [LOG] server connection is OK @ http://localhost:14600/js/Utilities.js:0
+[   35350ms] [LOG] lost window, was tray= false @ http://localhost:14600/js/Utilities.js:0
+[   35350ms] [LOG] lost window 10485763 , remaining:  [8388611] @ http://localhost:14600/js/Utilities.js:0
+[   35360ms] [LOG] lost window, was tray= false @ http://localhost:14600/js/Utilities.js:0
+[   35360ms] [LOG] lost window 8388611 , remaining:  [] @ http://localhost:14600/js/Utilities.js:0
+[   35360ms] [WARNING] decode error packet: [damage-sequence, 976, 10485763, 1280, 720, -1, window 10485763 not found] @ http://localhost:14600/js/Utilities.js:0
+[   98663ms] [LOG] websocket closed:  'Abnormal Closure' (1006) reason:  null , reconnect:  true , reconnect attempt:  0 @ http://localhost:14600/js/Utilities.js:0
+[   98663ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[   99664ms] [LOG] close_audio_mediasource: audio_source_buffer=[object SourceBuffer], media_source=[object MediaSource], audio=[object HTMLAudioElement] @ http://localhost:14600/js/Utilities.js:0
+[   99665ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[   99665ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[   99667ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[   99667ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[   99668ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[   99668ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[   99668ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[   99668ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[   99669ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[   99669ms] [LOG] audio-state: error @ http://localhost:14600/js/Utilities.js:0
+[   99669ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  110667ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  110672ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  110673ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  110674ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  110675ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  110676ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  110676ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  110677ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[  121673ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  121673ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  121675ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  121675ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  121675ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  121675ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  121675ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  121676ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  121676ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[  132676ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  132676ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  132680ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  132681ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  132682ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  132683ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  132684ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  132684ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  132685ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[  143681ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  143681ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  143683ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  143683ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  143683ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  143683ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  143684ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  143684ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  143684ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[  154683ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  154684ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  154685ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  154685ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  154685ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  154685ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  154686ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  154686ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  154686ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0
+[  165685ms] [LOG] audio-state: stopped @ http://localhost:14600/js/Utilities.js:0
+[  165685ms] [LOG] cancel_all_files( closing ) will cancel: [] @ http://localhost:14600/js/Utilities.js:0
+[  165687ms] [LOG] connection-lost @ http://localhost:14600/js/Utilities.js:0
+[  165687ms] [LOG] connection_progress( Connecting to server ,  localhost:14600/ ,  30 ) @ http://localhost:14600/js/Utilities.js:0
+[  165688ms] [LOG] we have webworker support @ http://localhost:14600/js/Utilities.js:0
+[  165688ms] [LOG] connection_progress( Opening WebSocket connection ,  ws://localhost:14600/ ,  50 ) @ http://localhost:14600/js/Utilities.js:0
+[  165688ms] [LOG] open_protocol() done @ http://localhost:14600/js/Client.js:0
+[  165689ms] [LOG] initializing regular decode worker @ http://localhost:14600/js/Utilities.js:0
+[  165689ms] [LOG] decode worker will check: [jpeg, png, png/P, png/L, rgb, rgb32, rgb24, scroll, webp, void, avif, h264, vp8, vp9] @ http://localhost:14600/js/Utilities.js:0

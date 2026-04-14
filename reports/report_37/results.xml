@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_37" tests="150" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_shrine_territory" package="tests/unit" timestamp="2026-04-14T01:53:22" hostname="localhost" tests="12" failures="0" errors="0" skipped="0" flaky="0" time="0.408">
+		<testcase name="test_shrine_chunk_joins_territory_on_register" classname="test_shrine_territory" time="0.020">
+		</testcase>
+		<testcase name="test_unregistered_chunk_is_wilderness" classname="test_shrine_territory" time="0.021">
+		</testcase>
+		<testcase name="test_modified_adjacent_chunk_joins_territory" classname="test_shrine_territory" time="0.013">
+		</testcase>
+		<testcase name="test_modified_non_adjacent_chunk_stays_wilderness" classname="test_shrine_territory" time="0.014">
+		</testcase>
+		<testcase name="test_territory_expands_transitively" classname="test_shrine_territory" time="0.013">
+		</testcase>
+		<testcase name="test_diagonal_chunk_does_not_expand_territory" classname="test_shrine_territory" time="0.021">
+		</testcase>
+		<testcase name="test_two_shrines_separate_territories" classname="test_shrine_territory" time="0.020">
+		</testcase>
+		<testcase name="test_contested_chunk_when_both_shrines_adjacent" classname="test_shrine_territory" time="0.014">
+		</testcase>
+		<testcase name="test_contested_chunk_has_no_active_mod_set" classname="test_shrine_territory" time="0.013">
+		</testcase>
+		<testcase name="test_shrine_removal_dissolves_territory" classname="test_shrine_territory" time="0.014">
+		</testcase>
+		<testcase name="test_active_mod_set_returns_shrine_id_for_owned_chunk" classname="test_shrine_territory" time="0.020">
+		</testcase>
+		<testcase name="test_active_mod_set_returns_null_for_wilderness" classname="test_shrine_territory" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="1" name="test_shrine_object" package="tests/unit" timestamp="2026-04-14T01:53:23" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.309">
+		<testcase name="test_initialize_registers_chunk" classname="test_shrine_object" time="0.026">
+		</testcase>
+		<testcase name="test_initialize_stores_shrine_id" classname="test_shrine_object" time="0.021">
+		</testcase>
+		<testcase name="test_initialize_stores_chunk_coords" classname="test_shrine_object" time="0.013">
+		</testcase>
+		<testcase name="test_mod_bundle_hash_stored" classname="test_shrine_object" time="0.014">
+		</testcase>
+		<testcase name="test_owner_id_stored" classname="test_shrine_object" time="0.013">
+		</testcase>
+		<testcase name="test_mod_bundle_version_stored" classname="test_shrine_object" time="0.021">
+		</testcase>
+		<testcase name="test_remove_unregisters_chunk" classname="test_shrine_object" time="0.020">
+		</testcase>
+		<testcase name="test_remove_dissolves_expanded_territory" classname="test_shrine_object" time="0.014">
+		</testcase>
+		<testcase name="test_two_shrines_coexist_independently" classname="test_shrine_object" time="0.013">
+		</testcase>
+	</testsuite>
+	<testsuite id="2" name="test_coord_utils" package="tests/unit" timestamp="2026-04-14T01:53:23" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.303">
+		<testcase name="test_world_to_chunk_positive" classname="test_coord_utils" time="0.020">
+		</testcase>
+		<testcase name="test_world_to_chunk_negative_one" classname="test_coord_utils" time="0.014">
+		</testcase>
+		<testcase name="test_world_to_chunk_negative_boundary" classname="test_coord_utils" time="0.014">
+		</testcase>
+		<testcase name="test_world_to_local_positive" classname="test_coord_utils" time="0.020">
+		</testcase>
+		<testcase name="test_world_to_local_negative" classname="test_coord_utils" time="0.021">
+		</testcase>
+		<testcase name="test_chunk_local_to_world" classname="test_coord_utils" time="0.013">
+		</testcase>
+		<testcase name="test_round_trip_positive" classname="test_coord_utils" time="0.014">
+		</testcase>
+		<testcase name="test_round_trip_negative" classname="test_coord_utils" time="0.013">
+		</testcase>
+		<testcase name="test_make_crdt_key" classname="test_coord_utils" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="3" name="test_chunk_weight" package="tests/unit" timestamp="2026-04-14T01:53:23" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.180">
+		<testcase name="test_zero_modifications_always_below_threshold" classname="test_chunk_weight" time="0.027">
+		</testcase>
+		<testcase name="test_fifty_modifications_fresh_above_threshold" classname="test_chunk_weight" time="0.021">
+		</testcase>
+		<testcase name="test_decay_below_threshold_after_several_half_lives" classname="test_chunk_weight" time="0.021">
+		</testcase>
+		<testcase name="test_neighborhood_bonus_capped" classname="test_chunk_weight" time="0.014">
+		</testcase>
+		<testcase name="test_fading_chunk_has_zero_recency_weight" classname="test_chunk_weight" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="4" name="test_mod_bundle" package="tests/unit" timestamp="2026-04-14T01:53:24" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.311">
+		<testcase name="test_empty_bundle_has_zero_defs" classname="test_mod_bundle" time="0.020">
+		</testcase>
+		<testcase name="test_tile_def_basic_fields" classname="test_mod_bundle" time="0.021">
+		</testcase>
+		<testcase name="test_tile_def_defaults_when_fields_missing" classname="test_mod_bundle" time="0.014">
+		</testcase>
+		<testcase name="test_multiple_tile_defs_keyed_by_id" classname="test_mod_bundle" time="0.014">
+		</testcase>
+		<testcase name="test_tile_on_walk_parses_effect" classname="test_mod_bundle" time="0.013">
+		</testcase>
+		<testcase name="test_tile_on_walk_parses_condition" classname="test_mod_bundle" time="0.014">
+		</testcase>
+		<testcase name="test_buff_def_basic_fields" classname="test_mod_bundle" time="0.014">
+		</testcase>
+		<testcase name="test_missing_id_tile_is_skipped" classname="test_mod_bundle" time="0.014">
+		</testcase>
+		<testcase name="test_invalid_json_returns_empty_bundle" classname="test_mod_bundle" time="0.013">
+		</testcase>
+	</testsuite>
+	<testsuite id="5" name="test_merge_pressure" package="tests/unit" timestamp="2026-04-14T01:53:24" hostname="localhost" tests="12" failures="0" errors="0" skipped="0" flaky="0" time="0.404">
+		<testcase name="test_pressure_starts_at_zero" classname="test_merge_pressure" time="0.024">
+		</testcase>
+		<testcase name="test_tick_solo_increases_pressure" classname="test_merge_pressure" time="0.021">
+		</testcase>
+		<testcase name="test_tick_amount_matches_ramp_rate_times_delta" classname="test_merge_pressure" time="0.020">
+		</testcase>
+		<testcase name="test_tick_larger_delta_accumulates_more" classname="test_merge_pressure" time="0.014">
+		</testcase>
+		<testcase name="test_pressure_capped_at_one" classname="test_merge_pressure" time="0.013">
+		</testcase>
+		<testcase name="test_pressure_does_not_tick_when_merged" classname="test_merge_pressure" time="0.014">
+		</testcase>
+		<testcase name="test_pressure_does_not_tick_with_three_peers" classname="test_merge_pressure" time="0.020">
+		</testcase>
+		<testcase name="test_reset_drops_to_reset_value" classname="test_merge_pressure" time="0.021">
+		</testcase>
+		<testcase name="test_reset_value_is_small_positive" classname="test_merge_pressure" time="0.020">
+		</testcase>
+		<testcase name="test_talisman_modifier_scales_ramp_rate" classname="test_merge_pressure" time="0.014">
+		</testcase>
+		<testcase name="test_talisman_modifier_affects_subsequent_ticks" classname="test_merge_pressure" time="0.014">
+		</testcase>
+		<testcase name="test_talisman_modifier_stacks_multiplicatively" classname="test_merge_pressure" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="6" name="test_boundary_enforcer" package="tests/unit" timestamp="2026-04-14T01:53:24" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.281">
+		<testcase name="test_entity_safe_in_own_shrine_chunk" classname="test_boundary_enforcer" time="0.025">
+		</testcase>
+		<testcase name="test_entity_damaged_in_wilderness" classname="test_boundary_enforcer" time="0.014">
+		</testcase>
+		<testcase name="test_entity_damaged_in_foreign_shrine" classname="test_boundary_enforcer" time="0.013">
+		</testcase>
+		<testcase name="test_entity_damaged_in_contested_chunk" classname="test_boundary_enforcer" time="0.021">
+		</testcase>
+		<testcase name="test_damage_scales_with_delta" classname="test_boundary_enforcer" time="0.020">
+		</testcase>
+		<testcase name="test_entity_dies_when_health_reaches_zero" classname="test_boundary_enforcer" time="0.014">
+		</testcase>
+		<testcase name="test_entity_does_not_die_with_health_remaining" classname="test_boundary_enforcer" time="0.013">
+		</testcase>
+		<testcase name="test_entity_with_empty_origin_shrine_not_damaged" classname="test_boundary_enforcer" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="7" name="test_session_manager" package="tests/unit" timestamp="2026-04-14T01:53:25" hostname="localhost" tests="15" failures="0" errors="0" skipped="0" flaky="0" time="0.499">
+		<testcase name="test_session_not_active_before_start" classname="test_session_manager" time="0.016">
+		</testcase>
+		<testcase name="test_session_active_after_start" classname="test_session_manager" time="0.014">
+		</testcase>
+		<testcase name="test_session_id_assigned_on_start" classname="test_session_manager" time="0.013">
+		</testcase>
+		<testcase name="test_session_id_stable_across_calls" classname="test_session_manager" time="0.021">
+		</testcase>
+		<testcase name="test_new_start_session_resets_state" classname="test_session_manager" time="0.020">
+		</testcase>
+		<testcase name="test_no_peers_initially" classname="test_session_manager" time="0.021">
+		</testcase>
+		<testcase name="test_add_peer_increases_count" classname="test_session_manager" time="0.013">
+		</testcase>
+		<testcase name="test_add_multiple_peers" classname="test_session_manager" time="0.014">
+		</testcase>
+		<testcase name="test_add_peer_stores_id" classname="test_session_manager" time="0.013">
+		</testcase>
+		<testcase name="test_remove_peer_decreases_count" classname="test_session_manager" time="0.021">
+		</testcase>
+		<testcase name="test_remove_nonexistent_peer_no_crash" classname="test_session_manager" time="0.020">
+		</testcase>
+		<testcase name="test_last_peer_leaves_session_stays_active" classname="test_session_manager" time="0.021">
+		</testcase>
+		<testcase name="test_duplicate_peer_add_idempotent" classname="test_session_manager" time="0.013">
+		</testcase>
+		<testcase name="test_peer_count_zero_initially" classname="test_session_manager" time="0.014">
+		</testcase>
+		<testcase name="test_peer_count_reflects_adds" classname="test_session_manager" time="0.013">
+		</testcase>
+	</testsuite>
+	<testsuite id="8" name="test_crdt_tile_store" package="tests/unit" timestamp="2026-04-14T01:53:25" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.244">
+		<testcase name="test_set_and_get_tile" classname="test_crdt_tile_store" time="0.023">
+		</testcase>
+		<testcase name="test_remove_tile_writes_tombstone" classname="test_crdt_tile_store" time="0.013">
+		</testcase>
+		<testcase name="test_older_placement_does_not_overwrite_newer_tombstone" classname="test_crdt_tile_store" time="0.014">
+		</testcase>
+		<testcase name="test_merge_commutativity" classname="test_crdt_tile_store" time="0.020">
+		</testcase>
+		<testcase name="test_merge_idempotency" classname="test_crdt_tile_store" time="0.021">
+		</testcase>
+		<testcase name="test_merge_associativity" classname="test_crdt_tile_store" time="0.013">
+		</testcase>
+		<testcase name="test_load_from_entries" classname="test_crdt_tile_store" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="9" name="test_tile_mutation_bus" package="tests/unit" timestamp="2026-04-14T01:53:25" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.334">
+		<testcase name="test_place_applies_to_local_store" classname="test_tile_mutation_bus" time="0.023">
+		</testcase>
+		<testcase name="test_place_enqueues_outbound_record" classname="test_tile_mutation_bus" time="0.014">
+		</testcase>
+		<testcase name="test_place_record_includes_author_and_timestamp" classname="test_tile_mutation_bus" time="0.013">
+		</testcase>
+		<testcase name="test_remove_applies_to_local_store" classname="test_tile_mutation_bus" time="0.014">
+		</testcase>
+		<testcase name="test_remove_enqueues_outbound_record" classname="test_tile_mutation_bus" time="0.020">
+		</testcase>
+		<testcase name="test_apply_remote_place_calls_store" classname="test_tile_mutation_bus" time="0.021">
+		</testcase>
+		<testcase name="test_apply_remote_remove_calls_store" classname="test_tile_mutation_bus" time="0.020">
+		</testcase>
+		<testcase name="test_apply_remote_does_not_enqueue_outbound" classname="test_tile_mutation_bus" time="0.014">
+		</testcase>
+		<testcase name="test_flush_outbound_clears_queue" classname="test_tile_mutation_bus" time="0.013">
+		</testcase>
+		<testcase name="test_multiple_mutations_all_queued" classname="test_tile_mutation_bus" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="10" name="test_region_authority" package="tests/unit" timestamp="2026-04-14T01:53:26" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.281">
+		<testcase name="test_no_peers_authority_is_local" classname="test_region_authority" time="0.026">
+		</testcase>
+		<testcase name="test_single_peer_owns_nearby_chunk" classname="test_region_authority" time="0.014">
+		</testcase>
+		<testcase name="test_local_peer_position_registered" classname="test_region_authority" time="0.014">
+		</testcase>
+		<testcase name="test_closest_peer_wins" classname="test_region_authority" time="0.021">
+		</testcase>
+		<testcase name="test_tie_broken_consistently" classname="test_region_authority" time="0.020">
+		</testcase>
+		<testcase name="test_peer_move_updates_authority" classname="test_region_authority" time="0.014">
+		</testcase>
+		<testcase name="test_peer_left_redistributes_authority" classname="test_region_authority" time="0.014">
+		</testcase>
+		<testcase name="test_peer_left_unknown_peer_no_crash" classname="test_region_authority" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="11" name="test_procedural_generator" package="tests/unit" timestamp="2026-04-14T01:53:26" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.208">
+		<testcase name="test_determinism" classname="test_procedural_generator" time="0.043">
+		</testcase>
+		<testcase name="test_different_coords_produce_different_output" classname="test_procedural_generator" time="0.014">
+		</testcase>
+		<testcase name="test_ground_layer_has_256_entries" classname="test_procedural_generator" time="0.014">
+		</testcase>
+		<testcase name="test_ground_layer_has_256_entries_negative_coords" classname="test_procedural_generator" time="0.014">
+		</testcase>
+		<testcase name="test_atlas_x_values_in_valid_range" classname="test_procedural_generator" time="0.021">
+		</testcase>
+		<testcase name="test_adjacent_chunks_share_no_identical_row_patterns" classname="test_procedural_generator" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="12" name="test_buff_manager" package="tests/unit" timestamp="2026-04-14T01:53:26" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.316">
+		<testcase name="test_add_buff_visible_in_get_buffs" classname="test_buff_manager" time="0.026">
+		</testcase>
+		<testcase name="test_get_buffs_returns_empty_initially" classname="test_buff_manager" time="0.013">
+		</testcase>
+		<testcase name="test_multiple_buffs_stored" classname="test_buff_manager" time="0.014">
+		</testcase>
+		<testcase name="test_buffs_retained_when_still_in_origin_shrine" classname="test_buff_manager" time="0.013">
+		</testcase>
+		<testcase name="test_buffs_evicted_when_leaving_origin_shrine" classname="test_buff_manager" time="0.014">
+		</testcase>
+		<testcase name="test_buffs_evicted_when_entering_wilderness" classname="test_buff_manager" time="0.013">
+		</testcase>
+		<testcase name="test_mixed_buffs_only_evict_wrong_shrine" classname="test_buff_manager" time="0.014">
+		</testcase>
+		<testcase name="test_originless_buff_survives_shrine_change" classname="test_buff_manager" time="0.013">
+		</testcase>
+		<testcase name="test_get_buffs_entries_have_buff_id" classname="test_buff_manager" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="13" name="test_mod_runtime" package="tests/unit" timestamp="2026-04-14T01:53:27" hostname="localhost" tests="9" failures="0" errors="0" skipped="0" flaky="0" time="0.305">
+		<testcase name="test_no_handlers_returns_empty_effects" classname="test_mod_runtime" time="0.022">
+		</testcase>
+		<testcase name="test_unconditional_handler_fires" classname="test_mod_runtime" time="0.014">
+		</testcase>
+		<testcase name="test_has_tag_condition_matches" classname="test_mod_runtime" time="0.021">
+		</testcase>
+		<testcase name="test_has_tag_condition_no_match_skips_handler" classname="test_mod_runtime" time="0.021">
+		</testcase>
+		<testcase name="test_random_condition_zero_never_fires" classname="test_mod_runtime" time="0.014">
+		</testcase>
+		<testcase name="test_random_condition_one_always_fires" classname="test_mod_runtime" time="0.014">
+		</testcase>
+		<testcase name="test_multiple_handlers_accumulate_effects" classname="test_mod_runtime" time="0.014">
+		</testcase>
+		<testcase name="test_on_place_does_not_fire_on_walk" classname="test_mod_runtime" time="0.014">
+		</testcase>
+		<testcase name="test_unknown_tile_id_returns_empty" classname="test_mod_runtime" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="14" name="test_phase3_p2p_consistency" package="tests/integration" timestamp="2026-04-14T01:53:27" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.271">
+		<testcase name="test_place_from_peer_a_syncs_to_peer_b" classname="test_phase3_p2p_consistency" time="0.022">
+		</testcase>
+		<testcase name="test_remove_from_peer_b_syncs_to_peer_a" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+		<testcase name="test_concurrent_mutations_both_synced" classname="test_phase3_p2p_consistency" time="0.020">
+		</testcase>
+		<testcase name="test_apply_remote_idempotent" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+		<testcase name="test_pressure_stops_ticking_after_peer_joins" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_pressure_resets_on_merge" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_authority_transfers_as_peers_move" classname="test_phase3_p2p_consistency" time="0.014">
+		</testcase>
+		<testcase name="test_authority_falls_back_to_local_when_peer_leaves" classname="test_phase3_p2p_consistency" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="15" name="test_phase2_mod_system" package="tests/integration" timestamp="2026-04-14T01:53:27" hostname="localhost" tests="3" failures="0" errors="0" skipped="0" flaky="0" time="0.108">
+		<testcase name="test_full_shrine_lifecycle" classname="test_phase2_mod_system" time="0.024">
+		</testcase>
+		<testcase name="test_mod_bundle_applies_effects_in_shrine_territory" classname="test_phase2_mod_system" time="0.014">
+		</testcase>
+		<testcase name="test_contested_chunk_has_no_active_mod_set_and_entity_takes_damage" classname="test_phase2_mod_system" time="0.020">
+		</testcase>
+	</testsuite>
+	<testsuite id="16" name="test_chunk_manager" package="tests/integration" timestamp="2026-04-14T01:53:27" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="1.640">
+		<testcase name="test_chunks_loaded_in_radius_after_player_move" classname="test_chunk_manager" time="0.207">
+		</testcase>
+		<testcase name="test_chunks_unloaded_when_player_moves_far" classname="test_chunk_manager" time="0.498">
+		</testcase>
+		<testcase name="test_place_tile_at_negative_world_coords" classname="test_chunk_manager" time="0.205">
+		</testcase>
+		<testcase name="test_place_tile_at_negative_chunk_boundary" classname="test_chunk_manager" time="0.200">
+		</testcase>
+		<testcase name="test_remove_tile_at_negative_world_coords" classname="test_chunk_manager" time="0.204">
+		</testcase>
+		<testcase name="test_place_tile_at_chunk_boundary" classname="test_chunk_manager" time="0.209">
+		</testcase>
+	</testsuite>
+	<testsuite id="17" name="test_persistence" package="tests/integration" timestamp="2026-04-14T01:53:29" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.180">
+		<testcase name="test_store_and_retrieve_positive_coords" classname="test_persistence" time="0.027">
+		</testcase>
+		<testcase name="test_store_and_retrieve_negative_coords" classname="test_persistence" time="0.020">
+		</testcase>
+		<testcase name="test_retrieve_missing_returns_empty" classname="test_persistence" time="0.021">
+		</testcase>
+		<testcase name="test_delete_chunk_removes_file" classname="test_persistence" time="0.014">
+		</testcase>
+		<testcase name="test_tombstone_entry_survives_round_trip" classname="test_persistence" time="0.014">
+		</testcase>
+	</testsuite>
+</testsuites>

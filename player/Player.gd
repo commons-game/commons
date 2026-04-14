@@ -8,6 +8,9 @@ const SPEED := 80.0
 func _draw() -> void:
 	draw_rect(Rect2(-8, -8, 16, 16), Color.WHITE)
 
+func _process(_delta: float) -> void:
+	queue_redraw()
+
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2(Input.get_axis("ui_left", "ui_right"),
 	                   Input.get_axis("ui_up", "ui_down")).normalized() * SPEED

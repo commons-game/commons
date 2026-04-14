@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_51" tests="11" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_network_manager" package="tests/unit" timestamp="2026-04-14T02:08:57" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.183">
+		<testcase name="test_initial_state_is_idle" classname="test_network_manager" time="0.023">
+		</testcase>
+		<testcase name="test_not_connected_initially" classname="test_network_manager" time="0.014">
+		</testcase>
+		<testcase name="test_not_hosting_initially" classname="test_network_manager" time="0.020">
+		</testcase>
+		<testcase name="test_default_port_is_sensible" classname="test_network_manager" time="0.022">
+		</testcase>
+		<testcase name="test_state_constants_are_distinct" classname="test_network_manager" time="0.013">
+		</testcase>
+	</testsuite>
+	<testsuite id="1" name="test_tile_mutation_bus_rpc" package="tests/unit" timestamp="2026-04-14T02:08:57" hostname="localhost" tests="6" failures="0" errors="0" skipped="0" flaky="0" time="0.205">
+		<testcase name="test_rpc_receive_place_applies_to_store" classname="test_tile_mutation_bus_rpc" time="0.026">
+		</testcase>
+		<testcase name="test_rpc_receive_place_does_not_enqueue_outbound" classname="test_tile_mutation_bus_rpc" time="0.014">
+		</testcase>
+		<testcase name="test_rpc_receive_remove_applies_to_store" classname="test_tile_mutation_bus_rpc" time="0.014">
+		</testcase>
+		<testcase name="test_vector2i_roundtrip_positive" classname="test_tile_mutation_bus_rpc" time="0.014">
+		</testcase>
+		<testcase name="test_vector2i_roundtrip_negative" classname="test_tile_mutation_bus_rpc" time="0.021">
+		</testcase>
+		<testcase name="test_local_place_still_enqueues_outbound" classname="test_tile_mutation_bus_rpc" time="0.020">
+		</testcase>
+	</testsuite>
+</testsuites>

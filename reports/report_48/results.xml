@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_48" tests="5" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_phase5_reputation" package="tests/integration" timestamp="2026-04-14T02:01:45" hostname="localhost" tests="5" failures="0" errors="0" skipped="0" flaky="0" time="0.166">
+		<testcase name="test_griefer_lifecycle" classname="test_phase5_reputation" time="0.013">
+		</testcase>
+		<testcase name="test_talisman_of_chaos_voluntary_routing" classname="test_phase5_reputation" time="0.021">
+		</testcase>
+		<testcase name="test_reputation_check_gates_bridge_before_crdt_exchange" classname="test_phase5_reputation" time="0.020">
+		</testcase>
+		<testcase name="test_spam_report_prevention_cannot_force_chaos_pool" classname="test_phase5_reputation" time="0.020">
+		</testcase>
+		<testcase name="test_two_chaos_players_exchange_crdt_successfully" classname="test_phase5_reputation" time="0.020">
+		</testcase>
+	</testsuite>
+</testsuites>

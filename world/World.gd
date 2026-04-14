@@ -32,6 +32,10 @@ func _ready() -> void:
 	bus.tile_store      = $ChunkManager
 	bus.local_author_id = "player_local"   # Phase 5+: use real player id
 
+	# Register spawnable scene programmatically — auto_spawn_list in .tscn is
+	# not a valid MultiplayerSpawner property and is silently ignored at runtime.
+	$MultiplayerSpawner.add_spawnable_scene("res://player/RemotePlayer.tscn")
+
 	# Bootstrap from CLI args
 	var args := OS.get_cmdline_user_args()
 	_parse_network_args(args)

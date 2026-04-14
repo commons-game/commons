@@ -81,6 +81,40 @@ obj.parse(data_dict)
 ```
 Never use static factory methods on data classes that use `class_name`.
 
+### MultiplayerSpawner auto_spawn_list is silently ignored at runtime
+**Status:** Fixed.
+**Symptom:** The `auto_spawn_list` property written into a `.tscn` file for `MultiplayerSpawner` is not a valid runtime property — it is silently ignored, so the spawner never knows which scenes to replicate. Connected clients never receive spawned nodes.
+**Fix:** Register spawnable scenes programmatically in `_ready()`:
+```gdscript
+$MultiplayerSpawner.add_spawnable_scene("res://player/RemotePlayer.tscn")
+```
+
+### MultiplayerSpawner does not preserve set_multiplayer_authority on replicated nodes
+**Status:** Fixed.
+**Symptom:** Host calls `node.set_multiplayer_authority(peer_id)` before `add_child(node)`. When the spawner replicates the node to clients, the authority defaults back to 1 on the client side — the client never sends sync updates because it doesn't think it's authoritative.
+**Fix:** In `RemotePlayer._ready()`, re-derive authority from the node name convention `RemotePlayer_<peer_id>`:
+```gdscript
+var parts := name.split("_")
+if parts.size() == 2 and parts[1].is_valid_int():
+    set_multiplayer_authority(int(parts[1]))
+```
+
+### RemotePlayer must be Node2D, not CharacterBody2D
+**Status:** Fixed.
+**Symptom:** RemotePlayer shared a CollisionShape2D with the local Player (both at the same world position on the client). Physics blocked the Player from moving — `move_and_slide()` treated the RemotePlayer as a solid obstacle.
+**Fix:** RemotePlayer extends `Node2D` (no physics), CollisionShape2D removed. It is purely visual.
+
+### Injecting keyboard input to Godot via xdotool does not work through xpra
+**Status:** Workaround documented.
+**Symptom:** `xdotool windowfocus --sync <id>; xdotool keydown Right` sends X11 key events but Godot never receives them when running behind xpra.
+**Workaround:** Dispatch keyboard events via JavaScript in xpra's browser client instead:
+```javascript
+document.dispatchEvent(new KeyboardEvent('keydown', {
+    key:'ArrowRight', code:'ArrowRight', keyCode:39, bubbles:true
+}));
+```
+Use via Playwright's `browser_evaluate` tool or the browser console.
+
 ### Array element type inference in GDScript
 **Status:** Known GDScript limitation, handled with explicit casts.
 **Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."

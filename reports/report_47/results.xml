@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_47" tests="26" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_reputation_store" package="tests/unit" timestamp="2026-04-14T02:01:13" hostname="localhost" tests="14" failures="0" errors="0" skipped="0" flaky="0" time="0.470">
+		<testcase name="test_new_player_has_zero_reports" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_submit_report_increments_count" classname="test_reputation_store" time="0.021">
+		</testcase>
+		<testcase name="test_multiple_reporters_accumulate" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_same_reporter_cannot_report_twice" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_self_report_is_ignored" classname="test_reputation_store" time="0.021">
+		</testcase>
+		<testcase name="test_reports_against_different_targets_are_independent" classname="test_reputation_store" time="0.021">
+		</testcase>
+		<testcase name="test_below_threshold_not_in_chaos_pool" classname="test_reputation_store" time="0.013">
+		</testcase>
+		<testcase name="test_reaching_threshold_promotes_to_chaos_pool" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_unknown_player_not_in_chaos_pool" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_opt_in_sets_chaos_pool_flag" classname="test_reputation_store" time="0.021">
+		</testcase>
+		<testcase name="test_opt_in_independent_of_report_count" classname="test_reputation_store" time="0.020">
+		</testcase>
+		<testcase name="test_flags_reflect_report_count" classname="test_reputation_store" time="0.014">
+		</testcase>
+		<testcase name="test_flags_reflect_chaos_pool_status" classname="test_reputation_store" time="0.013">
+		</testcase>
+		<testcase name="test_flags_for_unknown_player_are_clean" classname="test_reputation_store" time="0.014">
+		</testcase>
+	</testsuite>
+	<testsuite id="1" name="test_merge_router" package="tests/unit" timestamp="2026-04-14T02:01:14" hostname="localhost" tests="8" failures="0" errors="0" skipped="0" flaky="0" time="0.275">
+		<testcase name="test_two_normal_players_can_merge" classname="test_merge_router" time="0.026">
+		</testcase>
+		<testcase name="test_two_chaos_players_can_merge" classname="test_merge_router" time="0.014">
+		</testcase>
+		<testcase name="test_normal_and_chaos_cannot_merge" classname="test_merge_router" time="0.021">
+		</testcase>
+		<testcase name="test_chaos_and_normal_cannot_merge_commutative" classname="test_merge_router" time="0.021">
+		</testcase>
+		<testcase name="test_highly_reported_player_blocked_from_normal_merge" classname="test_merge_router" time="0.014">
+		</testcase>
+		<testcase name="test_highly_reported_player_can_merge_with_another_chaos_player" classname="test_merge_router" time="0.014">
+		</testcase>
+		<testcase name="test_unknown_player_treated_as_normal" classname="test_merge_router" time="0.014">
+		</testcase>
+		<testcase name="test_unknown_chaos_player_incompatible_with_unknown_normal" classname="test_merge_router" time="0.021">
+		</testcase>
+	</testsuite>
+	<testsuite id="2" name="test_talisman_of_chaos" package="tests/unit" timestamp="2026-04-14T02:01:14" hostname="localhost" tests="4" failures="0" errors="0" skipped="0" flaky="0" time="0.145">
+		<testcase name="test_apply_opts_player_into_chaos_pool" classname="test_talisman_of_chaos" time="0.028">
+		</testcase>
+		<testcase name="test_apply_does_not_affect_other_players" classname="test_talisman_of_chaos" time="0.020">
+		</testcase>
+		<testcase name="test_apply_idempotent_when_already_in_chaos_pool" classname="test_talisman_of_chaos" time="0.021">
+		</testcase>
+		<testcase name="test_talisman_has_expected_id" classname="test_talisman_of_chaos" time="0.013">
+		</testcase>
+	</testsuite>
+</testsuites>

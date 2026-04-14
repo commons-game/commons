@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_39" tests="10" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_local_presence_service" package="tests/unit" timestamp="2026-04-14T01:55:49" hostname="localhost" tests="10" failures="0" errors="0" skipped="0" flaky="0" time="0.338">
+		<testcase name="test_publish_fires_subscriber_in_range" classname="test_local_presence_service" time="0.021">
+		</testcase>
+		<testcase name="test_publish_does_not_fire_out_of_range_subscriber" classname="test_local_presence_service" time="0.020">
+		</testcase>
+		<testcase name="test_publish_fires_boundary_subscriber_exactly_at_radius" classname="test_local_presence_service" time="0.014">
+		</testcase>
+		<testcase name="test_publish_does_not_fire_subscriber_one_beyond_radius" classname="test_local_presence_service" time="0.013">
+		</testcase>
+		<testcase name="test_own_publish_does_not_fire_own_subscription" classname="test_local_presence_service" time="0.014">
+		</testcase>
+		<testcase name="test_multiple_subscribers_all_fired" classname="test_local_presence_service" time="0.020">
+		</testcase>
+		<testcase name="test_unsubscribe_stops_callbacks" classname="test_local_presence_service" time="0.021">
+		</testcase>
+		<testcase name="test_unsubscribe_unknown_id_no_crash" classname="test_local_presence_service" time="0.013">
+		</testcase>
+		<testcase name="test_get_presence_returns_published_position" classname="test_local_presence_service" time="0.014">
+		</testcase>
+		<testcase name="test_get_presence_unknown_player_returns_null" classname="test_local_presence_service" time="0.013">
+		</testcase>
+	</testsuite>
+</testsuites>

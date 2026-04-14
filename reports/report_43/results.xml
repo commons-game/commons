@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites id="2026-04-13" name="report_43" tests="7" failures="0" skipped="0" flaky="0" time="0.000">
+	<testsuite id="0" name="test_split_detector" package="tests/unit" timestamp="2026-04-14T01:58:13" hostname="localhost" tests="7" failures="0" errors="0" skipped="0" flaky="0" time="0.235">
+		<testcase name="test_close_sessions_do_not_dissolve" classname="test_split_detector" time="0.015">
+		</testcase>
+		<testcase name="test_far_sessions_dissolve" classname="test_split_detector" time="0.020">
+		</testcase>
+		<testcase name="test_exactly_at_split_distance_does_not_dissolve" classname="test_split_detector" time="0.021">
+		</testcase>
+		<testcase name="test_one_beyond_split_distance_dissolves" classname="test_split_detector" time="0.020">
+		</testcase>
+		<testcase name="test_diagonal_distance_uses_chebyshev" classname="test_split_detector" time="0.021">
+		</testcase>
+		<testcase name="test_on_dissolve_resets_pressure_system" classname="test_split_detector" time="0.020">
+		</testcase>
+		<testcase name="test_on_dissolve_can_be_called_with_null_pressure" classname="test_split_detector" time="0.021">
+		</testcase>
+	</testsuite>
+</testsuites>

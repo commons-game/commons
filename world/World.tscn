@@ -21,6 +21,5 @@ script = ExtResource("5")
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("..")
-auto_spawn_list = [ExtResource("6")]
 
 [node name="Player" parent="." instance=ExtResource("3")]
