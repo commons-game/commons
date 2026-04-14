@@ -8,3 +8,6 @@ func _ready() -> void:
 	config.property_set_spawn(NodePath(".:position"), true)
 	config.property_set_sync(NodePath(".:position"), true)
 	$MultiplayerSynchronizer.replication_config = config
+
+func _draw() -> void:
+	draw_rect(Rect2(-8, -8, 16, 16), Color.CYAN)

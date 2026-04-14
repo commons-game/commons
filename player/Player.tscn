@@ -21,6 +21,3 @@ position_smoothing_speed = 5.0
 
 [node name="TileInteraction" type="Node" parent="."]
 script = ExtResource("2")
-
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
-root_path = NodePath("..")

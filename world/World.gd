@@ -11,9 +11,11 @@ extends Node2D
 
 const SessionManagerScript  := preload("res://networking/SessionManager.gd")
 const RegionAuthorityScript := preload("res://networking/RegionAuthority.gd")
+const RemotePlayerScene     := preload("res://player/RemotePlayer.tscn")
 
 var _session: Object
 var _authority: Object
+var _remote_players: Dictionary = {}  # peer_id (int) -> RemotePlayer node
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -63,10 +65,29 @@ func _parse_network_args(args: Array) -> void:
 func _on_peer_connected(peer_id: int) -> void:
 	_session.add_peer(str(peer_id))
 	print("World: peer joined — id=%d  session_peers=%d" % [peer_id, _session.peer_count()])
+	if multiplayer.is_server():
+		# Host spawns a RemotePlayer node representing the new client.
+		# MultiplayerSpawner replicates it; the client's synchronizer drives position.
+		var remote := RemotePlayerScene.instantiate()
+		remote.name = "RemotePlayer_%d" % peer_id
+		remote.set_multiplayer_authority(peer_id)
+		_remote_players[peer_id] = remote
+		add_child(remote)
+		print("World: spawned RemotePlayer for peer %d" % peer_id)
+	else:
+		# Client: assert authority over our own Player so the synchronizer
+		# sends our position to the host (and on to other peers).
+		var own_id := multiplayer.get_unique_id()
+		$Player.set_multiplayer_authority(own_id)
+		print("World: set Player authority → %d" % own_id)
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	_session.remove_peer(str(peer_id))
 	print("World: peer left — id=%d  session_peers=%d" % [peer_id, _session.peer_count()])
+	if _remote_players.has(peer_id):
+		_remote_players[peer_id].queue_free()
+		_remote_players.erase(peer_id)
+		print("World: removed RemotePlayer for peer %d" % peer_id)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
