@@ -1,5 +1,6 @@
 ## Tests for ProceduralGenerator.
-## Key invariants: determinism, no tiling, all 256 ground entries present.
+## Key invariants: determinism, no tiling, all 256 ground entries present,
+## and object tiles (trees/rocks) actually spawn across a sample of chunks.
 extends GdUnitTestSuite
 
 func test_determinism() -> void:
@@ -60,6 +61,19 @@ func test_atlas_x_values_in_valid_range() -> void:
 			if result.has(key):
 				var ax: int = result[key]["atlas_x"]
 				assert_that(ax >= 0 and ax <= 3).is_true()
+
+func test_object_tiles_are_generated() -> void:
+	## At least one tree or rock must appear across a sample of 10 chunks.
+	## This test would have caught the FastNoiseLite TYPE_CELLULAR threshold bug
+	## where o > 0.5 was unreachable (cellular noise range ≈ [-0.88, -0.19]).
+	var total_objects := 0
+	for cx in range(-2, 3):
+		for cy in range(-1, 1):
+			var result := ProceduralGenerator.generate_chunk(Vector2i(cx, cy), 12345)
+			for key in result:
+				if (int(key) >> 16) & 0xFF == 1:
+					total_objects += 1
+	assert_that(total_objects).is_greater(0)
 
 func test_adjacent_chunks_share_no_identical_row_patterns() -> void:
 	## Test that two horizontally adjacent chunks have different row patterns.

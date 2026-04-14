@@ -34,6 +34,11 @@ func _ready() -> void:
 	# GroundLayer is never collidable — player always walks on it freely.
 	ground_layer.collision_enabled = false
 
+	# Explicit z_index so Player (z=2) always renders above tiles regardless of
+	# when chunks are dynamically added to the tree.
+	ground_layer.z_index = 0
+	object_layer.z_index = 1
+
 	# Register atlas positions on the actual TileSet instance used by this chunk.
 	# Doing it here (not in ChunkManager) handles the case where PackedScene
 	# instantiation deep-copies the TileSet resource rather than sharing it.
@@ -58,9 +63,9 @@ func initialize(coords: Vector2i, entries: Dictionary) -> void:
 	_render_all()
 
 func _render_all() -> void:
-	## Temporarily disable ObjectLayer collision during bulk set to avoid
-	## per-cell physics rebuilds. GroundLayer stays disabled permanently.
-	object_layer.collision_enabled = false
+	## GroundLayer collision stays disabled permanently (player walks on ground freely).
+	## ObjectLayer collision stays ENABLED throughout — toggling it false/true after
+	## placing cells silently breaks physics body generation in Godot 4.3 TileMapLayer.
 	ground_layer.clear()
 	object_layer.clear()
 	for key in crdt.get_all_entries():
@@ -73,7 +78,6 @@ func _render_all() -> void:
 		var tl := ground_layer if layer_idx == 0 else object_layer
 		tl.set_cell(Vector2i(lx, ly), entry["tile_id"],
 		            Vector2i(entry["atlas_x"], entry["atlas_y"]), entry["alt_tile"])
-	object_layer.collision_enabled = true
 
 ## Set up a single TileSet physics layer and add full-tile collision polygons to
 ## all non-water tiles. Called once per shared TileSet instance (guarded by
@@ -86,24 +90,36 @@ func _ensure_tileset_collision(tileset: TileSet, source: TileSetAtlasSource) -> 
 	tileset.set_physics_layer_collision_layer(0, 1)
 	tileset.set_physics_layer_collision_mask(0, 1)
 
-	# Full-tile collision quad in TileData local space.
 	# TileData uses a centred coordinate system: (0,0) is the tile centre.
 	var h := float(Constants.TILE_SIZE) * 0.5
-	var poly := PackedVector2Array([
+
+	# Ground tiles (grass/dirt/stone) get full-tile shapes but GroundLayer has
+	# collision_enabled=false so they never generate physics bodies. The shapes
+	# are defined anyway so the same TileSet can be reused if collision is ever
+	# toggled on programmatically (e.g. in tests or future mechanics).
+	var full_poly := PackedVector2Array([
 		Vector2(-h, -h), Vector2(h, -h),
-		Vector2(h, h),  Vector2(-h, h),
+		Vector2(h,  h),  Vector2(-h,  h),
 	])
 
-	# Add collision to all collidable tiles (everything except water).
-	var collidable := [
-		Vector2i(0, 0),  # grass
-		Vector2i(1, 0),  # dirt
-		Vector2i(2, 0),  # stone
-		Vector2i(0, 1),  # tree
-		Vector2i(1, 1),  # rock
+	# Object tiles (tree/rock) use a bottom-half shape. The visual footprint of a
+	# tree fills the whole tile, but only blocking the lower portion lets the player
+	# walk near the crown without getting stuck in dense forest. Keeping it 70% wide
+	# avoids hair-thin gaps between adjacent trees.
+	var bottom_poly := PackedVector2Array([
+		Vector2(-h * 0.7, 0.0), Vector2(h * 0.7, 0.0),
+		Vector2(h * 0.7,  h),   Vector2(-h * 0.7,  h),
+	])
+
+	var tile_polys := {
+		Vector2i(0, 0): full_poly,   # grass  (GroundLayer only → no bodies)
+		Vector2i(1, 0): full_poly,   # dirt   (GroundLayer only → no bodies)
+		Vector2i(2, 0): full_poly,   # stone  (GroundLayer only → no bodies)
 		# water (3,0) intentionally omitted — no collision
-	]
-	for coords in collidable:
+		Vector2i(0, 1): bottom_poly, # tree   (ObjectLayer → blocks at trunk)
+		Vector2i(1, 1): bottom_poly, # rock   (ObjectLayer → blocks at base)
+	}
+	for coords in tile_polys:
 		if not source.has_tile(coords):
 			continue
 		var td := source.get_tile_data(coords, 0)
@@ -111,7 +127,7 @@ func _ensure_tileset_collision(tileset: TileSet, source: TileSetAtlasSource) -> 
 			continue
 		if td.get_collision_polygons_count(0) == 0:
 			td.set_collision_polygons_count(0, 1)
-		td.set_collision_polygon_points(0, 0, poly)
+		td.set_collision_polygon_points(0, 0, tile_polys[coords])
 
 func apply_mutation(layer: int, local: Vector2i, entry: Dictionary) -> void:
 	## Apply a single tile mutation without full re-render.

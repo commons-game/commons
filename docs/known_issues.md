@@ -17,6 +17,16 @@ git branch -d <branch-name>
 
 ## Environment (continued)
 
+### --dev-health-check requires -- separator and cannot use --headless
+**Status:** Pattern established.
+**Symptom:** Running `./freeland.x86_64 --dev-health-check` hangs silently (arg not seen). Running with `--headless` segfaults in `get_viewport().get_texture().get_image()`.
+**Root cause:** `OS.get_cmdline_user_args()` only returns args after `--`. Without `--`, `--dev-health-check` is treated as an engine arg and ignored. `--headless` uses a dummy renderer with no texture, so viewport image capture segfaults.
+**Correct invocation:**
+```bash
+DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-health-check
+```
+**Applies to:** All `--dev-*` args (health-check, screenshot-cycle, frame-log).
+
 ### gdUnit4 headless test invocation
 **Status:** Established pattern.
 **Correct invocation:**
@@ -30,6 +40,15 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 - Use `-a res://tests/` **before** any `--` separator — gdUnit4 reads `OS.get_cmdline_args()`, not `OS.get_cmdline_user_args()`
 - `--ignoreHeadlessMode` is required; without it the runner exits with code 103
 - `--run-tests --exit` (the Godot built-in flags) do NOT invoke gdUnit4 — they're unrelated
+
+### Chunks fade to gray after ~5 seconds (ChunkWeightSystem weight formula)
+**Status:** Fixed.
+**Symptom:** World looks correct for ~5 seconds, then gradually fades to gray over 3–5 seconds. Repeats.
+**Root cause:** `ChunkWeightSystem.FADE_THRESHOLD = 5.0` but the weight formula only counted `modification_count`. Unmodified chunks always scored `weight = 0`, so every unmodified chunk failed the threshold on the first 5-second tick and started fading (alpha tween to 0, revealing the gray viewport background).
+**Fix:** Added `VISIT_BASE_SCORE = 10.0` to the weight formula. Recently-visited chunks now get `visit_score = VISIT_BASE_SCORE * decay` which decays on the same `RECENCY_HALF_LIFE`. A chunk visited within the last hour scores above `FADE_THRESHOLD` and won't fade. Only genuinely abandoned chunks eventually fade out.
+
+### xpra periodic gray screen flash
+**Status:** Not xpra — was the chunk fade bug above. `--encoding=rgb --video=no` left in xpra config as it doesn't hurt.
 
 ### Godot editor on headless server via xpra
 **Setup:**
@@ -61,6 +80,37 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 - In desktop mode, keyboard events go to the X11-focused window. Click the desired window area in the browser canvas first, then dispatch keys to `document`.
 
 ## Project Code
+
+### Player renders under ObjectLayer / collision unusable in dense forest
+**Status:** Fixed.
+**Symptom 1 (visual):** Player circle drawn under tree/rock tiles — player appears "between layers."
+**Symptom 2 (collision):** Player either stuck on spawn (started on a tree tile) or nearly impassable world due to full-tile 16×16 collision boxes on every tree/rock.
+**Root cause 1:** No explicit `z_index` set on GroundLayer, ObjectLayer, or Player. Godot 4 renders CanvasItems depth-first by z_index; ties broken by tree order. Dynamically-added chunks (added as children of ChunkManager after Player is in the tree) can end up with a higher implicit draw order than Player.
+**Root cause 2:** `_ensure_tileset_collision` used a full-tile polygon (`-h,-h` to `h,h`) for all collidable tiles including trees. ~25% of grass tiles generate trees (ProceduralGenerator `o > 0.5`), creating near-impassable terrain. Full-tile collision also means the player can spawn inside a tree at origin.
+**Fix:**
+- `Chunk._ready()`: `ground_layer.z_index = 0`, `object_layer.z_index = 1`
+- `Player._ready()`: `z_index = 2`
+- `_ensure_tileset_collision()`: trees and rocks now use a bottom-half polygon (`y: 0→h, x: ±0.7h`) — player can walk near the crown, only blocked at the trunk/base.
+**How we could have caught this:**
+1. Integration test: place player + tree on ObjectLayer → assert `move_and_slide()` stopped, then assert movement on open ground succeeded.
+2. Startup assertion: `assert(player.z_index > object_layer.z_index)`.
+3. Health check screenshot analysis: verify player sprite pixel is visible (not occluded by tile color) at player world position.
+
+
+
+### ProceduralGenerator: FastNoiseLite TYPE_CELLULAR range is [-0.88, -0.19], not [0, 1]
+**Status:** Fixed.
+**Symptom:** Zero trees or rocks ever generated in the world. Player could walk everywhere without collision despite collision code being correct.
+**Root cause:** `FastNoiseLite.TYPE_CELLULAR` with default settings returns values in approximately `[-0.88, -0.19]`. The original thresholds `o > 0.5` (trees) and `o > 0.6` (rocks) are entirely outside this range — they can never be true. No object tiles were ever placed since the project was created.
+**Fix:** Changed thresholds to values within the actual cellular noise range:
+```gdscript
+# -0.30 ≈ top 16% → ~16% tree density on grass tiles
+if atlas_x == 0 and o > -0.30:
+# -0.22 ≈ top 5%  → ~5% rock density on stone tiles
+elif atlas_x == 2 and o > -0.22:
+```
+**How we could have caught this:** A unit test for `ProceduralGenerator.generate_chunk()` that asserts the returned entries contain at least one layer-1 tile across a large sample (e.g., 10 chunks). This would have failed immediately on the first run. Test added to catch regressions.
+**Note:** `TYPE_SIMPLEX_SMOOTH` returns values in `[-1, 1]` as expected. Only cellular noise has this compressed range.
 
 ### GDScript LSP false-positive: "Unexpected < in class body" at line 1
 **Status:** Known false positive, no action needed.

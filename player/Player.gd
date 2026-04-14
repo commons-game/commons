@@ -24,6 +24,9 @@ var inventory: Object = null  # Inventory — set up in _ready
 var _lantern: Node = null
 
 func _ready() -> void:
+	# Always render above all tile layers (GroundLayer=0, ObjectLayer=1).
+	z_index = 2
+
 	inventory = InventoryScript.new()
 	# Starter loadout: lantern in slot 0, shovel in slot 1.
 	inventory.set_tool_slot(0, {"id": "lantern", "category": "tool", "count": 1})

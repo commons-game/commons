@@ -4,6 +4,14 @@
 ##   --host [port]              Start as ENet host on given port (default 7777)
 ##   --join <ip> [port]         Join a host at ip:port (default 127.0.0.1:7777)
 ##   --dev-instant-merge        Enable instant-merge dev mode (pressure=1, fast broadcast)
+##   --dev-screenshot-cycle     Step through 24 day phases, screenshot each, quit
+##   --dev-health-check         Run 30s, screenshot every 5s, quit (regression check)
+##   --dev-frame-log            Log CanvasModulate + chunk weight every frame (visual bug hunting)
+##   --dev-gym                  Load collision gym scene: player inside rock box, verify collision
+##
+## In-game dev keys:
+##   F1    Toggle debug overlay (FPS, phase, chunk weight, vibe, tool, merge pressure)
+##   F12   Save numbered screenshot to /tmp/freeland_screenshot_NNN.png
 ##
 ## Phase 4 merge lifecycle (auto-discovery, no manual --host/--join needed):
 ##   UDPPresenceService broadcasts presence → MergeCoordinator discovers peers →
@@ -31,6 +39,10 @@ var _authority: Object
 var _remote_players: Dictionary = {}  # peer_id (int) -> RemotePlayer node
 var _hud_label: Label                    # shows active buffs / shrine status
 var _merge_label: Label                  # shows merge pressure / state
+var _clock_label: Label                  # shows day phase + time-of-day
+var _debug_overlay: CanvasLayer = null   # F1 debug overlay
+var _debug_label: Label = null           # multi-line debug stats
+var _debug_visible: bool = false
 var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
@@ -38,9 +50,19 @@ var _reputation_store: ReputationStoreScript = null
 var _vibe_bus: Node = null
 var _canvas_modulate: CanvasModulate = null
 var _action_bar: Node = null
+var _screenshot_counter: int = 0
+var _dev_frame_log: bool = false         # --dev-frame-log: log every frame
+var _health_check_timer: float = -1.0    # --dev-health-check: auto screenshot + quit
+var _health_check_counter: int = 0
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
+
+	# --dev-gym: switch to the collision gym scene immediately, skip all normal setup.
+	var _early_args := OS.get_cmdline_user_args()
+	if "--dev-gym" in _early_args and OS.get_name() != "Web":
+		get_tree().change_scene_to_file.call_deferred("res://dev/GymScene.tscn")
+		return
 
 	_session   = SessionManagerScript.new()
 	_authority = RegionAuthorityScript.new()
@@ -66,9 +88,22 @@ func _ready() -> void:
 
 	# Bootstrap from CLI args
 	var args := OS.get_cmdline_user_args()
-	_parse_network_args(args)
-	_setup_merge_system(args)
+	var is_web := OS.get_name() == "Web"
+	if not is_web:
+		_parse_network_args(args)
+		_setup_merge_system(args)
+	_setup_action_bar()
 	_setup_day_night_system()
+	_setup_debug_overlay()
+	_assert_layer_order()
+	if not is_web and "--dev-screenshot-cycle" in args:
+		_run_screenshot_cycle.call_deferred()
+	if not is_web and "--dev-health-check" in args:
+		_health_check_timer = 0.0
+		print("HealthCheck: running 30s check, screenshot every 5s")
+	if not is_web and "--dev-frame-log" in args:
+		_dev_frame_log = true
+		print("FrameLog: per-frame visual logging enabled")
 
 func _parse_network_args(args: Array) -> void:
 	if args.is_empty():
@@ -135,7 +170,63 @@ func _setup_merge_system(args: Array) -> void:
 	# Give Player a reference so it can call update_my_chunk on chunk change
 	$Player.coordinator = _coordinator
 
-	# Action bar HUD — wired to Player's inventory after Player._ready() has run.
+func _setup_debug_overlay() -> void:
+	_debug_overlay = CanvasLayer.new()
+	_debug_overlay.layer = 20   # above everything
+	_debug_overlay.name = "DebugOverlay"
+	add_child(_debug_overlay)
+	var bg := ColorRect.new()
+	bg.color = Color(0, 0, 0, 0.7)
+	bg.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	bg.custom_minimum_size = Vector2(320, 200)
+	bg.position = Vector2(-324, 4)
+	_debug_overlay.add_child(bg)
+	_debug_label = Label.new()
+	_debug_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_debug_label.position = Vector2(-320, 8)
+	_debug_label.custom_minimum_size = Vector2(316, 196)
+	_debug_label.add_theme_font_size_override("font_size", 11)
+	_debug_label.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
+	_debug_label.text = ""
+	_debug_overlay.add_child(_debug_label)
+	_debug_overlay.hide()
+
+func _build_debug_text() -> String:
+	var lines: Array = []
+	lines.append("FPS: %d" % Engine.get_frames_per_second())
+	# Day/night
+	var phase := DayClock.phase_fraction()
+	lines.append("Phase: %.4f  sky_a: %.2f" % [phase, DayClock.sky_alpha()])
+	# CanvasModulate
+	if _canvas_modulate != null:
+		var c := _canvas_modulate.color
+		lines.append("CanvasMod: (%.2f, %.2f, %.2f)" % [c.r, c.g, c.b])
+	# Player chunk + weight + z_index
+	var player := $Player as Node2D
+	lines.append("Player z: %d  pos: (%.0f,%.0f)" % [player.z_index, player.global_position.x, player.global_position.y])
+	var last_chunk = player.get("_last_chunk")
+	if last_chunk != null:
+		lines.append("Chunk: %s" % str(last_chunk))
+		var chunk = $ChunkManager.get_chunk(last_chunk)
+		if chunk != null:
+			lines.append("Weight: %.3f  mods: %d" % [chunk.weight, chunk.modification_count])
+			lines.append("Fading: %s" % str(chunk.is_fading))
+	# VibeBus
+	if _vibe_bus != null:
+		lines.append("Tension: %.2f  Tone: %.2f" % [_vibe_bus.get_tension(), _vibe_bus.get_tone()])
+	# Active tool
+	var inv = player.get("inventory")
+	if inv != null:
+		var tool: Dictionary = inv.get_active_tool()
+		lines.append("Tool: %s" % (str(tool.get("id", "—")) if not tool.is_empty() else "—"))
+	# Coordinator
+	if _coordinator != null:
+		lines.append("Merged: %s  P: %.2f" % [str(_coordinator.is_merged()), _coordinator.get_pressure()])
+	lines.append("")
+	lines.append("[F1 to hide]")
+	return "\n".join(lines)
+
+func _setup_action_bar() -> void:
 	_action_bar = ActionBarHUDScript.new()
 	_action_bar.name = "ActionBarHUD"
 	_action_bar.inventory = $Player.inventory
@@ -263,6 +354,20 @@ func _setup_hud() -> void:
 	_merge_label.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
 	_merge_label.text = ""
 	hud.add_child(_merge_label)
+	# Clock row — shows current day phase and time-of-day label
+	var clock_bg := Panel.new()
+	clock_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	clock_bg.position = Vector2(4, 64)
+	clock_bg.custom_minimum_size = Vector2(220, 24)
+	clock_bg.modulate = Color(0, 0, 0, 0.55)
+	hud.add_child(clock_bg)
+	_clock_label = Label.new()
+	_clock_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_clock_label.position = Vector2(8, 68)
+	_clock_label.add_theme_font_size_override("font_size", 12)
+	_clock_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	_clock_label.text = ""
+	hud.add_child(_clock_label)
 
 func _setup_mod_editor() -> void:
 	_mod_editor = ModEditorScript.new()
@@ -279,13 +384,80 @@ func _on_buffs_changed(buffs: Array) -> void:
 			names.append(b["buff_id"])
 		_hud_label.text = "[Shrine active] Buffs: %s" % ", ".join(names)
 
+func _process(delta: float) -> void:
+	if _clock_label == null:
+		return
+	var phase := DayClock.phase_fraction()
+	var tod: String
+	if phase < 0.12:
+		tod = "dawn"
+	elif phase < 0.30:
+		tod = "morning"
+	elif phase < 0.45:
+		tod = "afternoon"
+	elif phase < 0.55:
+		tod = "dusk"
+	elif phase < 0.70:
+		tod = "evening"
+	elif phase < 0.80:
+		tod = "midnight"
+	else:
+		tod = "night"
+	_clock_label.text = "[%.3f — %s]" % [phase, tod]
+
+	# --- F1 debug overlay ---
+	if _debug_visible and _debug_label != null:
+		_debug_label.text = _build_debug_text()
+
+	# --- --dev-frame-log ---
+	if _dev_frame_log and _canvas_modulate != null:
+		var c := _canvas_modulate.color
+		var player_chunk = ($Player as Node2D).get("_last_chunk")  # Variant — .get() is always Variant
+		var cw_text := ""
+		if player_chunk != null:
+			var chunk = $ChunkManager.get_chunk(player_chunk)
+			if chunk != null:
+				cw_text = "  chunk_w=%.2f" % chunk.weight
+		print("FRAME: phase=%.4f cm=(%.2f,%.2f,%.2f)%s" % [phase, c.r, c.g, c.b, cw_text])
+
+	# --- --dev-health-check ---
+	if _health_check_timer >= 0.0:
+		_health_check_timer += delta
+		var interval := 5.0
+		var total := 30.0
+		var expected_shot := int(_health_check_timer / interval)
+		if expected_shot > _health_check_counter:
+			_health_check_counter = expected_shot
+			var img := get_viewport().get_texture().get_image()
+			var path := "/tmp/freeland_health_%02d_t%.0fs.png" % [_health_check_counter, _health_check_timer]
+			img.save_png(path)
+			print("HealthCheck [%d/6] t=%.1fs → %s" % [_health_check_counter, _health_check_timer, path])
+		if _health_check_timer >= total:
+			print("HealthCheck complete — %d screenshots in /tmp/freeland_health_*.png" % _health_check_counter)
+			get_tree().quit()
+
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed:
 		return
 	match event.keycode:
+		KEY_F1:
+			_debug_visible = not _debug_visible
+			if _debug_overlay != null:
+				if _debug_visible:
+					_debug_overlay.show()
+				else:
+					_debug_overlay.hide()
 		KEY_F5:
 			# Clean quit for testing via xpra JS keyboard injection
 			_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		KEY_F12:
+			# Save screenshot to /tmp/freeland_screenshot_NNN.png
+			_screenshot_counter += 1
+			var img := get_viewport().get_texture().get_image()
+			var path := "/tmp/freeland_screenshot_%03d.png" % _screenshot_counter
+			img.save_png(path)
+			_merge_label.text = "[Screenshot %03d]" % _screenshot_counter
+			print("Screenshot: %s" % path)
 		KEY_R:
 			# Report the currently-merged peer
 			if _coordinator != null and _coordinator.is_merged() \
@@ -297,6 +469,50 @@ func _input(event: InputEvent) -> void:
 					Backend.save_reputation(_reputation_store.to_dict())
 					_merge_label.text = "[Reported]"
 					print("World: reported peer %s" % remote_sid)
+
+## --dev-screenshot-cycle: step DayClock through a full cycle, capture one
+## screenshot per step, then quit. Output: /tmp/freeland_cycle_NN_phaseX.XXX.png
+## Steps = 24 gives one shot per "game hour" (each phase-increment = 1/24).
+func _run_screenshot_cycle() -> void:
+	const STEPS := 24
+	print("Screenshot cycle: capturing %d frames..." % (STEPS + 1))
+	for i in range(STEPS + 1):
+		var phase := float(i) / float(STEPS)
+		DayClock._time_override = phase * Constants.DAY_CYCLE_SECONDS
+		# Let DayNightSystem._process fire so CanvasModulate updates
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var img := get_viewport().get_texture().get_image()
+		var path := "/tmp/freeland_cycle_%02d_phase%.3f.png" % [i, phase]
+		img.save_png(path)
+		print("  [%02d/24] phase=%.3f → %s" % [i, phase, path])
+	print("Screenshot cycle complete.")
+	get_tree().quit()
+
+## Verify rendering layer invariants at startup.
+## Called from _ready() so misconfiguration is caught immediately rather than
+## discovered by eye during gameplay. push_error is non-fatal so the game still
+## runs — you'll see the warning in stdout/stderr.
+func _assert_layer_order() -> void:
+	var player := $Player as Node2D
+	if player.z_index <= 1:
+		push_error("Layer order broken: Player.z_index=%d should be > 1 (ObjectLayer=1)" % player.z_index)
+	# First loaded chunk ground/object layers are checked once they exist.
+	# Use call_deferred so ChunkManager has had time to load the first chunk.
+	_check_chunk_layer_order.call_deferred()
+
+func _check_chunk_layer_order() -> void:
+	var cm := $ChunkManager as ChunkManager
+	var coords: Array = cm.get_loaded_chunk_coords()
+	if coords.is_empty():
+		return
+	var chunk: ChunkData = cm.get_chunk(coords[0])
+	if chunk == null:
+		return
+	if chunk.ground_layer.z_index != 0:
+		push_error("Layer order: GroundLayer.z_index=%d (expected 0)" % chunk.ground_layer.z_index)
+	if chunk.object_layer.z_index != 1:
+		push_error("Layer order: ObjectLayer.z_index=%d (expected 1)" % chunk.object_layer.z_index)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
