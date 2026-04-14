@@ -70,3 +70,18 @@ var _backend: IBackend = LocalBackendScript.new()
 **Symptom:** `$"../ChunkManager"` in `TileInteraction.gd` failed because `TileInteraction` is a grandchild of `World` (child of `Player`, which is child of `World`). `..` only reaches `Player`, not `World`.
 **Fix:** Changed to `$"../../ChunkManager"`.
 **Rule:** When a script is inside an instanced sub-scene (e.g. `Player.tscn`), its `$".."` paths traverse within that sub-scene's hierarchy, not the parent world scene.
+
+### GDScript parse() pattern — no static from_dict()
+**Status:** Established pattern, use everywhere.
+**Symptom:** `static func from_dict() -> MyClass` fails when `class_name` isn't registered — `MyClass.new()` in a static context throws "Identifier not declared."
+**Pattern:** Use an instance method instead:
+```gdscript
+var obj = MyScript.new()
+obj.parse(data_dict)
+```
+Never use static factory methods on data classes that use `class_name`.
+
+### Array element type inference in GDScript
+**Status:** Known GDScript limitation, handled with explicit casts.
+**Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."
+**Workaround:** Explicit cast: `var v: Vector2i = item as Vector2i` or `(item as Vector2i)`.
