@@ -80,7 +80,8 @@ case "$cmd" in
     ;;
 
   # Dev variants with --dev-instant-merge: pressure starts at 1.0, broadcast every 1s.
-  # Use these for Phase 4 merge testing — no need to wait for pressure to build.
+  # Also passes --host/--join so ENet connects immediately (single-machine UDP port
+  # conflict prevents auto-discovery when both instances run on the same host).
   start-host-dev)
     port="${1:-7777}"
     echo "Starting host (dev-instant-merge) on port $port (position $HOST_POS)..."
@@ -89,7 +90,7 @@ case "$cmd" in
       --path "$PROJECT" \
       --position "$HOST_POS" \
       --resolution "$WIN_RES" \
-      -- --dev-instant-merge \
+      -- --host "$port" --dev-instant-merge \
       > /tmp/freeland-host.log 2>&1 &
     echo "Host PID: $!"
     echo "$!" > /tmp/freeland-host.pid
@@ -104,7 +105,7 @@ case "$cmd" in
       --path "$PROJECT" \
       --position "$CLIENT_POS" \
       --resolution "$WIN_RES" \
-      -- --dev-instant-merge \
+      -- --join "$ip" "$port" --dev-instant-merge \
       > /tmp/freeland-client.log 2>&1 &
     echo "Client PID: $!"
     echo "$!" > /tmp/freeland-client.pid

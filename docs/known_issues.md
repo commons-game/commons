@@ -38,9 +38,11 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 - Must use `--rendering-driver opengl3` (llvmpipe software renderer — no GPU)
 - Must use `--editor` flag or Godot launches the game instead of the editor
 
-**xpra is managed by systemd** (`~/.config/systemd/user/xpra.service`):
-- Auto-restarts when Godot windows close (`Restart=always`)
-- Exposes web client on port 14600
+**xpra runs in DESKTOP mode** (`~/.config/systemd/user/xpra.service`):
+- `xpra start-desktop :100` with `xfwm4` as window manager
+- Browser shows a single canvas rendering the full 1920x1080 virtual desktop
+- Avoids seamless-mode reconnect bug: in seamless mode, switching JS focus between window canvases triggered an X11 focus event that caused xpra to drop and reconnect the browser session
+- Auto-restarts (`Restart=always`); exposes web client on port 14600
 
 **Aliases** (in `~/.bashrc`):
 - `freeland-xpra` — `systemctl --user start xpra.service`
@@ -52,9 +54,11 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 **Connect from laptop:** `http://server:14600`
 
 **Visual testing script:** `scripts/visual_test.sh`
-- `start-host [port]` / `start-client [ip] [port]` / `stop-all` / `status`
+- `start-host [port]` / `start-client [ip] [port]` — launches with `--position` for side-by-side layout (host left, client right at 960px each)
+- `stop-all` / `status`
 - `walk <left|right|up|down> <frames>` — prints JS snippet for Playwright `browser_evaluate`
 - `key-js <key> [code] [keyCode]` — prints JS for a single keydown+keyup
+- In desktop mode, keyboard events go to the X11-focused window. Click the desired window area in the browser canvas first, then dispatch keys to `document`.
 
 ## Project Code
 
@@ -116,6 +120,23 @@ var parts := name.split("_")
 if parts.size() == 2 and parts[1].is_valid_int():
     set_multiplayer_authority(int(parts[1]))
 ```
+
+### MultiplayerSynchronizer replication fails when authority set in _ready()
+**Status:** Fixed.
+**Symptom:** `ERROR: Condition "!node || !sync->get_replication_config_ptr()" is true. Returning: ERR_UNCONFIGURED` on client when a RemotePlayer is spawned. The synchronizer has no network ID because `set_multiplayer_authority()` and the replication config setup were called in `_ready()`, which fires after the spawner's `on_replication_start`.
+**Fix:** Move both `set_multiplayer_authority()` AND `$MultiplayerSynchronizer.replication_config = config` into `_enter_tree()` instead of `_ready()`. By the time `_enter_tree()` fires, the node is entering the tree but the spawner hasn't processed replication yet.
+```gdscript
+func _enter_tree() -> void:
+    var parts := name.split("_")
+    if parts.size() == 2 and parts[1].is_valid_int():
+        set_multiplayer_authority(int(parts[1]))
+    var config := SceneReplicationConfig.new()
+    config.add_property(NodePath(".:position"))
+    config.property_set_spawn(NodePath(".:position"), true)
+    config.property_set_sync(NodePath(".:position"), true)
+    $MultiplayerSynchronizer.replication_config = config
+```
+**Rule:** Any setup that must be in place before the MultiplayerSpawner processes a newly-spawned node belongs in `_enter_tree()`, not `_ready()`.
 
 ### RemotePlayer must be Node2D, not CharacterBody2D
 **Status:** Fixed.
@@ -198,6 +219,13 @@ Applied in `player/Player.gd` and `player/RemotePlayer.gd`.
 1. For untyped `obj`: use explicit type annotation instead of `:=`: `var x: String = obj.some_method()`
 2. For `@onready` variables pointing at externally-scripted nodes: drop the type annotation entirely: `@onready var shrine_manager = $"../ShrineManager"` (untyped → dynamic dispatch works)
 **Rule:** Use `const Script := preload(...)` + `var x: Script` for all externally-created scripts. This gives full type safety without the class registry. Only fall back to untyped vars when the preloaded script itself has circular dependencies.
+
+### UDPPresenceService port conflict on single-machine testing
+**Status:** Known limitation, workaround in place.
+**Symptom:** When two Godot instances run on the same machine, the second instance logs `UDPPresenceService: could not bind port 7778 (err 2) — running without UDP`. The second instance never receives UDP presence broadcasts from the first, so auto-discovery never triggers.
+**Root cause:** Both instances try to bind the same broadcast port (7778). Only the first one succeeds.
+**Workaround:** For same-machine testing, use `--host`/`--join` ENet flags to force the direct connection. The `start-host-dev`/`start-client-dev` commands in `scripts/visual_test.sh` include these flags automatically. The CRDT merge lifecycle (hello handshake → snapshot exchange) still runs fully over the ENet connection.
+**Note:** Auto-discovery works correctly on a real LAN with two separate machines where both instances can bind their local port.
 
 ### GDScript lambda int capture is by value — use Array as reference container
 **Status:** Pattern established.
