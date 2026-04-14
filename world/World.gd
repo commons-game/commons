@@ -97,6 +97,11 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		_remote_players.erase(peer_id)
 		print("World: removed RemotePlayer for peer %d" % peer_id)
 
+func _input(event: InputEvent) -> void:
+	# F5 = clean quit for testing via xpra JS keyboard injection
+	if event is InputEventKey and event.pressed and event.keycode == KEY_F5:
+		_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		$ChunkManager._persist_all_loaded_chunks()

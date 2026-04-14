@@ -57,7 +57,8 @@ func _validate_tileset() -> void:
 
 func update_player_position(world_tile_pos: Vector2i) -> void:
 	var new_chunk := CoordUtils.world_to_chunk(world_tile_pos)
-	if new_chunk == _player_chunk:
+	# Always load if chunk changed OR if the current chunk was evicted under the player.
+	if new_chunk == _player_chunk and _loaded_chunks.has(new_chunk):
 		return
 	_player_chunk = new_chunk
 	_load_chunks_in_radius(new_chunk, Constants.LOAD_RADIUS)

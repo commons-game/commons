@@ -138,6 +138,17 @@ Use via Playwright's `browser_evaluate` tool or the browser console.
 **Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."
 **Workaround:** Explicit cast: `var v: Vector2i = item as Vector2i` or `(item as Vector2i)`.
 
+### ChunkManager.update_player_position skips reload after eviction
+**Status:** Fixed.
+**Symptom:** When ChunkWeightSystem evicts all chunks under the player, the world goes blank and never regenerates. Player can move but no terrain reappears.
+**Root cause:** `update_player_position` short-circuits with `if new_chunk == _player_chunk: return`. After eviction the player's chunk address hasn't changed, so the early return fires and `_load_chunks_in_radius` is never called.
+**Fix:** Also check that the current chunk is actually loaded:
+```gdscript
+if new_chunk == _player_chunk and _loaded_chunks.has(new_chunk):
+    return
+```
+This triggers a full reload on the next `_physics_process` tick after any eviction that removes the player's chunk.
+
 ### Godot debug mode treats "redundant assert" as a fatal error
 **Status:** Pattern established — use push_error instead.
 **Symptom:** An `assert(expr, msg)` where Godot's static analyzer can prove `expr` is always true causes `ERROR: 'Assert statement is redundant because the expression is always true.'` and halts script execution in debug mode. This most commonly hits validation functions that check invariants right after setting them in the same scope (e.g., asserting `source.has_tile(x)` right after calling `source.create_tile(x)`).
