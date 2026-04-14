@@ -3,17 +3,34 @@ extends CharacterBody2D
 
 const SPEED := 80.0
 
+## Filled circle radius and direction-triangle half-width (in pixels).
+const RADIUS := 7.0
+const TRI_SIZE := 4.0
+
+## Track last non-zero velocity for the direction indicator.
+var _facing := Vector2.UP
+
 @onready var chunk_manager: ChunkManager = $"../ChunkManager"
 
 func _draw() -> void:
-	draw_rect(Rect2(-8, -8, 16, 16), Color.WHITE)
+	# Body: white filled circle with dark outline
+	draw_circle(Vector2.ZERO, RADIUS, Color(0.15, 0.15, 0.15))   # shadow/outline
+	draw_circle(Vector2.ZERO, RADIUS - 1.0, Color.WHITE)
+	# Direction triangle: small filled triangle pointing in _facing direction
+	var tip   := _facing * (RADIUS + TRI_SIZE)
+	var left  := _facing.rotated(deg_to_rad( 140.0)) * (TRI_SIZE * 0.8)
+	var right := _facing.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
+	draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.7, 0.1))
 
 func _process(_delta: float) -> void:
 	queue_redraw()
 
 func _physics_process(_delta: float) -> void:
-	velocity = Vector2(Input.get_axis("ui_left", "ui_right"),
-	                   Input.get_axis("ui_up", "ui_down")).normalized() * SPEED
+	var input := Vector2(Input.get_axis("ui_left", "ui_right"),
+	                     Input.get_axis("ui_up", "ui_down"))
+	velocity = input.normalized() * SPEED
+	if input != Vector2.ZERO:
+		_facing = input.normalized()
 	move_and_slide()
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
