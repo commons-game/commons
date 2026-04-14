@@ -22,6 +22,9 @@ const UDPPresenceServiceScript    := preload("res://networking/UDPPresenceServic
 const MergeRPCBusScript           := preload("res://networking/MergeRPCBus.gd")
 const ReputationStoreScript       := preload("res://reputation/ReputationStore.gd")
 const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
+const VibeBusScript               := preload("res://world/VibeBus.gd")
+const DayNightSystemScript        := preload("res://world/DayNightSystem.gd")
+const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
 
 var _session: Object
 var _authority: Object
@@ -32,6 +35,9 @@ var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
 var _reputation_store: ReputationStoreScript = null
+var _vibe_bus: Node = null
+var _canvas_modulate: CanvasModulate = null
+var _action_bar: Node = null
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -62,6 +68,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_parse_network_args(args)
 	_setup_merge_system(args)
+	_setup_day_night_system()
 
 func _parse_network_args(args: Array) -> void:
 	if args.is_empty():
@@ -127,6 +134,30 @@ func _setup_merge_system(args: Array) -> void:
 
 	# Give Player a reference so it can call update_my_chunk on chunk change
 	$Player.coordinator = _coordinator
+
+	# Action bar HUD — wired to Player's inventory after Player._ready() has run.
+	_action_bar = ActionBarHUDScript.new()
+	_action_bar.name = "ActionBarHUD"
+	_action_bar.inventory = $Player.inventory
+	add_child(_action_bar)
+	_action_bar.refresh()
+
+func _setup_day_night_system() -> void:
+	# CanvasModulate tints all 2D content for the day/night visual.
+	_canvas_modulate = CanvasModulate.new()
+	_canvas_modulate.name = "CanvasModulate"
+	_canvas_modulate.color = Color.WHITE  # DayNightSystem drives this each frame
+	add_child(_canvas_modulate)
+
+	_vibe_bus = VibeBusScript.new()
+	_vibe_bus.name = "VibeBus"
+	add_child(_vibe_bus)
+
+	var dns := DayNightSystemScript.new()
+	dns.name = "DayNightSystem"
+	dns.canvas_modulate = _canvas_modulate
+	dns.vibe_bus = _vibe_bus
+	add_child(dns)
 
 func _spawn_remote_player(peer_id: int) -> void:
 	var remote := RemotePlayerScene.instantiate()
@@ -196,6 +227,9 @@ func _on_split_occurred() -> void:
 func _on_pressure_changed(pressure: float) -> void:
 	if _coordinator != null and not _coordinator.is_merged():
 		_merge_label.text = "[Seeking: %.0f%%]" % (pressure * 100.0)
+	# Loneliness / seeking energy feeds tension into the vibe.
+	if _vibe_bus != null:
+		_vibe_bus.push("merge_pressure", pressure * 0.4, 0.0, 5.0)
 
 func _setup_hud() -> void:
 	var hud := CanvasLayer.new()

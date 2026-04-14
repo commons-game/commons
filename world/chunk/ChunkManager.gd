@@ -108,6 +108,16 @@ func remove_tile(world_coords: Vector2i, layer: int, author: String) -> void:
 func get_chunk(coords: Vector2i) -> ChunkData:
 	return _loaded_chunks.get(coords, null)
 
+## Returns true if a live (non-tombstone) tile exists at world_coords on layer.
+func has_tile_at(world_coords: Vector2i, layer: int) -> bool:
+	var cc := CoordUtils.world_to_chunk(world_coords)
+	var local := CoordUtils.world_to_local(world_coords)
+	var chunk := get_chunk(cc)
+	if chunk == null:
+		return false
+	var entry: Dictionary = chunk.crdt.get_tile(layer, local)
+	return not entry.is_empty() and int(entry.get("tile_id", -1)) != -1
+
 func get_loaded_chunk_coords() -> Array:
 	return _loaded_chunks.keys()
 

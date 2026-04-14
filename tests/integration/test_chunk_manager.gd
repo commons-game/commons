@@ -156,6 +156,23 @@ func test_set_tile_unknown_id_is_no_op() -> void:
 	## The test passing without error is the assertion.
 	var _tile := chunk.crdt.get_tile(1, Vector2i(0, 0))
 
+func test_has_tile_at_returns_true_after_place() -> void:
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	_chunk_manager.place_tile(Vector2i(4, 4), 0, 0, Vector2i(1, 0), 0, "test-player")
+	assert_bool(_chunk_manager.has_tile_at(Vector2i(4, 4), 0)).is_true()
+
+func test_has_tile_at_returns_false_after_remove() -> void:
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	_chunk_manager.place_tile(Vector2i(5, 5), 0, 0, Vector2i(1, 0), 0, "test-player")
+	_chunk_manager.remove_tile(Vector2i(5, 5), 0, "test-player")
+	assert_bool(_chunk_manager.has_tile_at(Vector2i(5, 5), 0)).is_false()
+
+func test_has_tile_at_returns_false_on_unloaded_chunk() -> void:
+	# Chunk (50,50) is far away — not loaded
+	assert_bool(_chunk_manager.has_tile_at(Vector2i(800, 800), 0)).is_false()
+
 func test_place_tile_at_chunk_boundary() -> void:
 	## Tile (15, 0) is local (15,0) in chunk (0,0).
 	## Tile (16, 0) is local (0, 0) in chunk (1,0).

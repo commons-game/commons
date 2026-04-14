@@ -12,8 +12,14 @@ extends Node
 var _entries: Dictionary = {}
 
 func _ready() -> void:
-	# Built-in placeholder tile — maps to atlas (0,0) on the default tileset.
-	register("default", 0, Vector2i(0, 0), 0)
+	# Atlas layout: row 0 = ground tiles, row 1 = object tiles
+	register("default", 0, Vector2i(0, 0), 0)  # alias for grass
+	register("grass",   0, Vector2i(0, 0), 0)
+	register("dirt",    0, Vector2i(1, 0), 0)
+	register("stone",   0, Vector2i(2, 0), 0)
+	register("water",   0, Vector2i(3, 0), 0)
+	register("tree",    0, Vector2i(0, 1), 0)
+	register("rock",    0, Vector2i(1, 1), 0)
 
 func register(tile_name: String, tile_id: int, atlas: Vector2i, alt: int = 0) -> void:
 	_entries[tile_name] = {"tile_id": tile_id, "atlas": atlas, "alt": alt}

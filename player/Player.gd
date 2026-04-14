@@ -14,9 +14,24 @@ var coordinator: Node = null
 var _last_chunk: Vector2i = Vector2i(-9999, -9999)
 
 const ShrineManagerScript := preload("res://mods/ShrineManager.gd")
+const LanternScript       := preload("res://player/Lantern.gd")
+const InventoryScript     := preload("res://items/Inventory.gd")
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
+
+var inventory: Object = null  # Inventory — set up in _ready
+var _lantern: Node = null
+
+func _ready() -> void:
+	inventory = InventoryScript.new()
+	# Starter loadout: lantern in slot 0, shovel in slot 1.
+	inventory.set_tool_slot(0, {"id": "lantern", "category": "tool", "count": 1})
+	inventory.set_tool_slot(1, {"id": "shovel",  "category": "tool", "count": 1})
+
+	_lantern = LanternScript.new()
+	_lantern.name = "Lantern"
+	add_child(_lantern)
 
 func _draw() -> void:
 	# Body: white filled circle with dark outline
@@ -55,3 +70,32 @@ func _physics_process(_delta: float) -> void:
 	var remote := get_node_or_null("../RemotePlayer_%d" % own_id)
 	if remote:
 		remote.position = global_position
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventKey or not event.pressed or event.echo:
+		return
+	match event.keycode:
+		KEY_L:
+			# Toggle lantern — mirrors whether lantern tool is in action bar.
+			if _lantern != null:
+				_lantern.toggle()
+		KEY_T:
+			# Toggle talisman dormant/awakened.
+			if inventory != null:
+				var awakened: bool = inventory.toggle_talisman()
+				_on_talisman_toggled(awakened)
+		KEY_1:
+			# Select tool slot 0 (lantern by default).
+			if inventory != null:
+				inventory.select_tool(0)
+		KEY_2:
+			# Select tool slot 1 (shovel by default).
+			if inventory != null:
+				inventory.select_tool(1)
+
+func _on_talisman_toggled(awakened: bool) -> void:
+	# Notify coordinator so the reputation gate reflects talisman state.
+	# The coordinator already checks the reputation store on each merge attempt;
+	# awakening/dormanting just changes what the talisman does passively.
+	print("Player: talisman %s" % ("awakened" if awakened else "dormant"))
+	# Future: emit signal for HUD, VibeBus, visual effect.

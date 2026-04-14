@@ -232,3 +232,9 @@ Applied in `player/Player.gd` and `player/RemotePlayer.gd`.
 **Symptom:** In a gdUnit4 test (or any GDScript lambda), `var count := 0; signal.connect(func(): count += 1)` — the outer `count` is never incremented. GDScript lambdas copy primitive values (int, float, bool) at capture time.
 **Fix:** Wrap in an Array: `var calls := [0]; signal.connect(func(): calls[0] += 1)`. Arrays are reference types and the lambda sees the same object.
 **Applies to:** Any signal callback or lambda that needs to mutate an integer counter.
+
+### GDScript type inference fails on Dictionary value arithmetic
+**Status:** Pattern established.
+**Symptom:** `var x := float_val - (dict["key1"] / dict["key2"])` — "Cannot infer the type of 'x' variable because the value doesn't have a set type." Dictionary values return `Variant`, and arithmetic on `Variant` stays `Variant`.
+**Fix:** Cast dictionary lookups explicitly: `var x: float = float_val - (float(dict["key1"]) / float(dict["key2"]))`.
+**Applies to:** Any arithmetic on values retrieved from an untyped `Dictionary`.

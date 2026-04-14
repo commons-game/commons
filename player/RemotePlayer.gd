@@ -8,20 +8,23 @@ const TRI_SIZE := 4.0
 
 var _color: Color = Color.CYAN
 
-func _ready() -> void:
-	# Authority isn't preserved by MultiplayerSpawner replication; re-derive it
-	# from the node name convention "RemotePlayer_<peer_id>".
+func _enter_tree() -> void:
+	# Both authority and replication config must be set in _enter_tree so the
+	# MultiplayerSynchronizer gets a valid network ID before on_replication_start fires.
+	# Setting them in _ready is too late — the spawner processes replication during enter_tree.
 	var parts := name.split("_")
 	if parts.size() == 2 and parts[1].is_valid_int():
 		var peer_id := int(parts[1])
 		set_multiplayer_authority(peer_id)
 		_color = _color_for_peer(peer_id)
-
 	var config := SceneReplicationConfig.new()
 	config.add_property(NodePath(".:position"))
 	config.property_set_spawn(NodePath(".:position"), true)
 	config.property_set_sync(NodePath(".:position"), true)
 	$MultiplayerSynchronizer.replication_config = config
+
+func _ready() -> void:
+	pass
 
 func _draw() -> void:
 	# Body: peer-colored filled circle with dark outline
