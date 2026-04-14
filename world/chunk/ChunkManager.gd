@@ -27,6 +27,15 @@ func update_player_last_visited(world_tile_pos: Vector2i) -> void:
 			if chunk:
 				chunk.last_visited = now
 
+## set_tile satisfies the TileMutationBus tile_store interface.
+## Resolves a string tile_id via TileRegistry then delegates to place_tile().
+func set_tile(world_coords: Vector2i, layer: int, tile_id: String, author_id: String) -> void:
+	var entry := TileRegistry.resolve(tile_id)
+	if entry.is_empty():
+		push_warning("ChunkManager.set_tile: unknown tile_id '%s'" % tile_id)
+		return
+	place_tile(world_coords, layer, entry["tile_id"], entry["atlas"], entry["alt"], author_id)
+
 func place_tile(world_coords: Vector2i, layer: int, tile_id: int,
                 atlas: Vector2i, alt: int, author: String) -> void:
 	var cc := CoordUtils.world_to_chunk(world_coords)

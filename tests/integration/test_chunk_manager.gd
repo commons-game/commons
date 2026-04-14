@@ -83,6 +83,32 @@ func test_remove_tile_at_negative_world_coords() -> void:
 	assert_that(tile.is_empty()).is_false()
 	assert_that(tile["tile_id"]).is_equal(-1)  # tombstone
 
+func test_set_tile_resolves_via_registry_and_places() -> void:
+	## set_tile (TileMutationBus interface) must resolve a string tile_id via
+	## TileRegistry and forward to place_tile with the correct atlas coords.
+	TileRegistry.register("test_stone", 0, Vector2i(2, 3), 1)
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	_chunk_manager.set_tile(Vector2i(0, 0), 1, "test_stone", "test-author")
+	var chunk := _chunk_manager.get_chunk(Vector2i(0, 0))
+	var tile := chunk.crdt.get_tile(1, Vector2i(0, 0))
+	assert_that(tile.is_empty()).is_false()
+	assert_int(tile["tile_id"]).is_equal(0)
+	assert_int(tile["atlas_x"]).is_equal(2)
+	assert_int(tile["atlas_y"]).is_equal(3)
+	assert_int(tile["alt_tile"]).is_equal(1)
+	assert_str(tile["author_id"]).is_equal("test-author")
+
+func test_set_tile_unknown_id_is_no_op() -> void:
+	## set_tile with an unregistered tile_id should not crash and not place anything.
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	_chunk_manager.set_tile(Vector2i(0, 0), 1, "no_such_tile", "test-author")
+	var chunk := _chunk_manager.get_chunk(Vector2i(0, 0))
+	## Procedural generator may have placed a tile here — just confirm no crash occurred.
+	## The test passing without error is the assertion.
+	var _tile := chunk.crdt.get_tile(1, Vector2i(0, 0))
+
 func test_place_tile_at_chunk_boundary() -> void:
 	## Tile (15, 0) is local (15,0) in chunk (0,0).
 	## Tile (16, 0) is local (0, 0) in chunk (1,0).

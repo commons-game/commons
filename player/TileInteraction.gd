@@ -1,10 +1,10 @@
 ## TileInteraction — mouse click handler for tile placement/removal.
-## Left click = place tile on layer 1 (object layer).
-## Right click = remove tile from layer 1.
+## Left click  = place "default" tile on layer 1 via TileMutationBus (syncs to peers).
+## Right click = remove tile from layer 1 via TileMutationBus (syncs to peers).
 ## Mouse position is converted from viewport to world tile coordinates.
 extends Node
 
-@onready var chunk_manager: ChunkManager = $"../../ChunkManager"
+@onready var _bus := $"../../TileMutationBus"
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
@@ -16,6 +16,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	var tile_pos := Vector2i(int(floorf(world_px.x / Constants.TILE_SIZE)),
 	                         int(floorf(world_px.y / Constants.TILE_SIZE)))
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		chunk_manager.place_tile(tile_pos, 1, 0, Vector2i(0, 0), 0, "local-player")
+		_bus.request_place_tile(tile_pos, 1, "default")
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
-		chunk_manager.remove_tile(tile_pos, 1, "local-player")
+		_bus.request_remove_tile(tile_pos, 1)

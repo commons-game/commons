@@ -8,6 +8,7 @@
 #   visual_test.sh status                  Show running Godot PIDs
 #   visual_test.sh key-js <key> [code] [keyCode]  Print JS snippet for one keydown
 #   visual_test.sh walk <dir> <frames>     Print JS snippet to walk in direction for N frames
+#   visual_test.sh run-tests               Run full gdUnit4 test suite headless
 #   visual_test.sh ensure-xpra            Start xpra service if not running
 #
 # Key dispatch works via xpra's web client (Playwright browser_evaluate).
@@ -114,6 +115,15 @@ JS
   ev('keyup');
 })();
 JS
+    ;;
+
+  # Run the full gdUnit4 test suite headless.
+  run-tests)
+    DISPLAY="$DISPLAY_NUM" "$GODOT" \
+      --rendering-driver "$RENDERING" \
+      --path "$PROJECT" \
+      --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+      -a res://tests/ -c --ignoreHeadlessMode
     ;;
 
   help|*)

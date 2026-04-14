@@ -17,6 +17,20 @@ git branch -d <branch-name>
 
 ## Environment (continued)
 
+### gdUnit4 headless test invocation
+**Status:** Established pattern.
+**Correct invocation:**
+```bash
+DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
+  --path /home/adam/development/freeland \
+  --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  -a res://tests/ -c --ignoreHeadlessMode
+```
+**Notes:**
+- Use `-a res://tests/` **before** any `--` separator — gdUnit4 reads `OS.get_cmdline_args()`, not `OS.get_cmdline_user_args()`
+- `--ignoreHeadlessMode` is required; without it the runner exits with code 103
+- `--run-tests --exit` (the Godot built-in flags) do NOT invoke gdUnit4 — they're unrelated
+
 ### Godot editor on headless server via xpra
 **Setup:**
 - Godot 4.3 installed at `~/bin/godot4`

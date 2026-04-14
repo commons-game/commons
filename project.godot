@@ -21,6 +21,7 @@ Constants="*res://autoloads/Constants.gd"
 CoordUtils="*res://autoloads/CoordUtils.gd"
 Backend="*res://autoloads/Backend.gd"
 NetworkManager="*res://autoloads/NetworkManager.gd"
+TileRegistry="*res://autoloads/TileRegistry.gd"
 
 [display]
 
