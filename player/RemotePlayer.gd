@@ -21,5 +21,3 @@ func _draw() -> void:
 
 func _process(_delta: float) -> void:
 	queue_redraw()
-	if Engine.get_process_frames() % 30 == 0:
-		print("RemotePlayer %s pos=%.1f,%.1f authority=%d" % [name, position.x, position.y, get_multiplayer_authority()])

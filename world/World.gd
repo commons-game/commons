@@ -53,6 +53,7 @@ func _parse_network_args(args: Array) -> void:
 					port = int(args[i])
 				NetworkManager.host(port)
 				_session.start_session()
+				_spawn_remote_player(1)  # host's own representation for clients
 			"--join":
 				var ip   := "127.0.0.1"
 				var port := NetworkManager.DEFAULT_PORT
@@ -66,18 +67,21 @@ func _parse_network_args(args: Array) -> void:
 				_session.start_session()
 		i += 1
 
+func _spawn_remote_player(peer_id: int) -> void:
+	var remote := RemotePlayerScene.instantiate()
+	remote.name = "RemotePlayer_%d" % peer_id
+	remote.set_multiplayer_authority(peer_id)
+	_remote_players[peer_id] = remote
+	add_child(remote)
+	print("World: spawned RemotePlayer_%d" % peer_id)
+
 func _on_peer_connected(peer_id: int) -> void:
 	_session.add_peer(str(peer_id))
 	print("World: peer joined — id=%d  session_peers=%d" % [peer_id, _session.peer_count()])
 	if multiplayer.is_server():
 		# Host spawns a RemotePlayer node representing the new client.
 		# MultiplayerSpawner replicates it; the client's synchronizer drives position.
-		var remote := RemotePlayerScene.instantiate()
-		remote.name = "RemotePlayer_%d" % peer_id
-		remote.set_multiplayer_authority(peer_id)
-		_remote_players[peer_id] = remote
-		add_child(remote)
-		print("World: spawned RemotePlayer for peer %d" % peer_id)
+		_spawn_remote_player(peer_id)
 	else:
 		# Client: assert authority over our own Player so the synchronizer
 		# sends our position to the host (and on to other peers).
