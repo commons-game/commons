@@ -4,10 +4,36 @@
 class_name ChunkManager
 extends Node
 
-const CHUNK_SCENE := preload("res://world/chunk/Chunk.tscn")
+const CHUNK_SCENE  := preload("res://world/chunk/Chunk.tscn")
+const MAIN_TILESET := preload("res://tilesets/MainTileSet.tres")
 
 var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
 var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
+
+func _ready() -> void:
+	_ensure_tileset_atlas_registered()
+
+## Programmatically register all atlas positions used by ProceduralGenerator.
+## .tres serialization of TileSetAtlasSource tile entries is unreliable in Godot 4.3
+## (same class of bug as SceneReplicationConfig boolean parsing).
+## Safe to call when tiles are already registered — has_tile() guards each create_tile().
+func _ensure_tileset_atlas_registered() -> void:
+	var source := MAIN_TILESET.get_source(0) as TileSetAtlasSource
+	if source == null:
+		push_error("ChunkManager: TileSet source 0 not found")
+		return
+	var needed := [
+		Vector2i(0, 0),  # grass
+		Vector2i(1, 0),  # dirt
+		Vector2i(2, 0),  # stone
+		Vector2i(3, 0),  # water
+		Vector2i(0, 1),  # tree
+		Vector2i(1, 1),  # rock
+	]
+	for coords in needed:
+		if not source.has_tile(coords):
+			source.create_tile(coords)
+	print("ChunkManager: tileset atlas registered (%d tiles)" % needed.size())
 
 func update_player_position(world_tile_pos: Vector2i) -> void:
 	var new_chunk := CoordUtils.world_to_chunk(world_tile_pos)

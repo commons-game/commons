@@ -138,6 +138,16 @@ Use via Playwright's `browser_evaluate` tool or the browser console.
 **Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."
 **Workaround:** Explicit cast: `var v: Vector2i = item as Vector2i` or `(item as Vector2i)`.
 
+### TileSet tile_size defaults to (0,0) when omitted from .tres — tiles silently invisible
+**Status:** Fixed.
+**Symptom:** TileMapLayer tiles are set (source_id and atlas_coords readable back via `get_cell_*`) and the TileSetAtlasSource has a valid texture and registered tiles, but the TileMapLayer renders as a solid gray background with no tile art.
+**Root cause:** `TileSet.tile_size` defaults to `Vector2i(0, 0)` when the property is absent from the `.tres` file. With zero tile size the renderer cannot calculate tile UV regions and silently produces no output.
+**Fix:** Either add `tile_size = Vector2i(16, 16)` to the `[resource]` block in `MainTileSet.tres`, OR (belt-and-suspenders) set it programmatically in `Chunk._ready()`:
+```gdscript
+ground_layer.tile_set.tile_size = Vector2i(Constants.TILE_SIZE, Constants.TILE_SIZE)
+```
+Both are now in place. The `.tres` fix covers the editor; the code fix covers any deep-copy of the resource at scene instantiation time.
+
 ### SceneReplicationConfig boolean parse errors in .tscn
 **Status:** Fixed.
 **Symptom:** Hand-writing `spawn = true` / `sync = true` inside a `SceneReplicationConfig` sub-resource in a `.tscn` file causes non-fatal errors at startup:

@@ -16,10 +16,33 @@ var last_visited: float = 0.0
 var weight: float = 0.0
 var is_fading: bool = false
 
+## Atlas positions used by ProceduralGenerator — must be registered before set_cell().
+const ATLAS_TILES := [
+	Vector2i(0, 0),  # grass
+	Vector2i(1, 0),  # dirt
+	Vector2i(2, 0),  # stone
+	Vector2i(3, 0),  # water
+	Vector2i(0, 1),  # tree
+	Vector2i(1, 1),  # rock
+]
+
 func _ready() -> void:
 	ground_layer = $GroundLayer
 	object_layer = $ObjectLayer
 	crdt = CRDTTileStore.new()
+	# Register atlas positions on the actual TileSet instance used by this chunk.
+	# Doing it here (not in ChunkManager) handles the case where PackedScene
+	# instantiation deep-copies the TileSet resource rather than sharing it.
+	# Explicitly set TileSet tile_size — omitting this in the .tres leaves it at (0,0)
+	# which silently prevents TileMapLayer from rendering any tiles.
+	ground_layer.tile_set.tile_size = Vector2i(Constants.TILE_SIZE, Constants.TILE_SIZE)
+	var source := ground_layer.tile_set.get_source(0) as TileSetAtlasSource
+	if source:
+		# Explicitly set region size to match our 16x16 tile PNG layout.
+		source.texture_region_size = Vector2i(Constants.TILE_SIZE, Constants.TILE_SIZE)
+		for coords in ATLAS_TILES:
+			if not source.has_tile(coords):
+				source.create_tile(coords)
 
 func initialize(coords: Vector2i, entries: Dictionary) -> void:
 	chunk_coords = coords
