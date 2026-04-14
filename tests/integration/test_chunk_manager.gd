@@ -99,6 +99,53 @@ func test_set_tile_resolves_via_registry_and_places() -> void:
 	assert_int(tile["alt_tile"]).is_equal(1)
 	assert_str(tile["author_id"]).is_equal("test-author")
 
+func test_get_crdt_snapshot_returns_placed_tiles() -> void:
+	## get_crdt_snapshot should include a tile placed via place_tile.
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	_chunk_manager.place_tile(Vector2i(3, 5), 1, 0, Vector2i(0, 0), 0, "alice")
+	var snap: Array = _chunk_manager.get_crdt_snapshot()
+	# Find the record for (3,5) layer 1
+	var target_chunk := CoordUtils.world_to_chunk(Vector2i(3, 5))
+	var target_local := CoordUtils.world_to_local(Vector2i(3, 5))
+	var found := false
+	for r in snap:
+		if r["chunk_x"] == target_chunk.x and r["chunk_y"] == target_chunk.y \
+				and r["layer"] == 1 and r["lx"] == target_local.x and r["ly"] == target_local.y:
+			found = true
+			assert_that(int(r["tile_id"])).is_equal(0)
+			assert_str(r["author_id"]).is_equal("alice")
+	assert_bool(found).is_true()
+
+func test_apply_crdt_snapshot_merges_remote_tiles() -> void:
+	## apply_crdt_snapshot should write remote tiles into loaded chunks.
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	var ts := Time.get_unix_time_from_system() + 1000.0
+	var records: Array = [{
+		"chunk_x": 0, "chunk_y": 0, "layer": 0, "lx": 7, "ly": 2,
+		"tile_id": 3, "atlas_x": 3, "atlas_y": 0, "alt_tile": 0,
+		"timestamp": ts, "author_id": "bob"
+	}]
+	_chunk_manager.apply_crdt_snapshot(records)
+	var chunk := _chunk_manager.get_chunk(Vector2i(0, 0))
+	var tile := chunk.crdt.get_tile(0, Vector2i(7, 2))
+	assert_bool(tile.is_empty()).is_false()
+	assert_int(tile["tile_id"]).is_equal(3)
+	assert_str(tile["author_id"]).is_equal("bob")
+
+func test_apply_crdt_snapshot_skips_unloaded_chunks() -> void:
+	## apply_crdt_snapshot for an unloaded chunk must not crash.
+	_chunk_manager.update_player_position(Vector2i(0, 0))
+	await get_tree().process_frame
+	var records: Array = [{
+		"chunk_x": 999, "chunk_y": 999, "layer": 0, "lx": 0, "ly": 0,
+		"tile_id": 1, "atlas_x": 0, "atlas_y": 0, "alt_tile": 0,
+		"timestamp": 1000.0, "author_id": "ghost"
+	}]
+	# Should complete without error
+	_chunk_manager.apply_crdt_snapshot(records)
+
 func test_set_tile_unknown_id_is_no_op() -> void:
 	## set_tile with an unregistered tile_id should not crash and not place anything.
 	_chunk_manager.update_player_position(Vector2i(0, 0))

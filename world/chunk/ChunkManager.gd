@@ -159,6 +159,59 @@ func _unload_chunk(coords: Vector2i) -> void:
 		chunk.queue_free()
 	_loaded_chunks.erase(coords)
 
+## Return a flat Array of all CRDT records across all loaded chunks.
+## Format: [{chunk_x, chunk_y, layer, lx, ly, tile_id, atlas_x, atlas_y,
+##            alt_tile, timestamp, author_id}, ...]
+## Used by MergeRPCBus.send_snapshot() for CRDT exchange.
+func get_crdt_snapshot() -> Array:
+	var records: Array = []
+	for cc in _loaded_chunks:
+		var chunk := _loaded_chunks[cc] as ChunkData
+		for key in chunk.crdt.get_all_entries():
+			var e: Dictionary = chunk.crdt.get_all_entries()[key]
+			records.append({
+				"chunk_x":   cc.x,
+				"chunk_y":   cc.y,
+				"layer":     (key >> 16) & 0xFF,
+				"lx":        (key >> 8) & 0xFF,
+				"ly":        key & 0xFF,
+				"tile_id":   e["tile_id"],
+				"atlas_x":   e["atlas_x"],
+				"atlas_y":   e["atlas_y"],
+				"alt_tile":  e["alt_tile"],
+				"timestamp": e["timestamp"],
+				"author_id": e["author_id"],
+			})
+	return records
+
+## Merge a flat snapshot Array (from MergeRPCBus) into loaded chunks via LWW.
+## Records for unloaded chunks are skipped — they reconcile when loaded.
+func apply_crdt_snapshot(records: Array) -> void:
+	# Group records by chunk coords, keyed by CRDT key within each chunk
+	var by_chunk: Dictionary = {}
+	for r in records:
+		var cc := Vector2i(int(r.get("chunk_x", 0)), int(r.get("chunk_y", 0)))
+		if not by_chunk.has(cc):
+			by_chunk[cc] = {}
+		var key := CoordUtils.make_crdt_key(
+			int(r.get("layer", 0)), int(r.get("lx", 0)), int(r.get("ly", 0)))
+		by_chunk[cc][key] = {
+			"tile_id":   int(r.get("tile_id",   0)),
+			"atlas_x":   int(r.get("atlas_x",   0)),
+			"atlas_y":   int(r.get("atlas_y",   0)),
+			"alt_tile":  int(r.get("alt_tile",  0)),
+			"timestamp": float(r.get("timestamp", 0.0)),
+			"author_id": str(r.get("author_id",  "")),
+		}
+	for cc in by_chunk:
+		var chunk := get_chunk(cc)
+		if chunk == null:
+			continue  # skip unloaded chunks
+		var temp := CRDTTileStore.new()
+		temp.load_from_entries(by_chunk[cc])
+		chunk.crdt.merge(temp)
+		chunk._render_all()
+
 func _serialize_chunk(chunk: ChunkData) -> PackedByteArray:
 	var list := []
 	for key in chunk.crdt.get_all_entries():

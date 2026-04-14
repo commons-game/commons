@@ -9,6 +9,9 @@ const TRI_SIZE := 4.0
 
 ## Track last non-zero velocity for the direction indicator.
 var _facing := Vector2.UP
+## Set by World._setup_merge_system() after both Player and MergeCoordinator are ready.
+var coordinator: Node = null
+var _last_chunk: Vector2i = Vector2i(-9999, -9999)
 
 const ShrineManagerScript := preload("res://mods/ShrineManager.gd")
 
@@ -40,6 +43,11 @@ func _physics_process(_delta: float) -> void:
 	chunk_manager.update_player_position(tile_pos)
 	chunk_manager.update_player_last_visited(tile_pos)
 	shrine_manager.on_player_position(tile_pos)
+	var cur_chunk := CoordUtils.world_to_chunk(tile_pos)
+	if cur_chunk != _last_chunk:
+		_last_chunk = cur_chunk
+		if coordinator != null:
+			coordinator.update_my_chunk(cur_chunk)
 	# Push our position to our RemotePlayer so the synchronizer can broadcast it.
 	# Works for both host (RemotePlayer_1) and clients (RemotePlayer_<id>).
 	# get_node_or_null is a no-op in single-player (no RemotePlayer exists).

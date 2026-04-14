@@ -1,25 +1,34 @@
 ## World — root scene. Manages quit persistence and multiplayer bootstrap.
 ##
 ## CLI args for local multiplayer simulation:
-##   --host [port]        Start as host on given port (default 7777)
-##   --join <ip> [port]   Join a host at ip:port (default 127.0.0.1:7777)
+##   --host [port]              Start as ENet host on given port (default 7777)
+##   --join <ip> [port]         Join a host at ip:port (default 127.0.0.1:7777)
+##   --dev-instant-merge        Enable instant-merge dev mode (pressure=1, fast broadcast)
 ##
-## Example (two terminals):
-##   godot --path . -- --host
-##   godot --path . -- --join 127.0.0.1
+## Phase 4 merge lifecycle (auto-discovery, no manual --host/--join needed):
+##   UDPPresenceService broadcasts presence → MergeCoordinator discovers peers →
+##   connection_needed → NetworkManager.host/join → ENet peer_connected →
+##   MergeRPCBus hello exchange → on_peer_connected → merge_ready →
+##   send_snapshot → merge_applied.
 extends Node2D
 
-const SessionManagerScript  := preload("res://networking/SessionManager.gd")
-const RegionAuthorityScript := preload("res://networking/RegionAuthority.gd")
-const RemotePlayerScene     := preload("res://player/RemotePlayer.tscn")
-const ModEditorScript       := preload("res://mods/ModEditor.gd")
-const ShrineManagerScript   := preload("res://mods/ShrineManager.gd")
+const SessionManagerScript        := preload("res://networking/SessionManager.gd")
+const RegionAuthorityScript       := preload("res://networking/RegionAuthority.gd")
+const RemotePlayerScene           := preload("res://player/RemotePlayer.tscn")
+const ModEditorScript             := preload("res://mods/ModEditor.gd")
+const ShrineManagerScript         := preload("res://mods/ShrineManager.gd")
+const MergeCoordinatorScript      := preload("res://networking/MergeCoordinator.gd")
+const UDPPresenceServiceScript    := preload("res://networking/UDPPresenceService.gd")
+const MergeRPCBusScript           := preload("res://networking/MergeRPCBus.gd")
 
 var _session: Object
 var _authority: Object
 var _remote_players: Dictionary = {}  # peer_id (int) -> RemotePlayer node
 var _hud_label: Label                    # shows active buffs / shrine status
+var _merge_label: Label                  # shows merge pressure / state
 var _mod_editor: ModEditorScript         # in-game mod authoring overlay
+var _coordinator: Node = null
+var _rpc_bus: Node = null
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -49,6 +58,7 @@ func _ready() -> void:
 	# Bootstrap from CLI args
 	var args := OS.get_cmdline_user_args()
 	_parse_network_args(args)
+	_setup_merge_system(args)
 
 func _parse_network_args(args: Array) -> void:
 	if args.is_empty():
@@ -77,6 +87,37 @@ func _parse_network_args(args: Array) -> void:
 				_session.start_session()
 		i += 1
 
+func _setup_merge_system(args: Array) -> void:
+	var presence := UDPPresenceServiceScript.new()
+	presence.name = "UDPPresenceService"
+
+	_coordinator = MergeCoordinatorScript.new()
+	_coordinator.name = "MergeCoordinator"
+	_coordinator.session_id = _session.session_id
+	_coordinator.enet_port = NetworkManager.DEFAULT_PORT
+	_coordinator.presence_service = presence
+	if "--dev-instant-merge" in args:
+		_coordinator.dev_instant_merge = true
+
+	_rpc_bus = MergeRPCBusScript.new()
+	_rpc_bus.name = "MergeRPCBus"
+	_rpc_bus.chunk_manager = $ChunkManager
+
+	_coordinator.connection_needed.connect(_on_connection_needed)
+	_coordinator.merge_ready.connect(_on_merge_ready)
+	_coordinator.split_occurred.connect(_on_split_occurred)
+	_coordinator.pressure_changed.connect(_on_pressure_changed)
+	_rpc_bus.hello_received.connect(_on_hello_received)
+	_rpc_bus.merge_applied.connect(_on_merge_applied)
+
+	# Add to tree after all properties are set (triggers _ready() on each node)
+	add_child(presence)
+	add_child(_coordinator)
+	add_child(_rpc_bus)
+
+	# Give Player a reference so it can call update_my_chunk on chunk change
+	$Player.coordinator = _coordinator
+
 func _spawn_remote_player(peer_id: int) -> void:
 	var remote := RemotePlayerScene.instantiate()
 	remote.name = "RemotePlayer_%d" % peer_id
@@ -98,6 +139,9 @@ func _on_peer_connected(peer_id: int) -> void:
 		var own_id := multiplayer.get_unique_id()
 		$Player.set_multiplayer_authority(own_id)
 		print("World: set Player authority → %d" % own_id)
+	# Phase 4: exchange hello for CRDT merge handshake
+	if _rpc_bus != null and _coordinator != null:
+		_rpc_bus.send_hello(_session.session_id, _coordinator.get_my_chunk())
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	_session.remove_peer(str(peer_id))
@@ -106,12 +150,48 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		_remote_players[peer_id].queue_free()
 		_remote_players.erase(peer_id)
 		print("World: removed RemotePlayer for peer %d" % peer_id)
+	if _coordinator != null:
+		_coordinator.on_peer_disconnected()
+
+# ---------------------------------------------------------------------------
+# Phase 4 merge signal handlers
+# ---------------------------------------------------------------------------
+
+func _on_connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool) -> void:
+	print("World: merge connection needed — ip=%s port=%d host=%s" \
+		% [remote_ip, remote_enet_port, str(i_am_host)])
+	if i_am_host:
+		NetworkManager.host(remote_enet_port)
+	else:
+		NetworkManager.join(remote_ip, remote_enet_port)
+
+func _on_hello_received(remote_sid: String, remote_chunk: Vector2i) -> void:
+	if _coordinator != null:
+		_coordinator.on_peer_connected(remote_sid, remote_chunk)
+
+func _on_merge_ready(_remote_session_id: String) -> void:
+	print("World: merge_ready — sending snapshot")
+	if _rpc_bus != null:
+		_rpc_bus.send_snapshot()
+
+func _on_merge_applied() -> void:
+	print("World: merge_applied")
+	_merge_label.text = "[Merged]"
+
+func _on_split_occurred() -> void:
+	print("World: split occurred")
+	_merge_label.text = ""
+	NetworkManager.disconnect_all()
+
+func _on_pressure_changed(pressure: float) -> void:
+	if _coordinator != null and not _coordinator.is_merged():
+		_merge_label.text = "[Seeking: %.0f%%]" % (pressure * 100.0)
 
 func _setup_hud() -> void:
 	var hud := CanvasLayer.new()
 	hud.layer = 5
 	add_child(hud)
-	# Semi-transparent background panel
+	# Semi-transparent background panel (shrine / buff row)
 	var bg := Panel.new()
 	bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	bg.position = Vector2(4, 4)
@@ -125,6 +205,20 @@ func _setup_hud() -> void:
 	_hud_label.add_theme_color_override("font_color", Color(1, 1, 0.4))
 	_hud_label.text = ""
 	hud.add_child(_hud_label)
+	# Merge pressure / state row (below shrine row)
+	var merge_bg := Panel.new()
+	merge_bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	merge_bg.position = Vector2(4, 36)
+	merge_bg.custom_minimum_size = Vector2(220, 24)
+	merge_bg.modulate = Color(0, 0, 0, 0.55)
+	hud.add_child(merge_bg)
+	_merge_label = Label.new()
+	_merge_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_merge_label.position = Vector2(8, 40)
+	_merge_label.add_theme_font_size_override("font_size", 12)
+	_merge_label.add_theme_color_override("font_color", Color(0.4, 0.9, 1.0))
+	_merge_label.text = ""
+	hud.add_child(_merge_label)
 
 func _setup_mod_editor() -> void:
 	_mod_editor = ModEditorScript.new()
