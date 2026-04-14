@@ -8,6 +8,8 @@
 ##   $ModEditor.player         = $Player
 extends CanvasLayer
 
+const ShrineManagerScript := preload("res://mods/ShrineManager.gd")
+
 const TEMPLATE := """{
   "tiles": [],
   "buffs": [
@@ -19,8 +21,8 @@ const TEMPLATE := """{
   ]
 }"""
 
-var shrine_manager = null   # ShrineManager — set by World (untyped: externally created script)
-var player: Node2D = null  # Player node   — set by World
+var shrine_manager: ShrineManagerScript = null  # set by World
+var player: Node2D = null                       # set by World
 
 var _panel: Panel
 var _text_edit: TextEdit
@@ -99,7 +101,7 @@ func _on_publish() -> void:
 		int(floorf(player.position.x / Constants.TILE_SIZE)),
 		int(floorf(player.position.y / Constants.TILE_SIZE))
 	)
-	var shrine_id: String = shrine_manager.place_shrine(tile_pos, json_text, PlayerIdentity.id)
+	var shrine_id := shrine_manager.place_shrine(tile_pos, json_text, PlayerIdentity.id)
 	if shrine_id.is_empty():
 		_status("ERROR: place_shrine returned empty id")
 	else:

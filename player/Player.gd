@@ -10,8 +10,10 @@ const TRI_SIZE := 4.0
 ## Track last non-zero velocity for the direction indicator.
 var _facing := Vector2.UP
 
-@onready var chunk_manager: ChunkManager = $"../ChunkManager"
-@onready var shrine_manager              = $"../ShrineManager"  # untyped: script created externally
+const ShrineManagerScript := preload("res://mods/ShrineManager.gd")
+
+@onready var chunk_manager: ChunkManager    = $"../ChunkManager"
+@onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
 
 func _draw() -> void:
 	# Body: white filled circle with dark outline

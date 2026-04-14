@@ -16,8 +16,8 @@ signal buffs_changed(buffs: Array)
 ## Emitted when a shrine is placed — carries shrine_id and chunk coords.
 signal shrine_placed(shrine_id: String, chunk: Vector2i)
 
-var territory: Object   # ShrineTerritory instance
-var buff_manager: Object  # BuffManager instance
+var territory: ShrineTerritoryScript
+var buff_manager: BuffManagerScript
 
 var _shrines: Dictionary = {}  # shrine_id -> ShrineObject
 var _bundles: Dictionary = {}  # shrine_id -> ModBundle
@@ -41,10 +41,10 @@ func place_shrine(world_tile_pos: Vector2i, bundle_json: String, owner_id: Strin
 		_shrines.erase(shrine_id)
 		_bundles.erase(shrine_id)
 
-	var bundle = ModBundleScript.new()
+	var bundle: ModBundleScript = ModBundleScript.new()
 	bundle.load_from_json(bundle_json)
 
-	var shrine = ShrineObjectScript.new()
+	var shrine: ShrineObjectScript = ShrineObjectScript.new()
 	shrine.owner_id         = owner_id
 	shrine.mod_bundle_hash  = shrine_id
 	shrine.initialize(shrine_id, chunk, territory)
@@ -91,7 +91,7 @@ func _evaluate_chunk(new_chunk: Vector2i) -> void:
 	var _active_mod = territory.get_active_mod_set(new_chunk)
 	var active_shrine: String = str(_active_mod) if _active_mod != null else ""
 	if active_shrine != "" and _bundles.has(active_shrine):
-		var bundle = _bundles[active_shrine]
+		var bundle: ModBundleScript = _bundles[active_shrine] as ModBundleScript
 		var current_buffs: Array = buff_manager.get_buffs()
 		for buff_id in bundle.buff_defs:
 			var already_has := false

@@ -197,4 +197,10 @@ Applied in `player/Player.gd` and `player/RemotePlayer.gd`.
 **Fix:**
 1. For untyped `obj`: use explicit type annotation instead of `:=`: `var x: String = obj.some_method()`
 2. For `@onready` variables pointing at externally-scripted nodes: drop the type annotation entirely: `@onready var shrine_manager = $"../ShrineManager"` (untyped → dynamic dispatch works)
-**Rule:** Any node whose GDScript was created outside the Godot editor (no `class_name` in the registry) must be held in an untyped variable for method calls to resolve at runtime.
+**Rule:** Use `const Script := preload(...)` + `var x: Script` for all externally-created scripts. This gives full type safety without the class registry. Only fall back to untyped vars when the preloaded script itself has circular dependencies.
+
+### GDScript lambda int capture is by value — use Array as reference container
+**Status:** Pattern established.
+**Symptom:** In a gdUnit4 test (or any GDScript lambda), `var count := 0; signal.connect(func(): count += 1)` — the outer `count` is never incremented. GDScript lambdas copy primitive values (int, float, bool) at capture time.
+**Fix:** Wrap in an Array: `var calls := [0]; signal.connect(func(): calls[0] += 1)`. Arrays are reference types and the lambda sees the same object.
+**Applies to:** Any signal callback or lambda that needs to mutate an integer counter.

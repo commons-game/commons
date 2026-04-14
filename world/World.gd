@@ -13,12 +13,13 @@ const SessionManagerScript  := preload("res://networking/SessionManager.gd")
 const RegionAuthorityScript := preload("res://networking/RegionAuthority.gd")
 const RemotePlayerScene     := preload("res://player/RemotePlayer.tscn")
 const ModEditorScript       := preload("res://mods/ModEditor.gd")
+const ShrineManagerScript   := preload("res://mods/ShrineManager.gd")
 
 var _session: Object
 var _authority: Object
 var _remote_players: Dictionary = {}  # peer_id (int) -> RemotePlayer node
-var _hud_label: Label               # shows active buffs / shrine status
-var _mod_editor: Node               # ModEditor CanvasLayer
+var _hud_label: Label                    # shows active buffs / shrine status
+var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -36,8 +37,8 @@ func _ready() -> void:
 	bus.local_author_id = PlayerIdentity.id
 
 	# Wire ShrineManager signals → HUD
-	# Use get_node() which returns Variant so dynamic signal lookup works.
-	get_node("ShrineManager").buffs_changed.connect(_on_buffs_changed)
+	var sm := $ShrineManager as ShrineManagerScript
+	sm.buffs_changed.connect(_on_buffs_changed)
 	_setup_hud()
 	_setup_mod_editor()
 
@@ -128,7 +129,7 @@ func _setup_hud() -> void:
 func _setup_mod_editor() -> void:
 	_mod_editor = ModEditorScript.new()
 	add_child(_mod_editor)
-	_mod_editor.shrine_manager = get_node("ShrineManager")
+	_mod_editor.shrine_manager = $ShrineManager as ShrineManagerScript
 	_mod_editor.player         = $Player
 
 func _on_buffs_changed(buffs: Array) -> void:
