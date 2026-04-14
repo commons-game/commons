@@ -4,7 +4,7 @@
 ## Mouse position is converted from viewport to world tile coordinates.
 extends Node
 
-@onready var chunk_manager: ChunkManager = $"../ChunkManager"
+@onready var chunk_manager: ChunkManager = $"../../ChunkManager"
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):

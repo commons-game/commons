@@ -1,17 +1,21 @@
-## Backend.gd — Phase 0 stub.
-## All methods are no-ops or return empty data.
-## Phase 1: swap to LocalBackend. Phase 6: swap to FreenetBackend.
-## The swap point is a single line in _ready().
+## Backend.gd — autoload singleton. The sole IBackend access point.
+## Phase 1: LocalBackend. Phase 6: swap LocalBackend to FreenetBackend.
+## Nothing outside this file instantiates IBackend.
 extends Node
 
-func retrieve_chunk(_coords: Vector2i) -> PackedByteArray:
-	## Phase 0: always returns empty (triggers procedural generation).
-	return PackedByteArray()
+const LocalBackendScript := preload("res://backend/local/LocalBackend.gd")
 
-func store_chunk(_coords: Vector2i, _data: PackedByteArray) -> void:
-	## Phase 0: no-op.
-	pass
+var _backend: IBackend
 
-func delete_chunk(_coords: Vector2i) -> void:
-	## Phase 0: no-op.
-	pass
+func _ready() -> void:
+	_backend = LocalBackendScript.new()
+	_backend.initialize()
+
+func store_chunk(coords: Vector2i, data: PackedByteArray) -> void:
+	_backend.store_chunk(coords, data)
+
+func retrieve_chunk(coords: Vector2i) -> PackedByteArray:
+	return _backend.retrieve_chunk(coords)
+
+func delete_chunk(coords: Vector2i) -> void:
+	_backend.delete_chunk(coords)
