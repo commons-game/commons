@@ -12,6 +12,7 @@ var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on
 
 func _ready() -> void:
 	_ensure_tileset_atlas_registered()
+	_validate_tileset()
 
 ## Programmatically register all atlas positions used by ProceduralGenerator.
 ## .tres serialization of TileSetAtlasSource tile entries is unreliable in Godot 4.3
@@ -22,6 +23,8 @@ func _ensure_tileset_atlas_registered() -> void:
 	if source == null:
 		push_error("ChunkManager: TileSet source 0 not found")
 		return
+	# Note: tile_size and texture_region_size are set by Chunk._ready() on each
+	# instantiated chunk — GDScript const refs don't allow property mutation here.
 	var needed := [
 		Vector2i(0, 0),  # grass
 		Vector2i(1, 0),  # dirt
@@ -33,7 +36,24 @@ func _ensure_tileset_atlas_registered() -> void:
 	for coords in needed:
 		if not source.has_tile(coords):
 			source.create_tile(coords)
-	print("ChunkManager: tileset atlas registered (%d tiles)" % needed.size())
+
+## Validate that the TileSet is in a state where tiles will actually render.
+## Uses push_error (non-fatal) so misconfiguration is loud without halting.
+## Godot's static analyzer rejects assert() for values we just set in the same
+## scope ("redundant assert" is a fatal error in Godot debug mode).
+func _validate_tileset() -> void:
+	var source := MAIN_TILESET.get_source(0) as TileSetAtlasSource
+	if source == null:
+		push_error("TileSet has no source at index 0 — tiles will never render")
+		return
+	if source.texture == null:
+		push_error("TileSetAtlasSource has no texture — tiles will silently not render")
+	if source.texture_region_size.x <= 0:
+		push_error("TileSetAtlasSource.texture_region_size is zero — tiles will silently not render")
+	for coords in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
+	               Vector2i(0, 1), Vector2i(1, 1)]:
+		if not source.has_tile(coords):
+			push_error("Atlas tile %s not registered — set_cell() calls for it will silently fail" % coords)
 
 func update_player_position(world_tile_pos: Vector2i) -> void:
 	var new_chunk := CoordUtils.world_to_chunk(world_tile_pos)

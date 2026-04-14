@@ -37,6 +37,7 @@ func _ready() -> void:
 	# which silently prevents TileMapLayer from rendering any tiles.
 	ground_layer.tile_set.tile_size = Vector2i(Constants.TILE_SIZE, Constants.TILE_SIZE)
 	var source := ground_layer.tile_set.get_source(0) as TileSetAtlasSource
+	assert(source != null, "Chunk GroundLayer TileSet has no source — this chunk will render blank")
 	if source:
 		# Explicitly set region size to match our 16x16 tile PNG layout.
 		source.texture_region_size = Vector2i(Constants.TILE_SIZE, Constants.TILE_SIZE)

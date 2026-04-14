@@ -138,6 +138,19 @@ Use via Playwright's `browser_evaluate` tool or the browser console.
 **Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."
 **Workaround:** Explicit cast: `var v: Vector2i = item as Vector2i` or `(item as Vector2i)`.
 
+### Godot debug mode treats "redundant assert" as a fatal error
+**Status:** Pattern established — use push_error instead.
+**Symptom:** An `assert(expr, msg)` where Godot's static analyzer can prove `expr` is always true causes `ERROR: 'Assert statement is redundant because the expression is always true.'` and halts script execution in debug mode. This most commonly hits validation functions that check invariants right after setting them in the same scope (e.g., asserting `source.has_tile(x)` right after calling `source.create_tile(x)`).
+**Fix:** Use `push_error` + early return for invariant checks. Reserve `assert()` only for things Godot cannot statically prove — e.g., results from cross-scope method calls or runtime values.
+```gdscript
+# Bad — Godot can prove this is always true: fatal in debug
+assert(source.has_tile(coords), "tile not registered")
+
+# Good — non-fatal, always runs, captures the same mistake
+if not source.has_tile(coords):
+    push_error("tile %s not registered" % coords)
+```
+
 ### TileSet tile_size defaults to (0,0) when omitted from .tres — tiles silently invisible
 **Status:** Fixed.
 **Symptom:** TileMapLayer tiles are set (source_id and atlas_coords readable back via `get_cell_*`) and the TileSetAtlasSource has a valid texture and registered tiles, but the TileMapLayer renders as a solid gray background with no tile art.
