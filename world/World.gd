@@ -12,10 +12,13 @@ extends Node2D
 const SessionManagerScript  := preload("res://networking/SessionManager.gd")
 const RegionAuthorityScript := preload("res://networking/RegionAuthority.gd")
 const RemotePlayerScene     := preload("res://player/RemotePlayer.tscn")
+const ModEditorScript       := preload("res://mods/ModEditor.gd")
 
 var _session: Object
 var _authority: Object
 var _remote_players: Dictionary = {}  # peer_id (int) -> RemotePlayer node
+var _hud_label: Label               # shows active buffs / shrine status
+var _mod_editor: Node               # ModEditor CanvasLayer
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -31,6 +34,12 @@ func _ready() -> void:
 	var bus: Node = $TileMutationBus
 	bus.tile_store      = $ChunkManager
 	bus.local_author_id = PlayerIdentity.id
+
+	# Wire ShrineManager signals → HUD
+	# Use get_node() which returns Variant so dynamic signal lookup works.
+	get_node("ShrineManager").buffs_changed.connect(_on_buffs_changed)
+	_setup_hud()
+	_setup_mod_editor()
 
 	# Register spawnable scene programmatically — auto_spawn_list in .tscn is
 	# not a valid MultiplayerSpawner property and is silently ignored at runtime.
@@ -96,6 +105,40 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		_remote_players[peer_id].queue_free()
 		_remote_players.erase(peer_id)
 		print("World: removed RemotePlayer for peer %d" % peer_id)
+
+func _setup_hud() -> void:
+	var hud := CanvasLayer.new()
+	hud.layer = 5
+	add_child(hud)
+	# Semi-transparent background panel
+	var bg := Panel.new()
+	bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	bg.position = Vector2(4, 4)
+	bg.custom_minimum_size = Vector2(280, 28)
+	bg.modulate = Color(0, 0, 0, 0.55)
+	hud.add_child(bg)
+	_hud_label = Label.new()
+	_hud_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_hud_label.position = Vector2(8, 8)
+	_hud_label.add_theme_font_size_override("font_size", 14)
+	_hud_label.add_theme_color_override("font_color", Color(1, 1, 0.4))
+	_hud_label.text = ""
+	hud.add_child(_hud_label)
+
+func _setup_mod_editor() -> void:
+	_mod_editor = ModEditorScript.new()
+	add_child(_mod_editor)
+	_mod_editor.shrine_manager = get_node("ShrineManager")
+	_mod_editor.player         = $Player
+
+func _on_buffs_changed(buffs: Array) -> void:
+	if buffs.is_empty():
+		_hud_label.text = "[Shrine: inactive]"
+	else:
+		var names := []
+		for b in buffs:
+			names.append(b["buff_id"])
+		_hud_label.text = "[Shrine active] Buffs: %s" % ", ".join(names)
 
 func _input(event: InputEvent) -> void:
 	# F5 = clean quit for testing via xpra JS keyboard injection

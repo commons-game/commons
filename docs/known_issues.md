@@ -190,3 +190,11 @@ func _ready() -> void:
     $MultiplayerSynchronizer.replication_config = config
 ```
 Applied in `player/Player.gd` and `player/RemotePlayer.gd`.
+
+### GDScript type inference fails on method calls through untyped objects
+**Status:** Pattern established — use explicit type annotations.
+**Symptom:** `var x := obj.some_method()` where `obj` is untyped (created externally, no `class_name` registered) causes `"Cannot infer the type of 'x' variable because the value doesn't have a set type."` parse error. Similarly, declaring `var node: Node = $"../MyNode"` and calling a script-defined method on it gives a runtime `"Invalid call. Nonexistent function ... in base 'Node'"` error because GDScript resolves against the declared type, not the runtime type.
+**Fix:**
+1. For untyped `obj`: use explicit type annotation instead of `:=`: `var x: String = obj.some_method()`
+2. For `@onready` variables pointing at externally-scripted nodes: drop the type annotation entirely: `@onready var shrine_manager = $"../ShrineManager"` (untyped → dynamic dispatch works)
+**Rule:** Any node whose GDScript was created outside the Godot editor (no `class_name` in the registry) must be held in an untyped variable for method calls to resolve at runtime.
