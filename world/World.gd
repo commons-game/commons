@@ -30,7 +30,7 @@ func _ready() -> void:
 	# Wire TileMutationBus to ChunkManager as its tile store
 	var bus: Node = $TileMutationBus
 	bus.tile_store      = $ChunkManager
-	bus.local_author_id = "player_local"   # Phase 5+: use real player id
+	bus.local_author_id = PlayerIdentity.id
 
 	# Register spawnable scene programmatically — auto_spawn_list in .tscn is
 	# not a valid MultiplayerSpawner property and is silently ignored at runtime.
