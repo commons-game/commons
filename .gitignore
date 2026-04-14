@@ -1,0 +1,36 @@
+# Godot 4 gitignore
+
+# Godot-specific ignores
+.godot/
+*.translation
+
+# Import metadata — do NOT ignore .import files for tscn/tres/gd
+# If you use imported assets (png, etc.) you may want to track their .import files
+# Uncomment next line if you want to ignore ALL .import files:
+# *.import
+
+# Mono/C# ignores (not used in this project but harmless)
+.mono/
+data_*/
+mono_crash.*.json
+
+# OS-specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor backup files
+*.swp
+*.swo
+*~
+
+# Build output (if exporting)
+export/
+
+# User data (generated at runtime, not tracked)
+# user:// maps to ~/.local/share/godot/app_userdata/Freeland/ on Linux
+# Not in the project directory, so no gitignore needed for user:// data
+
+# Python cache (from tileset generator script)
+__pycache__/
+*.pyc
