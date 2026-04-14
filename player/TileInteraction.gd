@@ -79,9 +79,10 @@ func _shovel_place(tile_pos: Vector2i, inventory: Object) -> void:
 # ---------------------------------------------------------------------------
 
 func _in_range(tile_pos: Vector2i, player: Node) -> bool:
+	var pos: Vector2 = (player as Node2D).position
 	var player_tile := Vector2i(
-		int(floorf(player.position.x / Constants.TILE_SIZE)),
-		int(floorf(player.position.y / Constants.TILE_SIZE)))
-	var dx := abs(tile_pos.x - player_tile.x)
-	var dy := abs(tile_pos.y - player_tile.y)
+		int(floorf(pos.x / Constants.TILE_SIZE)),
+		int(floorf(pos.y / Constants.TILE_SIZE)))
+	var dx: int = abs(tile_pos.x - player_tile.x)
+	var dy: int = abs(tile_pos.y - player_tile.y)
 	return dx <= DIG_RANGE_TILES and dy <= DIG_RANGE_TILES

@@ -30,6 +30,10 @@ func _ready() -> void:
 	ground_layer = $GroundLayer
 	object_layer = $ObjectLayer
 	crdt = CRDTTileStore.new()
+
+	# GroundLayer is never collidable — player always walks on it freely.
+	ground_layer.collision_enabled = false
+
 	# Register atlas positions on the actual TileSet instance used by this chunk.
 	# Doing it here (not in ChunkManager) handles the case where PackedScene
 	# instantiation deep-copies the TileSet resource rather than sharing it.
@@ -44,6 +48,7 @@ func _ready() -> void:
 		for coords in ATLAS_TILES:
 			if not source.has_tile(coords):
 				source.create_tile(coords)
+		_ensure_tileset_collision(ground_layer.tile_set, source)
 
 func initialize(coords: Vector2i, entries: Dictionary) -> void:
 	chunk_coords = coords
@@ -53,8 +58,8 @@ func initialize(coords: Vector2i, entries: Dictionary) -> void:
 	_render_all()
 
 func _render_all() -> void:
-	## Disable collision during bulk set to avoid per-cell physics rebuild.
-	ground_layer.collision_enabled = false
+	## Temporarily disable ObjectLayer collision during bulk set to avoid
+	## per-cell physics rebuilds. GroundLayer stays disabled permanently.
 	object_layer.collision_enabled = false
 	ground_layer.clear()
 	object_layer.clear()
@@ -68,8 +73,45 @@ func _render_all() -> void:
 		var tl := ground_layer if layer_idx == 0 else object_layer
 		tl.set_cell(Vector2i(lx, ly), entry["tile_id"],
 		            Vector2i(entry["atlas_x"], entry["atlas_y"]), entry["alt_tile"])
-	ground_layer.collision_enabled = true
 	object_layer.collision_enabled = true
+
+## Set up a single TileSet physics layer and add full-tile collision polygons to
+## all non-water tiles. Called once per shared TileSet instance (guarded by
+## get_physics_layers_count() == 0). GroundLayer has collision_enabled = false
+## so ground tiles never block movement regardless of their collision shape.
+func _ensure_tileset_collision(tileset: TileSet, source: TileSetAtlasSource) -> void:
+	if tileset.get_physics_layers_count() > 0:
+		return  # already set up by a previous Chunk instance
+	tileset.add_physics_layer()
+	tileset.set_physics_layer_collision_layer(0, 1)
+	tileset.set_physics_layer_collision_mask(0, 1)
+
+	# Full-tile collision quad in TileData local space.
+	# TileData uses a centred coordinate system: (0,0) is the tile centre.
+	var h := float(Constants.TILE_SIZE) * 0.5
+	var poly := PackedVector2Array([
+		Vector2(-h, -h), Vector2(h, -h),
+		Vector2(h, h),  Vector2(-h, h),
+	])
+
+	# Add collision to all collidable tiles (everything except water).
+	var collidable := [
+		Vector2i(0, 0),  # grass
+		Vector2i(1, 0),  # dirt
+		Vector2i(2, 0),  # stone
+		Vector2i(0, 1),  # tree
+		Vector2i(1, 1),  # rock
+		# water (3,0) intentionally omitted — no collision
+	]
+	for coords in collidable:
+		if not source.has_tile(coords):
+			continue
+		var td := source.get_tile_data(coords, 0)
+		if td == null:
+			continue
+		if td.get_collision_polygons_count(0) == 0:
+			td.set_collision_polygons_count(0, 1)
+		td.set_collision_polygon_points(0, 0, poly)
 
 func apply_mutation(layer: int, local: Vector2i, entry: Dictionary) -> void:
 	## Apply a single tile mutation without full re-render.

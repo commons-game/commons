@@ -1,22 +1,22 @@
-## Lantern — toggleable Light2D carried by the player.
+## Lantern — toggleable PointLight2D carried by the player.
 ##
 ## Toggle with L key. When on at night the player becomes a visible beacon —
 ## a deliberate risk/reward tradeoff (visibility vs. stealth).
 ##
-## Attach as a child of Player. The owning scene must have a Light2D named
+## Attach as a child of Player. The owning scene must have a PointLight2D named
 ## "LanternLight" as a child of this node, or this script creates one.
 extends Node2D
 
 ## Whether the lantern is currently lit.
 var is_on: bool = false
 
-var _light: Light2D = null
+var _light: PointLight2D = null
 
 func _ready() -> void:
 	# Use an existing LanternLight child if present, otherwise create one.
-	_light = get_node_or_null("LanternLight") as Light2D
+	_light = get_node_or_null("LanternLight") as PointLight2D
 	if _light == null:
-		_light = Light2D.new()
+		_light = PointLight2D.new()
 		_light.name = "LanternLight"
 		add_child(_light)
 	_apply_state()

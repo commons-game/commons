@@ -65,11 +65,12 @@ func _physics_process(_delta: float) -> void:
 			coordinator.update_my_chunk(cur_chunk)
 	# Push our position to our RemotePlayer so the synchronizer can broadcast it.
 	# Works for both host (RemotePlayer_1) and clients (RemotePlayer_<id>).
-	# get_node_or_null is a no-op in single-player (no RemotePlayer exists).
-	var own_id := multiplayer.get_unique_id()
-	var remote := get_node_or_null("../RemotePlayer_%d" % own_id)
-	if remote:
-		remote.position = global_position
+	# No-op in single-player (no multiplayer peer assigned, no RemotePlayer exists).
+	if multiplayer.has_multiplayer_peer():
+		var own_id := multiplayer.get_unique_id()
+		var remote := get_node_or_null("../RemotePlayer_%d" % own_id)
+		if remote:
+			remote.position = global_position
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
