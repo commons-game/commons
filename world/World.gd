@@ -8,6 +8,8 @@
 ##   --dev-health-check         Run 30s, screenshot every 5s, quit (regression check)
 ##   --dev-frame-log            Log CanvasModulate + chunk weight every frame (visual bug hunting)
 ##   --dev-gym                  Load collision gym scene: player inside rock box, verify collision
+##   --dev-render-gym           Load render gym: one of every tile type shown, verify atlas
+##   --dev-world-stats          Generate 100 chunks, print density histogram, quit
 ##
 ## In-game dev keys:
 ##   F1    Toggle debug overlay (FPS, phase, chunk weight, vibe, tool, merge pressure)
@@ -58,11 +60,15 @@ var _health_check_counter: int = 0
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
-	# --dev-gym: switch to the collision gym scene immediately, skip all normal setup.
+	# Dev scene switches — bail out before any normal setup.
 	var _early_args := OS.get_cmdline_user_args()
-	if "--dev-gym" in _early_args and OS.get_name() != "Web":
-		get_tree().change_scene_to_file.call_deferred("res://dev/GymScene.tscn")
-		return
+	if OS.get_name() != "Web":
+		if "--dev-gym" in _early_args:
+			get_tree().change_scene_to_file.call_deferred("res://dev/GymScene.tscn")
+			return
+		if "--dev-render-gym" in _early_args:
+			get_tree().change_scene_to_file.call_deferred("res://dev/RenderGym.tscn")
+			return
 
 	_session   = SessionManagerScript.new()
 	_authority = RegionAuthorityScript.new()
@@ -98,6 +104,8 @@ func _ready() -> void:
 	_assert_layer_order()
 	if not is_web and "--dev-screenshot-cycle" in args:
 		_run_screenshot_cycle.call_deferred()
+	if not is_web and "--dev-world-stats" in args:
+		_run_world_stats.call_deferred()
 	if not is_web and "--dev-health-check" in args:
 		_health_check_timer = 0.0
 		print("HealthCheck: running 30s check, screenshot every 5s")
@@ -211,6 +219,9 @@ func _build_debug_text() -> String:
 		if chunk != null:
 			lines.append("Weight: %.3f  mods: %d" % [chunk.weight, chunk.modification_count])
 			lines.append("Fading: %s" % str(chunk.is_fading))
+			var obj_cells: int = chunk.object_layer.get_used_cells().size()
+			var phys_layers: int = chunk.object_layer.tile_set.get_physics_layers_count()
+			lines.append("Obj tiles: %d  phys_layers: %d" % [obj_cells, phys_layers])
 	# VibeBus
 	if _vibe_bus != null:
 		lines.append("Tension: %.2f  Tone: %.2f" % [_vibe_bus.get_tension(), _vibe_bus.get_tone()])
@@ -513,6 +524,78 @@ func _check_chunk_layer_order() -> void:
 		push_error("Layer order: GroundLayer.z_index=%d (expected 0)" % chunk.ground_layer.z_index)
 	if chunk.object_layer.z_index != 1:
 		push_error("Layer order: ObjectLayer.z_index=%d (expected 1)" % chunk.object_layer.z_index)
+
+## --dev-world-stats: generate a 10×10 grid of chunks, print density histogram, quit.
+## Use this whenever you change ProceduralGenerator thresholds or noise types to
+## verify density is in the expected range without needing to load the full game.
+func _run_world_stats() -> void:
+	const RADIUS := 5           # 10×10 = 100 chunks
+	const EXPECTED_TREE_PCT := 10.0   # warn if mean tree density on grass drops below this
+	print("WorldStats: sampling %d chunks (seed=%d)…" % [(RADIUS * 2) * (RADIUS * 2), Constants.WORLD_SEED])
+
+	var total_tiles   := 0
+	var total_grass   := 0
+	var total_dirt    := 0
+	var total_stone   := 0
+	var total_water   := 0
+	var total_trees   := 0
+	var total_rocks   := 0
+	var min_trees     := 9999
+	var max_trees     := 0
+	var zero_tree_chunks := 0
+	var chunk_count   := 0
+
+	for cy in range(-RADIUS, RADIUS):
+		for cx in range(-RADIUS, RADIUS):
+			var entries := ProceduralGenerator.generate_chunk(
+				Vector2i(cx, cy), Constants.WORLD_SEED)
+			var grass := 0; var dirt := 0; var stone := 0; var water := 0
+			var trees := 0; var rocks := 0
+			for k in entries:
+				var layer := (int(k) >> 16) & 0xFF
+				var ax: int = entries[k]["atlas_x"]
+				if layer == 0:
+					match ax:
+						0: grass += 1
+						1: dirt  += 1
+						2: stone += 1
+						3: water += 1
+				elif layer == 1:
+					if ax == 0: trees += 1
+					else:        rocks += 1
+			total_grass += grass; total_dirt += dirt
+			total_stone += stone; total_water += water
+			total_trees += trees; total_rocks += rocks
+			total_tiles += entries.size()
+			if trees == 0: zero_tree_chunks += 1
+			if trees < min_trees: min_trees = trees
+			if trees > max_trees: max_trees = trees
+			chunk_count += 1
+
+	var pct := func(n: int) -> String:
+		return "%.1f%%" % (100.0 * n / total_tiles)
+
+	print("─────────────────────────────────────")
+	print("WorldStats: %d chunks  %d total tiles" % [chunk_count, total_tiles])
+	print("  grass  %5d  %s" % [total_grass,  pct.call(total_grass)])
+	print("  dirt   %5d  %s" % [total_dirt,   pct.call(total_dirt)])
+	print("  stone  %5d  %s" % [total_stone,  pct.call(total_stone)])
+	print("  water  %5d  %s" % [total_water,  pct.call(total_water)])
+	print("  trees  %5d  %s  (per-chunk: min=%d max=%d mean=%.1f)" % [
+		total_trees, pct.call(total_trees),
+		min_trees, max_trees, float(total_trees) / chunk_count])
+	print("  rocks  %5d  %s  (per-chunk mean=%.1f)" % [
+		total_rocks, pct.call(total_rocks), float(total_rocks) / chunk_count])
+	print("  zero-tree chunks: %d/%d (%.0f%%)" % [
+		zero_tree_chunks, chunk_count, 100.0 * zero_tree_chunks / chunk_count])
+	if total_grass > 0:
+		var tree_on_grass := 100.0 * total_trees / total_grass
+		print("  tree density on grass: %.1f%%" % tree_on_grass)
+		if tree_on_grass < EXPECTED_TREE_PCT:
+			push_error("WorldStats: tree density %.1f%% < expected %.1f%% — check generator" \
+				% [tree_on_grass, EXPECTED_TREE_PCT])
+	print("─────────────────────────────────────")
+	get_tree().quit()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

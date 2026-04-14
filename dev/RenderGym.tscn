@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://render_gym"]
+
+[ext_resource type="Script" path="res://dev/RenderGym.gd" id="1"]
+
+[node name="RenderGym" type="Node2D"]
+script = ExtResource("1")

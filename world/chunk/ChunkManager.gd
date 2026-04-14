@@ -146,13 +146,46 @@ func _load_chunk(coords: Vector2i) -> void:
 	assert(abs(coords.x) <= 2047 and abs(coords.y) <= 2047,
 	       "Chunk coords %s would exceed 16-bit TileMapLayer limit" % coords)
 	var raw := Backend.retrieve_chunk(coords)
-	var entries := _deserialize_entries(raw) if not raw.is_empty() \
+	var from_disk := not raw.is_empty()
+	var entries := _deserialize_entries(raw) if from_disk \
 	               else ProceduralGenerator.generate_chunk(coords, Constants.WORLD_SEED)
+	if not from_disk:
+		_check_generation_sanity(coords, entries)
 	var chunk := CHUNK_SCENE.instantiate() as ChunkData
 	add_child(chunk)
 	chunk.initialize(coords, entries)
 	chunk.last_visited = Time.get_unix_time_from_system()
 	_loaded_chunks[coords] = chunk
+
+## Sanity-check a freshly-generated chunk's entries.
+## Fires push_warning (non-fatal) so miscalibration is visible without crashing.
+## Would have caught the TYPE_CELLULAR threshold bug immediately.
+func _check_generation_sanity(coords: Vector2i, entries: Dictionary) -> void:
+	var grass := 0
+	var stone := 0
+	var trees := 0
+	var rocks := 0
+	for k in entries:
+		var layer := (int(k) >> 16) & 0xFF
+		var ax: int = entries[k].get("atlas_x", -1)
+		if layer == 0:
+			if ax == 0: grass += 1
+			elif ax == 2: stone += 1
+		elif layer == 1:
+			if ax == 0: trees += 1
+			elif ax == 1: rocks += 1
+	# At ~35% tree density: 50 grass tiles should yield ~17 trees.
+	# Zero trees with that many grass tiles is a strong signal of miscalibration.
+	if grass > 50 and trees == 0:
+		push_warning(
+			"Chunk %s: %d grass tiles but 0 trees — ProceduralGenerator may be miscalibrated "
+			% [coords, grass]
+			+ "(check noise_objects type and threshold)")
+	# Stone is rarer; warn only at a lower floor.
+	if stone > 30 and rocks == 0 and grass == 0:
+		push_warning(
+			"Chunk %s: %d stone tiles but 0 rocks — ProceduralGenerator may be miscalibrated"
+			% [coords, stone])
 
 func _unload_chunks_outside_radius(center: Vector2i, radius: int) -> void:
 	var to_unload: Array[Vector2i] = []
