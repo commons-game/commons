@@ -6,12 +6,6 @@
 [sub_resource type="RectangleShape2D" id="1"]
 size = Vector2(12, 12)
 
-[sub_resource type="SceneReplicationConfig" id="2"]
-properties/0/path = NodePath(".:position")
-properties/0/spawn = true
-properties/0/sync = true
-properties/0/sync_interval = 0
-
 [node name="Player" type="CharacterBody2D"]
 script = ExtResource("1")
 
@@ -30,4 +24,3 @@ script = ExtResource("2")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 root_path = NodePath("..")
-replication_config = SubResource("2")

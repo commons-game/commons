@@ -85,3 +85,22 @@ Never use static factory methods on data classes that use `class_name`.
 **Status:** Known GDScript limitation, handled with explicit casts.
 **Symptom:** Iterating over `Array` of `Vector2i` values and using `:=` on the result fails type inference: "Cannot infer the type of 'x' variable."
 **Workaround:** Explicit cast: `var v: Vector2i = item as Vector2i` or `(item as Vector2i)`.
+
+### SceneReplicationConfig boolean parse errors in .tscn
+**Status:** Fixed.
+**Symptom:** Hand-writing `spawn = true` / `sync = true` inside a `SceneReplicationConfig` sub-resource in a `.tscn` file causes non-fatal errors at startup:
+```
+ERROR: Condition "p_value.get_type() != Variant::BOOL" is true. Returning: false
+   at: _set (modules/multiplayer/scene_replication_config.cpp:59)
+```
+Godot 4.3's deserializer passes these values with the wrong type, so `spawn` and `sync` silently default to false (i.e., position sync does NOT work despite no crash).
+**Fix:** Remove the `SceneReplicationConfig` sub-resource from the `.tscn` entirely and build it programmatically in `_ready()`:
+```gdscript
+func _ready() -> void:
+    var config := SceneReplicationConfig.new()
+    config.add_property(NodePath(".:position"))
+    config.property_set_spawn(NodePath(".:position"), true)
+    config.property_set_sync(NodePath(".:position"), true)
+    $MultiplayerSynchronizer.replication_config = config
+```
+Applied in `player/Player.gd` and `player/RemotePlayer.gd`.

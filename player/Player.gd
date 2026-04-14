@@ -5,6 +5,13 @@ const SPEED := 80.0
 
 @onready var chunk_manager: ChunkManager = $"../ChunkManager"
 
+func _ready() -> void:
+	var config := SceneReplicationConfig.new()
+	config.add_property(NodePath(".:position"))
+	config.property_set_spawn(NodePath(".:position"), true)
+	config.property_set_sync(NodePath(".:position"), true)
+	$MultiplayerSynchronizer.replication_config = config
+
 func _physics_process(_delta: float) -> void:
 	velocity = Vector2(Input.get_axis("ui_left", "ui_right"),
 	                   Input.get_axis("ui_up", "ui_down")).normalized() * SPEED
