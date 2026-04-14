@@ -24,19 +24,23 @@ git branch -d <branch-name>
 - Must use `--rendering-driver opengl3` (llvmpipe software renderer — no GPU)
 - Must use `--editor` flag or Godot launches the game instead of the editor
 
-**Start xpra session:**
-```bash
-xpra start :100 --daemon=yes --exit-with-children=no --html=on --bind-tcp=0.0.0.0:14600 --dpi=96 --xvfb="Xvfb +extension Composite -screen 0 1920x1080x24+32 -nolisten tcp -noreset -dpi 96"
-```
+**xpra is managed by systemd** (`~/.config/systemd/user/xpra.service`):
+- Auto-restarts when Godot windows close (`Restart=always`)
+- Exposes web client on port 14600
 
-**Launch editor:**
-```bash
-DISPLAY=:100 ~/bin/godot4 --editor --rendering-driver opengl3 --path /home/adam/development/freeland/ &
-```
-
-**Aliases** (in `~/.bashrc`): `freeland-xpra` and `freeland-editor`
+**Aliases** (in `~/.bashrc`):
+- `freeland-xpra` — `systemctl --user start xpra.service`
+- `freeland-xpra-stop` — stop the service
+- `freeland-xpra-log` — follow service logs
+- `freeland-editor` — launch Godot editor in xpra
+- `freeland-vt` — shortcut for `scripts/visual_test.sh`
 
 **Connect from laptop:** `http://server:14600`
+
+**Visual testing script:** `scripts/visual_test.sh`
+- `start-host [port]` / `start-client [ip] [port]` / `stop-all` / `status`
+- `walk <left|right|up|down> <frames>` — prints JS snippet for Playwright `browser_evaluate`
+- `key-js <key> [code] [keyCode]` — prints JS for a single keydown+keyup
 
 ## Project Code
 
