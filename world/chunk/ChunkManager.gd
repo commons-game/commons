@@ -7,7 +7,7 @@ extends Node
 const CHUNK_SCENE := preload("res://world/chunk/Chunk.tscn")
 
 var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
-var _player_chunk: Vector2i = Vector2i.ZERO
+var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
 
 func update_player_position(world_tile_pos: Vector2i) -> void:
 	var new_chunk := CoordUtils.world_to_chunk(world_tile_pos)

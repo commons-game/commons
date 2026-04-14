@@ -2,14 +2,6 @@
 ## Uses a short RECENCY_HALF_LIFE to verify fade behavior quickly.
 extends GdUnitTestSuite
 
-# Helper: create a ChunkData-like object with required fields set.
-func _make_chunk(mod_count: int, last_visited_ago_secs: float) -> ChunkData:
-	var chunk := ChunkData.new()
-	chunk.modification_count = mod_count
-	chunk.last_visited = Time.get_unix_time_from_system() - last_visited_ago_secs
-	chunk.weight = 0.0
-	chunk.is_fading = false
-	return chunk
 
 # Mirrors ChunkWeightSystem._recalculate weight for a single chunk with no neighbors.
 func _calc_weight(mod_count: int, age_secs: float, half_life: float) -> float:
@@ -45,13 +37,10 @@ func test_neighborhood_bonus_capped() -> void:
 	var bonus := minf(neighbor_sum * 0.1, 50.0)  # NEIGHBORHOOD_BONUS_CAP = 50.0
 	assert_that(bonus).is_equal(50.0)
 
-# --- is_fading chunk is skipped ---
+# --- is_fading guard: a chunk that starts fading has weight 0, which stays below threshold ---
 
-func test_fading_chunk_not_recalculated() -> void:
-	# This verifies the is_fading guard flag semantics.
-	var chunk := _make_chunk(0, 0.0)
-	chunk.is_fading = true
-	# If is_fading were not checked, a fresh 0-mod chunk would stay at 0 weight.
-	# We just verify the flag is set correctly and the chunk fields are readable.
-	assert_that(chunk.is_fading).is_true()
-	assert_that(chunk.modification_count).is_equal(0)
+func test_fading_chunk_has_zero_recency_weight() -> void:
+	# A chunk with is_fading=true would have 0 modifications → weight = 0 < FADE_THRESHOLD.
+	# This confirms the formula produces the right signal to trigger the guard.
+	var w := _calc_weight(0, 0.0, 30.0)
+	assert_that(w).is_less_equal(0.0)

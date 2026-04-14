@@ -55,6 +55,16 @@ const LocalBackendScript := preload("res://backend/local/LocalBackend.gd")
 var _backend: IBackend = LocalBackendScript.new()
 ```
 
+### JSON.parse_string returns floats for integer values
+**Status:** Known GDScript behavior, handled in tests.
+**Symptom:** `JSON.parse_string('{"x": 5}')["x"]` returns `5.0` (float), not `5` (int). gdUnit4 `is_equal(5)` fails strict type comparison against `5.0`.
+**Workaround:** Cast to int before asserting: `int(parsed["x"])`. Runtime deserialization code using `int(item["layer"])` etc. is already correct.
+
+### ChunkManager._player_chunk sentinel bug
+**Status:** Fixed.
+**Symptom:** `_player_chunk` initialized to `Vector2i.ZERO`. First call to `update_player_position(Vector2i(0,0))` returned immediately (new_chunk == _player_chunk) without loading any chunks.
+**Fix:** Initialize to `Vector2i(-9999, -9999)` — a sentinel that can't equal any real chunk in the first call.
+
 ### TileInteraction path was one level too shallow
 **Status:** Fixed.
 **Symptom:** `$"../ChunkManager"` in `TileInteraction.gd` failed because `TileInteraction` is a grandchild of `World` (child of `Player`, which is child of `World`). `..` only reaches `Player`, not `World`.

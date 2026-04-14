@@ -3,12 +3,13 @@
 ## Cleans up all test files in teardown.
 extends GdUnitTestSuite
 
+const LocalBackendScript := preload("res://backend/local/LocalBackend.gd")
 const TEST_DIR := "user://chunks_test/"
 
-var _backend: LocalBackend
+var _backend
 
 func before_test() -> void:
-	_backend = LocalBackend.new()
+	_backend = LocalBackendScript.new()
 	# Use a test-specific dir so we don't pollute real game saves.
 	_backend.initialize(TEST_DIR)
 
@@ -43,29 +44,29 @@ func test_store_and_retrieve_positive_coords() -> void:
 	var coords := Vector2i(5, 3)
 	var data := _make_chunk_bytes(coords.x, coords.y)
 	_backend.store_chunk(coords, data)
-	var retrieved := _backend.retrieve_chunk(coords)
+	var retrieved: PackedByteArray = _backend.retrieve_chunk(coords)
 	assert_that(retrieved.is_empty()).is_false()
 	var parsed: Dictionary = JSON.parse_string(retrieved.get_string_from_utf8())
 	assert_that(parsed).is_not_null()
-	assert_that(parsed["chunk_x"]).is_equal(5)
-	assert_that(parsed["chunk_y"]).is_equal(3)
+	assert_that(int(parsed["chunk_x"])).is_equal(5)
+	assert_that(int(parsed["chunk_y"])).is_equal(3)
 	assert_that((parsed["entries"] as Array).size()).is_equal(2)
 
 func test_store_and_retrieve_negative_coords() -> void:
 	var coords := Vector2i(-3, -12)
 	var data := _make_chunk_bytes(coords.x, coords.y)
 	_backend.store_chunk(coords, data)
-	var retrieved := _backend.retrieve_chunk(coords)
+	var retrieved: PackedByteArray = _backend.retrieve_chunk(coords)
 	assert_that(retrieved.is_empty()).is_false()
 	var parsed: Dictionary = JSON.parse_string(retrieved.get_string_from_utf8())
-	assert_that(parsed["chunk_x"]).is_equal(-3)
-	assert_that(parsed["chunk_y"]).is_equal(-12)
+	assert_that(int(parsed["chunk_x"])).is_equal(-3)
+	assert_that(int(parsed["chunk_y"])).is_equal(-12)
 
 # --- retrieve missing chunk returns empty ---
 
 func test_retrieve_missing_returns_empty() -> void:
 	var coords := Vector2i(99, 99)
-	var result := _backend.retrieve_chunk(coords)
+	var result: PackedByteArray = _backend.retrieve_chunk(coords)
 	assert_that(result.is_empty()).is_true()
 
 # --- delete removes the file ---
