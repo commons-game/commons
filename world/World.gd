@@ -20,6 +20,8 @@ const ShrineManagerScript         := preload("res://mods/ShrineManager.gd")
 const MergeCoordinatorScript      := preload("res://networking/MergeCoordinator.gd")
 const UDPPresenceServiceScript    := preload("res://networking/UDPPresenceService.gd")
 const MergeRPCBusScript           := preload("res://networking/MergeRPCBus.gd")
+const ReputationStoreScript       := preload("res://reputation/ReputationStore.gd")
+const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
 
 var _session: Object
 var _authority: Object
@@ -29,6 +31,7 @@ var _merge_label: Label                  # shows merge pressure / state
 var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
+var _reputation_store: ReputationStoreScript = null
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
@@ -88,6 +91,11 @@ func _parse_network_args(args: Array) -> void:
 		i += 1
 
 func _setup_merge_system(args: Array) -> void:
+	# Reputation — load persisted state before wiring coordinator
+	_reputation_store = ReputationStoreScript.new()
+	_reputation_store.from_dict(Backend.load_reputation())
+	var reputation_router := MergeRouterScript.new()
+
 	var presence := UDPPresenceServiceScript.new()
 	presence.name = "UDPPresenceService"
 
@@ -96,6 +104,8 @@ func _setup_merge_system(args: Array) -> void:
 	_coordinator.session_id = _session.session_id
 	_coordinator.enet_port = NetworkManager.DEFAULT_PORT
 	_coordinator.presence_service = presence
+	_coordinator.reputation_store = _reputation_store
+	_coordinator.merge_router     = reputation_router
 	if "--dev-instant-merge" in args:
 		_coordinator.dev_instant_merge = true
 
@@ -176,7 +186,7 @@ func _on_merge_ready(_remote_session_id: String) -> void:
 
 func _on_merge_applied() -> void:
 	print("World: merge_applied")
-	_merge_label.text = "[Merged]"
+	_merge_label.text = "[Merged — R: report]"
 
 func _on_split_occurred() -> void:
 	print("World: split occurred")
@@ -236,12 +246,28 @@ func _on_buffs_changed(buffs: Array) -> void:
 		_hud_label.text = "[Shrine active] Buffs: %s" % ", ".join(names)
 
 func _input(event: InputEvent) -> void:
-	# F5 = clean quit for testing via xpra JS keyboard injection
-	if event is InputEventKey and event.pressed and event.keycode == KEY_F5:
-		_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+	if not event is InputEventKey or not event.pressed:
+		return
+	match event.keycode:
+		KEY_F5:
+			# Clean quit for testing via xpra JS keyboard injection
+			_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+		KEY_R:
+			# Report the currently-merged peer
+			if _coordinator != null and _coordinator.is_merged() \
+					and _reputation_store != null:
+				var remote_sid: String = _coordinator.get_remote_session_id()
+				if not remote_sid.is_empty():
+					_reputation_store.submit_report(
+						_session.session_id, remote_sid, "player report")
+					Backend.save_reputation(_reputation_store.to_dict())
+					_merge_label.text = "[Reported]"
+					print("World: reported peer %s" % remote_sid)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		$ChunkManager._persist_all_loaded_chunks()
+		if _reputation_store != null:
+			Backend.save_reputation(_reputation_store.to_dict())
 		NetworkManager.disconnect_all()
 		get_tree().quit()

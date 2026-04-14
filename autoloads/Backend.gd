@@ -19,3 +19,9 @@ func retrieve_chunk(coords: Vector2i) -> PackedByteArray:
 
 func delete_chunk(coords: Vector2i) -> void:
 	_backend.delete_chunk(coords)
+
+func save_reputation(data: Dictionary) -> void:
+	_backend.save_reputation(data)
+
+func load_reputation() -> Dictionary:
+	return _backend.load_reputation()

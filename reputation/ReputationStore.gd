@@ -46,6 +46,16 @@ func get_reputation_flags(player_id: String) -> Dictionary:
 		"in_chaos_pool": is_in_chaos_pool(player_id)
 	}
 
+## Serialise the full store to a plain Dictionary (for Backend persistence).
+func to_dict() -> Dictionary:
+	return {"records": _records.duplicate(true), "reporters": _reporters.duplicate(true)}
+
+## Restore state from a Dictionary previously returned by to_dict().
+## Safe to call with an empty dict (no-op).
+func from_dict(data: Dictionary) -> void:
+	_records   = (data.get("records",   {}) as Dictionary).duplicate(true)
+	_reporters = (data.get("reporters", {}) as Dictionary).duplicate(true)
+
 func _ensure_record(player_id: String) -> void:
 	if not _records.has(player_id):
 		_records[player_id] = {"report_count": 0, "in_chaos_pool": false}

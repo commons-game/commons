@@ -40,6 +40,10 @@ var broadcast_interval: float = 30.0
 var enet_port: int = 7777
 ## Assigned by World — UDPPresenceService (or LocalPresenceService in tests).
 var presence_service: Object = null
+## Phase 5: optional reputation gate. Both must be set for routing to apply.
+## If either is null the check is skipped (backward-compat for pre-Phase-5 tests).
+var reputation_store: Object = null
+var merge_router: Object = null
 
 var _pressure: MergePressureScript
 var _bridge: BridgeFormationScript
@@ -108,6 +112,10 @@ func _on_peer_discovered(remote_sid: String, remote_chunk: Vector2i,
 	if not _bridge.should_form_bridge(_my_chunk, remote_chunk,
 			_pressure.pressure, _pressure.pressure):
 		return
+	# Phase 5: reputation routing gate — skip if either is unset (backward compat)
+	if reputation_store != null and merge_router != null:
+		if not merge_router.can_merge(session_id, remote_sid, reputation_store):
+			return
 	_merging = true
 	var i_am_host: bool = session_id < remote_sid
 	connection_needed.emit(remote_ip, remote_enet_port, i_am_host)
@@ -149,6 +157,9 @@ func reset_value() -> float:
 
 func get_my_chunk() -> Vector2i:
 	return _my_chunk
+
+func get_remote_session_id() -> String:
+	return _remote_session_id
 
 # --- Internal ---
 

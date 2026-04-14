@@ -23,3 +23,10 @@ func subscribe_area(_chunk_coords: Vector2i, _radius: int, _callback: Callable) 
 
 func unsubscribe_area(_chunk_coords: Vector2i) -> void:
 	pass
+
+# Reputation persistence — implemented in LocalBackend; stubbed here.
+func save_reputation(_data: Dictionary) -> void:
+	pass
+
+func load_reputation() -> Dictionary:
+	return {}
