@@ -15,6 +15,14 @@ extends GdUnitTestSuite
 
 const TileMutationBusScript := preload("res://networking/TileMutationBus.gd")
 
+var _to_free: Array = []
+
+func after_test() -> void:
+	for n in _to_free:
+		if is_instance_valid(n):
+			n.free()
+	_to_free.clear()
+
 # Minimal stub that records calls so we can verify the bus applied mutations.
 class MockTileStore:
 	var placed: Array = []   # Array of {coords, layer, tile_id, author_id}
@@ -31,6 +39,7 @@ func _make_bus() -> Array:  # returns [bus, store]
 	var bus = TileMutationBusScript.new()
 	bus.tile_store = store
 	bus.local_author_id = "player_local"
+	_to_free.append(bus)
 	return [bus, store]
 
 # --- Place tile ---

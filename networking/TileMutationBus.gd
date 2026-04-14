@@ -1,22 +1,18 @@
 ## TileMutationBus — single path for all tile changes.
 ##
-## Decouples mutation logic from RPC transport:
-##   1. Applies the mutation locally via tile_store.
-##   2. Enqueues an outbound mutation record for the transport layer to send.
-##
-## The transport layer (WebRTC RPC) calls apply_remote_mutation() when it
-## receives a mutation from a peer.
+## Extends Node so it can live in the scene tree and use @rpc for peer broadcast.
+## Pure logic is still fully unit-testable: when not in the scene tree,
+## broadcast_mutation() is a no-op (is_inside_tree() returns false).
 ##
 ## tile_store must implement:
 ##   func set_tile(world_coords: Vector2i, layer: int, tile_id: String, author_id: String)
 ##   func remove_tile(world_coords: Vector2i, layer: int, author_id: String)
 ##
-## Usage:
-##   bus.tile_store = chunk_manager   (or a CRDTTileStore wrapper)
-##   bus.local_author_id = player_id
-##   bus.request_place_tile(coords, layer, tile_id)
-##   var pending := bus.flush_outbound()   # send these to peers via RPC
+## RPC serialization: Vector2i is sent as [x, y] Array because Godot's RPC layer
+## does not guarantee Vector2i passes cleanly across the network boundary.
+## _rpc_receive_mutation() converts it back before calling apply_remote_mutation().
 class_name TileMutationBus
+extends Node
 
 var tile_store: Object = null
 var local_author_id: String = "local"
@@ -25,11 +21,15 @@ var _outbound: Array = []
 
 func request_place_tile(world_coords: Vector2i, layer: int, tile_id: String) -> void:
 	tile_store.set_tile(world_coords, layer, tile_id, local_author_id)
-	_outbound.append(_make_record("place", world_coords, layer, tile_id, local_author_id))
+	var record := _make_record("place", world_coords, layer, tile_id, local_author_id)
+	_outbound.append(record)
+	broadcast_mutation(record)
 
 func request_remove_tile(world_coords: Vector2i, layer: int) -> void:
 	tile_store.remove_tile(world_coords, layer, local_author_id)
-	_outbound.append(_make_record("remove", world_coords, layer, "", local_author_id))
+	var record := _make_record("remove", world_coords, layer, "", local_author_id)
+	_outbound.append(record)
+	broadcast_mutation(record)
 
 ## Apply a mutation received from a remote peer.
 ## Does NOT enqueue an outbound record (we received it, not originated it).
@@ -42,6 +42,27 @@ func apply_remote_mutation(record: Dictionary) -> void:
 			tile_store.set_tile(coords, layer, record.get("tile_id", ""), author)
 		"remove":
 			tile_store.remove_tile(coords, layer, author)
+
+## Broadcast a mutation to all connected peers via RPC.
+## No-op when not in the scene tree (unit tests) or no multiplayer peer is active.
+func broadcast_mutation(record: Dictionary) -> void:
+	if not is_inside_tree():
+		return
+	if not multiplayer.has_multiplayer_peer():
+		return
+	var serializable := record.duplicate()
+	var coords: Vector2i = serializable["world_coords"]
+	serializable["world_coords"] = [coords.x, coords.y]
+	rpc("_rpc_receive_mutation", serializable)
+
+## RPC receive — called on all peers when a mutation is broadcast.
+## Converts the Array-encoded world_coords back to Vector2i before applying.
+@rpc("any_peer", "reliable")
+func _rpc_receive_mutation(record: Dictionary) -> void:
+	if record.has("world_coords"):
+		var arr: Array = record["world_coords"] as Array
+		record["world_coords"] = Vector2i(int(arr[0]), int(arr[1]))
+	apply_remote_mutation(record)
 
 ## Returns the pending outbound queue and clears it.
 func flush_outbound() -> Array:

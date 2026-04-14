@@ -31,11 +31,20 @@ class SimTileStore:
 		var key := "%d,%d,%d" % [world_coords.x, world_coords.y, layer]
 		return tiles.get(key, {}).get("tile_id", "")
 
+var _to_free: Array = []
+
+func after_test() -> void:
+	for n in _to_free:
+		if is_instance_valid(n):
+			n.free()
+	_to_free.clear()
+
 func _make_peer(author_id: String) -> Array:  # [bus, store]
 	var store = SimTileStore.new()
 	var bus = TileMutationBusScript.new()
 	bus.tile_store = store
 	bus.local_author_id = author_id
+	_to_free.append(bus)
 	return [bus, store]
 
 ## Deliver peer A's outbound queue to peer B.

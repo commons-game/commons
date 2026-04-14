@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://world"]
+[gd_scene load_steps=7 format=3 uid="uid://world"]
 
 [ext_resource type="Script" path="res://world/World.gd" id="1"]
 [ext_resource type="Script" path="res://world/chunk/ChunkManager.gd" id="2"]
 [ext_resource type="PackedScene" uid="uid://player" path="res://player/Player.tscn" id="3"]
 [ext_resource type="Script" path="res://world/weight/ChunkWeightSystem.gd" id="4"]
+[ext_resource type="Script" path="res://networking/TileMutationBus.gd" id="5"]
+[ext_resource type="PackedScene" path="res://player/RemotePlayer.tscn" id="6"]
 
 [node name="World" type="Node2D"]
 script = ExtResource("1")
@@ -13,5 +15,12 @@ script = ExtResource("2")
 
 [node name="ChunkWeightSystem" type="Node" parent="."]
 script = ExtResource("4")
+
+[node name="TileMutationBus" type="Node" parent="."]
+script = ExtResource("5")
+
+[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="."]
+spawn_path = NodePath("..")
+auto_spawn_list = [ExtResource("6")]
 
 [node name="Player" parent="." instance=ExtResource("3")]
