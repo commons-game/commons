@@ -130,7 +130,7 @@ func _tick_idle(delta: float) -> void:
 		_patrol_target = position + offset * Constants.TILE_SIZE
 		_state = State.PATROL
 
-func _tick_patrol(delta: float) -> void:
+func _tick_patrol(_delta: float) -> void:
 	# Check if player is close enough to chase
 	if player != null and _dist_to_player_tiles() <= CHASE_RADIUS:
 		_state = State.CHASE
@@ -149,7 +149,7 @@ func _tick_patrol(delta: float) -> void:
 	velocity = dir * PATROL_SPEED
 	move_and_slide()
 
-func _tick_chase(delta: float) -> void:
+func _tick_chase(_delta: float) -> void:
 	if player == null:
 		_state = State.IDLE
 		_idle_timer = 1.0

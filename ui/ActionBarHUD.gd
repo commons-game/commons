@@ -48,6 +48,10 @@ var _labels: Array = []    # Label nodes, one per slot
 var _borders: Array = []   # ColorRect border indicator per slot
 var _bag_label: Label = null  # shows bag item counts below action bar
 
+var _hp_bar_bg: ColorRect = null
+var _hp_bar_fill: ColorRect = null
+var _hp_bar_total_width: int = 0
+
 func _ready() -> void:
 	layer = 10
 	_build_ui()
@@ -107,6 +111,20 @@ func _build_ui() -> void:
 	_bag_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
 	_bag_label.text = ""
 	add_child(_bag_label)
+
+	# HP bar — background + fill ColorRects above the slot row
+	var bar_y: int = y - HP_BAR_GAP - HP_BAR_HEIGHT
+	_hp_bar_total_width = total_width
+	_hp_bar_bg = ColorRect.new()
+	_hp_bar_bg.position = Vector2(start_x, bar_y)
+	_hp_bar_bg.size = Vector2(total_width, HP_BAR_HEIGHT)
+	_hp_bar_bg.color = COLOR_HP_BG
+	add_child(_hp_bar_bg)
+	_hp_bar_fill = ColorRect.new()
+	_hp_bar_fill.position = Vector2(start_x, bar_y)
+	_hp_bar_fill.size = Vector2(total_width, HP_BAR_HEIGHT)
+	_hp_bar_fill.color = COLOR_HP_FULL
+	add_child(_hp_bar_fill)
 
 func _border_color(slot_index: int) -> Color:
 	match slot_index:
@@ -179,26 +197,20 @@ func _update_slot(index: int, stack: Dictionary) -> void:
 		var raw: String = str(stack.get("id", ""))
 		lbl.text = raw.replace("_", "\n").left(12)
 
-func _draw() -> void:
-	if player == null:
+func _update_hp_bar() -> void:
+	if _hp_bar_fill == null or player == null:
 		return
-	var total_width: int = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
-	var start_x: int = (1280 - total_width) / 2
-	var bar_y: int = 720 - BAR_HEIGHT - HP_BAR_GAP - HP_BAR_HEIGHT
-	var bg_rect := Rect2(start_x, bar_y, total_width, HP_BAR_HEIGHT)
-	draw_rect(bg_rect, COLOR_HP_BG)
 	var max_hp: int = int(player.get("max_hp"))
-	if max_hp > 0:
-		var fraction: float = clampf(float(player.get("hp")) / float(max_hp), 0.0, 1.0)
-		var fill_color: Color = COLOR_HP_EMPTY.lerp(COLOR_HP_FULL, fraction)
-		var fill_rect := Rect2(start_x, bar_y, int(total_width * fraction), HP_BAR_HEIGHT)
-		draw_rect(fill_rect, fill_color)
+	if max_hp <= 0:
+		return
+	var fraction: float = clampf(float(player.get("hp")) / float(max_hp), 0.0, 1.0)
+	_hp_bar_fill.size.x = _hp_bar_total_width * fraction
+	_hp_bar_fill.color = COLOR_HP_EMPTY.lerp(COLOR_HP_FULL, fraction)
 
 var _frame_counter: int = 0
 
 func _process(_delta: float) -> void:
-	if player != null:
-		queue_redraw()
+	_update_hp_bar()
 	# Poll inventory every 6 frames so changes (dig/place) reflect immediately
 	# without needing explicit refresh() calls from every caller.
 	_frame_counter += 1
