@@ -36,6 +36,7 @@ const VibeBusScript               := preload("res://world/VibeBus.gd")
 const DayNightSystemScript        := preload("res://world/DayNightSystem.gd")
 const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
 const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack.gd")
+const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.gd")
 
 var _session: Object
 var _authority: Object
@@ -115,6 +116,8 @@ func _ready() -> void:
 		print("HealthCheck: running 30s check, screenshot every 5s")
 	if not is_web and "--dev-necro-shrine" in args:
 		_place_necro_shrine_at_spawn.call_deferred()
+	if not is_web and "--dev-alch-shrine" in args:
+		_place_alch_shrine_nearby.call_deferred()
 	if not is_web and "--dev-frame-log" in args:
 		_dev_frame_log = true
 		print("FrameLog: per-frame visual logging enabled")
@@ -418,10 +421,25 @@ func _place_necro_shrine_at_spawn() -> void:
 	var shrine_id := sm.place_shrine(Vector2i.ZERO, json, "dev")
 	print("DevNecroShrine: placed shrine '%s' at origin — walk into chunk (0,0) to activate" % shrine_id)
 
+## Place alchemist shrine one chunk east of spawn for side-by-side mod testing.
+func _place_alch_shrine_nearby() -> void:
+	var json := FileAccess.get_file_as_string("res://mods/bundles/alchemist.json")
+	if json.is_empty():
+		push_error("_place_alch_shrine_nearby: failed to read alchemist.json")
+		return
+	var sm := $ShrineManager as ShrineManagerScript
+	# Place one chunk east so you can walk between necromancer and alchemist territories
+	var tile_pos := Vector2i(Constants.CHUNK_SIZE, 0)
+	var shrine_id := sm.place_shrine(tile_pos, json, "dev")
+	print("DevAlchShrine: placed shrine '%s' — walk east ~%d tiles to enter" % [shrine_id, Constants.CHUNK_SIZE])
+
 func _setup_builtin_mods() -> void:
 	var necro := NecromancerPackScript.new()
 	necro.name = "NecromancerPack"
 	add_child(necro)
+	var alch := AlchemistPackScript.new()
+	alch.name = "AlchemistPack"
+	add_child(alch)
 
 func _setup_mod_editor() -> void:
 	_mod_editor = ModEditorScript.new()
