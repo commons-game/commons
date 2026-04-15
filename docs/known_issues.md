@@ -126,6 +126,10 @@ elif atlas_x == 2 and o > -0.22:
 const LocalBackendScript := preload("res://backend/local/LocalBackend.gd")
 var _backend: IBackend = LocalBackendScript.new()
 ```
+This also applies to:
+- **Type annotations on vars**: `var x: Foo = null` → use `var x = null  # Foo` or the preloaded const type
+- **Function parameter types**: `func f(a: Foo)` → use `func f(a: Object)` with a comment
+- **`:=` inference from Object**: `var d := obj.some_method()` fails when `obj` is typed `Object`; use explicit type `var d: Dictionary = obj.call("some_method")`
 
 ### JSON.parse_string returns floats for integer values
 **Status:** Known GDScript behavior, handled in tests.
@@ -288,3 +292,14 @@ Applied in `player/Player.gd` and `player/RemotePlayer.gd`.
 **Symptom:** `var x := float_val - (dict["key1"] / dict["key2"])` — "Cannot infer the type of 'x' variable because the value doesn't have a set type." Dictionary values return `Variant`, and arithmetic on `Variant` stays `Variant`.
 **Fix:** Cast dictionary lookups explicitly: `var x: float = float_val - (float(dict["key1"]) / float(dict["key2"]))`.
 **Applies to:** Any arithmetic on values retrieved from an untyped `Dictionary`.
+
+### GDScript typed Array cannot be assigned from untyped Array literal
+**Status:** Pattern established.
+**Symptom:** `my_obj.active_buff_ids = ["a", "b"]` where `active_buff_ids: Array[String]` causes runtime error: "Invalid assignment of property ... with value of type 'Array'." The literal `["a", "b"]` is an untyped `Array`, and GDScript cannot implicitly coerce it into a typed `Array[String]` at runtime.
+**Fix:** Use `append()` to build typed arrays, or `append_array()` from another typed source:
+```gdscript
+a.active_buff_ids.clear()
+a.active_buff_ids.append("blood_harvest")
+a.active_buff_ids.append("undead_resilience")
+```
+**Applies to:** Any `Array[T]` property on an object accessed through an untyped variable (e.g. from `preload().new()` in tests). Direct `:=` assignment from `[]` literals works only when the variable is declared with a known typed type at parse time.

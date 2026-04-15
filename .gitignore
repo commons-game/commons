@@ -44,3 +44,6 @@ reports/
 # Screenshots from visual smoke tests (root-level)
 *.png
 *.xwd
+# But track game assets
+!assets/**/*.png
+!tilesets/**/*.png

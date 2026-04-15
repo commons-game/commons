@@ -13,19 +13,32 @@ var _facing := Vector2.UP
 var coordinator: Node = null
 var _last_chunk: Vector2i = Vector2i(-9999, -9999)
 
-const ShrineManagerScript := preload("res://mods/ShrineManager.gd")
-const LanternScript       := preload("res://player/Lantern.gd")
-const InventoryScript     := preload("res://items/Inventory.gd")
+## Walk animation: accumulates distance moved to drive frame changes.
+var _walk_dist: float = 0.0
+## Distance per walk frame step (pixels). At SPEED=80 this cycles ~every 0.15s.
+const WALK_STEP := 12.0
+
+const ShrineManagerScript      := preload("res://mods/ShrineManager.gd")
+const LanternScript            := preload("res://player/Lantern.gd")
+const CharacterAppearanceScript := preload("res://player/CharacterAppearance.gd")
+const CharacterRendererScript  := preload("res://player/CharacterRenderer.gd")
+const InventoryScript          := preload("res://items/Inventory.gd")
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
 
 var inventory: Object = null  # Inventory — set up in _ready
 var _lantern: Node = null
+var appearance = null  # CharacterAppearance
+var _renderer  = null  # CharacterRenderer
 
 func _ready() -> void:
 	# Always render above all tile layers (GroundLayer=0, ObjectLayer=1).
 	z_index = 2
+	appearance = CharacterAppearanceScript.new()
+	_renderer = CharacterRendererScript.new()
+	_renderer.name = "CharacterRenderer"
+	add_child(_renderer)
 
 	inventory = InventoryScript.new()
 	# Starter loadout: lantern in slot 0, shovel in slot 1.
@@ -37,7 +50,11 @@ func _ready() -> void:
 	add_child(_lantern)
 
 func _draw() -> void:
-	# Body: white filled circle with dark outline
+	# Suppress draw-code when CharacterRenderer has a sprite showing.
+	if _renderer != null and _renderer.has_visible_sprites():
+		return
+	# Fallback: white filled circle with dark outline + direction triangle.
+	# Active when no sprite sheet is loaded (renderer not ready, or pack returns null).
 	draw_circle(Vector2.ZERO, RADIUS, Color(0.15, 0.15, 0.15))   # shadow/outline
 	draw_circle(Vector2.ZERO, RADIUS - 1.0, Color.WHITE)
 	# Direction triangle: small filled triangle pointing in _facing direction
@@ -55,6 +72,12 @@ func _physics_process(_delta: float) -> void:
 	velocity = input.normalized() * SPEED
 	if input != Vector2.ZERO:
 		_facing = input.normalized()
+		_walk_dist += SPEED * get_physics_process_delta_time()
+		appearance.walk_frame = int(_walk_dist / WALK_STEP) % 3
+	else:
+		appearance.walk_frame = 0  # neutral when standing still
+	appearance.facing = _facing
+	_update_appearance()
 	move_and_slide()
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
@@ -103,3 +126,13 @@ func _on_talisman_toggled(awakened: bool) -> void:
 	# awakening/dormanting just changes what the talisman does passively.
 	print("Player: talisman %s" % ("awakened" if awakened else "dormant"))
 	# Future: emit signal for HUD, VibeBus, visual effect.
+
+func _update_appearance() -> void:
+	if appearance == null or _renderer == null:
+		return
+	# Held item from active inventory slot
+	var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
+	appearance.held_item_id = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
+	# Active buff overlays: not yet wired (BuffManager lives on World, not Player).
+	# Will be connected when BuffManager is moved to Player scope.
+	_renderer.refresh(appearance)
