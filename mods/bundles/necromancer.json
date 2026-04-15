@@ -1,0 +1,39 @@
+{
+  "id": "necromancer",
+  "name": "Necromancer",
+  "description": "Channel the dead. Shrines raise fallen enemies, altar-generated gravestones dot the land, Blood Harvest grants HP on kill.",
+  "buffs": [
+    {
+      "id": "blood_harvest",
+      "speed_modifier": 0.9,
+      "damage_modifier": 1.3,
+      "defense_modifier": 0.8,
+      "merge_pressure_multiplier": 1.1,
+      "duration": -1
+    },
+    {
+      "id": "undead_resilience",
+      "speed_modifier": 1.0,
+      "damage_modifier": 1.0,
+      "defense_modifier": 1.4,
+      "merge_pressure_multiplier": 0.9,
+      "duration": -1
+    }
+  ],
+  "tiles": [
+    {
+      "id": "gravestone",
+      "solid": true,
+      "tags": ["undead", "decoration", "necromancer"],
+      "decay_rate": 0.05,
+      "on_proximity": [
+        {
+          "condition": { "type": "has_tag", "params": { "tag": "player" } },
+          "effects": [
+            { "type": "grant_buff", "params": { "buff_id": "undead_resilience" } }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,21 +1,34 @@
-## Tests for AssetPack resolution logic.
+## Tests for AssetPack resolution and buff→body mapping.
 extends GdUnitTestSuite
 
 const AssetPackScript := preload("res://player/AssetPack.gd")
 
 func before_each() -> void:
-	# Reset to debug pack before each test
+	# Reset static state before each test
 	AssetPackScript.current_pack = "debug"
 	AssetPackScript._registered = {}
+	AssetPackScript._buff_body_map = {}
 
-func test_debug_pack_returns_null() -> void:
-	var result = AssetPackScript.resolve("body", "default")
+func test_registered_pack_found_regardless_of_current_pack() -> void:
+	# Registered pack assets are resolved even when current_pack != pack_name.
+	# Path doesn't exist → returns null cleanly (ResourceLoader.exists=false).
+	AssetPackScript.current_pack = "debug"
+	AssetPackScript.register_pack("my_mod", {
+		"body": {"hero": "res://nonexistent/hero.png"}
+	})
+	var result: Texture2D = AssetPackScript.resolve("body", "hero")
+	assert_object(result).is_null()  # nonexistent path → null, but no crash
+
+func test_unregistered_variant_returns_null() -> void:
+	AssetPackScript.register_pack("my_mod", {
+		"body": {"warrior": "res://nonexistent/warrior.png"}
+	})
+	var result: Texture2D = AssetPackScript.resolve("body", "nonexistent_variant")
 	assert_object(result).is_null()
 
-func test_debug_pack_always_null_regardless_of_slot() -> void:
-	assert_object(AssetPackScript.resolve("body", "necromancer")).is_null()
-	assert_object(AssetPackScript.resolve("held_item", "bone_wand")).is_null()
-	assert_object(AssetPackScript.resolve("status_effect", "blood_harvest")).is_null()
+func test_unknown_slot_returns_null() -> void:
+	var result: Texture2D = AssetPackScript.resolve("unknown_slot", "default")
+	assert_object(result).is_null()
 
 func test_register_pack_stores_mapping() -> void:
 	AssetPackScript.register_pack("test_pack", {
@@ -23,13 +36,24 @@ func test_register_pack_stores_mapping() -> void:
 	})
 	assert_bool(AssetPackScript._registered.has("test_pack")).is_true()
 
-func test_registered_pack_lookup_no_crash() -> void:
-	# Path doesn't exist — ResourceLoader.exists returns false, so resolve returns null.
-	# Verify no crash when pack is active and variant is unmapped.
-	AssetPackScript.register_pack("my_pack", {
-		"body": {"hero": "res://nonexistent/hero.png"}
+func test_buff_body_map_resolves_registered_buff() -> void:
+	AssetPackScript.register_buff_body_map({
+		"blood_harvest": "necromancer",
+		"undead_resilience": "necromancer",
 	})
-	AssetPackScript.current_pack = "my_pack"
-	# Resolving an unmapped slot returns null — no crash
-	var result = AssetPackScript.resolve("body", "nonexistent_variant")
-	assert_object(result).is_null()
+	assert_str(AssetPackScript.resolve_body_for_buffs(["blood_harvest"])).is_equal("necromancer")
+
+func test_buff_body_map_first_match_wins() -> void:
+	AssetPackScript.register_buff_body_map({
+		"buff_a": "body_a",
+		"buff_b": "body_b",
+	})
+	# First buff in the list with a mapping wins
+	var result: String = AssetPackScript.resolve_body_for_buffs(["buff_a", "buff_b"])
+	assert_str(result).is_equal("body_a")
+
+func test_buff_body_map_no_match_returns_default() -> void:
+	assert_str(AssetPackScript.resolve_body_for_buffs(["unknown_buff"])).is_equal("default")
+
+func test_buff_body_map_empty_list_returns_default() -> void:
+	assert_str(AssetPackScript.resolve_body_for_buffs([])).is_equal("default")

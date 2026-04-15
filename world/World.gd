@@ -35,6 +35,7 @@ const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
 const VibeBusScript               := preload("res://world/VibeBus.gd")
 const DayNightSystemScript        := preload("res://world/DayNightSystem.gd")
 const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
+const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack.gd")
 
 var _session: Object
 var _authority: Object
@@ -82,11 +83,13 @@ func _ready() -> void:
 	bus.tile_store      = $ChunkManager
 	bus.local_author_id = PlayerIdentity.id
 
-	# Wire ShrineManager signals → HUD
+	# Wire ShrineManager signals → HUD and Player appearance
 	var sm := $ShrineManager as ShrineManagerScript
 	sm.buffs_changed.connect(_on_buffs_changed)
+	sm.buffs_changed.connect($Player._on_buffs_changed)
 	_setup_hud()
 	_setup_mod_editor()
+	_setup_builtin_mods()
 
 	# Register spawnable scene programmatically — auto_spawn_list in .tscn is
 	# not a valid MultiplayerSpawner property and is silently ignored at runtime.
@@ -109,6 +112,8 @@ func _ready() -> void:
 	if not is_web and "--dev-health-check" in args:
 		_health_check_timer = 0.0
 		print("HealthCheck: running 30s check, screenshot every 5s")
+	if not is_web and "--dev-necro-shrine" in args:
+		_place_necro_shrine_at_spawn.call_deferred()
 	if not is_web and "--dev-frame-log" in args:
 		_dev_frame_log = true
 		print("FrameLog: per-frame visual logging enabled")
@@ -379,6 +384,22 @@ func _setup_hud() -> void:
 	_clock_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	_clock_label.text = ""
 	hud.add_child(_clock_label)
+
+## Auto-place a necromancer shrine at spawn for visual dev testing.
+## Run with: DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-necro-shrine --dev-health-check
+func _place_necro_shrine_at_spawn() -> void:
+	var json := FileAccess.get_file_as_string("res://mods/bundles/necromancer.json")
+	if json.is_empty():
+		push_error("_place_necro_shrine_at_spawn: failed to read necromancer.json")
+		return
+	var sm := $ShrineManager as ShrineManagerScript
+	var shrine_id := sm.place_shrine(Vector2i.ZERO, json, "dev")
+	print("DevNecroShrine: placed shrine '%s' at origin — walk into chunk (0,0) to activate" % shrine_id)
+
+func _setup_builtin_mods() -> void:
+	var necro := NecromancerPackScript.new()
+	necro.name = "NecromancerPack"
+	add_child(necro)
 
 func _setup_mod_editor() -> void:
 	_mod_editor = ModEditorScript.new()
