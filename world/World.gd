@@ -38,6 +38,7 @@ const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
 const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack.gd")
 const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.gd")
 const GravestoneScatterScript     := preload("res://world/generation/GravestoneScatter.gd")
+const MobSpawnerScript            := preload("res://world/mobs/MobSpawner.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 
 var _session: Object
@@ -432,6 +433,11 @@ func _scatter_gravestones_near(shrine_chunk: Vector2i) -> void:
 	var cm := $ChunkManager as ChunkManager
 	var placed := GravestoneScatterScript.scatter(cm, shrine_chunk, Constants.WORLD_SEED)
 	print("NecroShrine: scattered %d gravestones near chunk %s" % [placed, shrine_chunk])
+	# Spawn 3 mobs near the necromancer shrine
+	var spawner := MobSpawnerScript.new()
+	spawner.name = "MobSpawner"
+	add_child(spawner)
+	spawner.spawn(Vector2i(0, 0), 3, 8, $ChunkManager, $Player, self)
 
 ## Place alchemist shrine one chunk east of spawn for side-by-side mod testing.
 func _place_alch_shrine_nearby() -> void:

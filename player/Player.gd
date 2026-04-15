@@ -3,12 +3,19 @@ extends CharacterBody2D
 
 const SPEED := 80.0
 
+var hp: int = 100
+var max_hp: int = 100
+
+const ATTACK_DAMAGE := 25
+const ATTACK_RANGE := 1.5  # tiles
+
 ## Filled circle radius and direction-triangle half-width (in pixels).
 const RADIUS := 7.0
 const TRI_SIZE := 4.0
 
 ## Track last non-zero velocity for the direction indicator.
 var _facing := Vector2.UP
+var _attack_cooldown: float = 0.0
 ## Set by World._setup_merge_system() after both Player and MergeCoordinator are ready.
 var coordinator: Node = null
 var _last_chunk: Vector2i = Vector2i(-9999, -9999)
@@ -71,8 +78,36 @@ func _draw() -> void:
 	var right := _facing.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
 	draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.7, 0.1))
 
-func _process(_delta: float) -> void:
+func take_damage(amount: int) -> void:
+	hp = max(0, hp - amount)
+	print("Player: took %d damage, hp=%d/%d" % [amount, hp, max_hp])
+	if hp == 0:
+		print("Player: died (respawn not implemented yet)")
+
+func _do_attack() -> void:
+	if _attack_cooldown > 0.0:
+		return
+	_attack_cooldown = 0.5
+	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+	                         int(floorf(position.y / Constants.TILE_SIZE)))
+	# Find any mob within ATTACK_RANGE tiles — duck-type check via "mob_died" signal
+	for node in get_parent().get_children():
+		if not node.get_script():
+			continue
+		if not "mob_died" in node:
+			continue
+		var mob_tile := Vector2i(int(floorf(node.position.x / Constants.TILE_SIZE)),
+		                         int(floorf(node.position.y / Constants.TILE_SIZE)))
+		var dist: float = (mob_tile - tile_pos).length()
+		if dist <= ATTACK_RANGE:
+			var health = node.get_node_or_null("Health")
+			if health != null:
+				health.call("take_damage", ATTACK_DAMAGE)
+
+func _process(delta: float) -> void:
 	queue_redraw()
+	if _attack_cooldown > 0.0:
+		_attack_cooldown -= delta
 
 func _physics_process(_delta: float) -> void:
 	var input := Vector2(Input.get_axis("ui_left", "ui_right"),
@@ -118,6 +153,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	match event.keycode:
+		KEY_SPACE:
+			_do_attack()
 		KEY_L:
 			# Toggle lantern — mirrors whether lantern tool is in action bar.
 			if _lantern != null:
