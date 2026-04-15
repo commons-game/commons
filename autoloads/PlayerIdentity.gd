@@ -13,9 +13,15 @@ const _STORAGE_PATH := "user://player_identity.cfg"
 
 var id: String = ""
 
+## Short human-readable name derived from the UUID (first 8 hex chars).
+## e.g. "54e197e9". Set once in _ready(). Not globally unique but good enough
+## for proximity chat. Phase C will add proper name registration.
+var display_name: String = ""
+
 func _ready() -> void:
 	id = _load_or_generate(_STORAGE_PATH)
-	print("PlayerIdentity: id=%s" % id)
+	display_name = id.left(8)
+	print("PlayerIdentity: id=%s  name=%s" % [id, display_name])
 
 ## Load from path if it exists; otherwise generate, persist, and return.
 ## Accepts a custom path so unit tests can use a temp file.

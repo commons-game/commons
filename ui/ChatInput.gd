@@ -22,23 +22,38 @@ func _ready() -> void:
 	_build_ui()
 
 func _build_ui() -> void:
+	# Outer border rect for visibility
+	var border := ColorRect.new()
+	border.name = "InputBorder"
+	border.color = Color(0.4, 0.6, 1.0, 0.9)
+	border.position = Vector2((1280 - 484) / 2, 720 - 54)
+	border.size = Vector2(484, 44)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	border.focus_mode   = Control.FOCUS_NONE
+	add_child(border)
+
 	var bg := ColorRect.new()
 	bg.name = "InputBG"
-	bg.color = Color(0.05, 0.05, 0.1, 0.88)
-	bg.position = Vector2((1280 - 480) / 2, 720 - 50)
-	bg.size = Vector2(480, 36)
-	# Prevent the bg rect from consuming input events when hidden.
+	bg.color = Color(0.08, 0.08, 0.16, 0.96)
+	bg.position = Vector2((1280 - 480) / 2, 720 - 52)
+	bg.size = Vector2(480, 40)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.focus_mode   = Control.FOCUS_NONE
 	add_child(bg)
 
 	_line_edit = LineEdit.new()
 	_line_edit.name = "LineEdit"
-	_line_edit.placeholder_text = "Type to chat...  /dm <name> <msg>  /addfriend <name>"
-	_line_edit.position = Vector2(6, 4)
+	_line_edit.placeholder_text = "Say something...  /dm <name> <msg>  /addfriend <name>"
+	_line_edit.position = Vector2(6, 6)
 	_line_edit.size = Vector2(468, 28)
 	_line_edit.add_theme_font_size_override("font_size", 13)
 	_line_edit.add_theme_color_override("font_color", Color(1, 1, 1))
+	_line_edit.add_theme_color_override("font_placeholder_color", Color(0.6, 0.7, 0.9, 0.7))
+	# Solid background so text is always readable regardless of game theme
+	var le_style := StyleBoxFlat.new()
+	le_style.bg_color = Color(0.12, 0.12, 0.22, 1.0)
+	_line_edit.add_theme_stylebox_override("normal", le_style)
+	_line_edit.add_theme_stylebox_override("focus",  le_style)
 	bg.add_child(_line_edit)
 
 	_line_edit.text_submitted.connect(_on_text_submitted)
@@ -56,14 +71,8 @@ func deactivate() -> void:
 func _on_text_submitted(text: String) -> void:
 	var trimmed := text.strip_edges()
 	if not trimmed.is_empty():
-		var player_id: String = ""
-		var player_name: String = ""
-		if player != null:
-			player_id = str(player.get("id") if player.get("id") != null else PlayerIdentity.id)
-			player_name = str(player.get("display_name") if player.get("display_name") != null else PlayerIdentity.id)
-		else:
-			player_id = PlayerIdentity.id
-			player_name = PlayerIdentity.id
+		var player_id:   String = PlayerIdentity.id
+		var player_name: String = PlayerIdentity.display_name
 		ChatSystem.handle_input(trimmed, player_id, player_name)
 	deactivate()
 	get_viewport().set_input_as_handled()
