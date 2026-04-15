@@ -92,6 +92,7 @@ func _physics_process(_delta: float) -> void:
 	chunk_manager.update_player_position(tile_pos)
 	chunk_manager.update_player_last_visited(tile_pos)
 	shrine_manager.on_player_position(tile_pos)
+	_check_item_pickup(tile_pos)
 	var cur_chunk := CoordUtils.world_to_chunk(tile_pos)
 	if cur_chunk != _last_chunk:
 		_last_chunk = cur_chunk
@@ -161,6 +162,23 @@ func _on_buffs_changed(buffs: Array) -> void:
 	# Buff-granted item is cosmetic — shows while in shrine, independent of active tool.
 	# Functional tool sprites (lantern lit, shovel raised) are a future layer on top.
 	appearance.held_item_id = AssetPackScript.resolve_slot_for_buffs("held_item", appearance.active_buff_ids)
+
+func _check_item_pickup(tile_pos: Vector2i) -> void:
+	if not chunk_manager.has_tile_at(tile_pos, 1):
+		return
+	var chunk := chunk_manager.get_chunk(CoordUtils.world_to_chunk(tile_pos))
+	if chunk == null:
+		return
+	var local := CoordUtils.world_to_local(tile_pos)
+	var tile: Dictionary = chunk.crdt.get_tile(1, local)
+	if tile.is_empty():
+		return
+	# Atlas (3,1) = loot_pickup → bone_armor for now
+	if tile.get("atlas_x", -1) == 3 and tile.get("atlas_y", -1) == 1:
+		chunk_manager.remove_tile(tile_pos, 1, "pickup")
+		if equipment != null:
+			equipment.call("add_to_bag", "bone_armor", "armor")
+			print("Player: picked up bone_armor")
 
 func _update_appearance() -> void:
 	if appearance == null or _renderer == null:

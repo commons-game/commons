@@ -69,15 +69,17 @@ static func register_buff_item_map(mappings: Dictionary) -> void:
 	register_buff_slot_map("held_item", mappings)
 
 ## Given a slot name and active buff IDs, return the variant to render.
-## Returns "default" for "body", "" for all other slots, if no match found.
+## Returns "" (empty) for all slots when no active buff has a registered mapping.
+## An empty string for "body" signals "use world/default body" — Player code
+## and CharacterRenderer handle the fallback to the default sprite.
 static func resolve_slot_for_buffs(slot: String, buff_ids: Array) -> String:
 	if _buff_slot_maps.has(slot):
 		var slot_map: Dictionary = _buff_slot_maps[slot] as Dictionary
 		for buff_id in buff_ids:
 			if slot_map.has(buff_id):
 				return str(slot_map[buff_id])
-	# Default fallback depends on slot
-	return "default" if slot == "body" else ""
+	# No active buff override — empty string signals "revert to world/default"
+	return ""
 
 ## Legacy wrapper: resolve body variant from buff list.
 ## Returns "default" if no buff has a registered body override.
