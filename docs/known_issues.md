@@ -179,6 +179,12 @@ elif atlas_x == 2 and o > -0.22:
 **How we could have caught this:** A unit test for `ProceduralGenerator.generate_chunk()` that asserts the returned entries contain at least one layer-1 tile across a large sample (e.g., 10 chunks). This would have failed immediately on the first run. Test added to catch regressions.
 **Note:** `TYPE_SIMPLEX_SMOOTH` returns values in `[-1, 1]` as expected. Only cellular noise has this compressed range.
 
+### CanvasLayer does not support _draw() / draw_rect() / queue_redraw()
+**Status:** Pattern established — use Control/ColorRect nodes instead.
+**Symptom:** Calling `draw_rect()` or `queue_redraw()` inside a `CanvasLayer` script produces `Function "draw_rect()" not found in base self` errors. `_draw()` is silently never called.
+**Root cause:** `_draw()` is a `Node2D` / `Control` virtual method. `CanvasLayer` inherits from neither — it has no drawing API.
+**Fix:** For UI elements on a CanvasLayer, use `ColorRect`, `Panel`, `Label`, and other `Control` nodes as children. Store references and update their `.color`, `.size`, `.modulate` properties directly in `_process()`. This is also how the rest of the HUD is built.
+
 ### GDScript LSP false-positive: "Unexpected < in class body" at line 1
 **Status:** Known false positive, no action needed.
 **Symptom:** The gdscript LSP plugin reports `Unexpected "<" in class body [-1]` at line 1 of any newly-saved `.gd` file. The error clears on its own once the LSP fully re-indexes the file.
