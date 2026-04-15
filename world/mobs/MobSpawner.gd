@@ -12,7 +12,10 @@ func spawn(origin_world_pos: Vector2i, count: int, radius: int,
 	var mobs: Array = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(origin_world_pos.x * 31337 + origin_world_pos.y * 99991)
-	for i in range(count):
+	var attempts := 0
+	var max_attempts := count * 20  # retry generously to avoid bad luck on water
+	while mobs.size() < count and attempts < max_attempts:
+		attempts += 1
 		var wx := origin_world_pos.x + rng.randi_range(-radius, radius)
 		var wy := origin_world_pos.y + rng.randi_range(-radius, radius)
 		# Skip water tiles (atlas x=3) and unloaded chunks (atlas x<0)
@@ -27,6 +30,7 @@ func spawn(origin_world_pos: Vector2i, count: int, radius: int,
 		parent.add_child(mob)
 		mob.mob_died.connect(_on_mob_died.bind(chunk_manager))
 		mobs.append(mob)
+	print("MobSpawner: placed %d/%d mobs near %s (%d attempts)" % [mobs.size(), count, origin_world_pos, attempts])
 	return mobs
 
 func _on_mob_died(tile_pos: Vector2i, chunk_manager: ChunkManager) -> void:
