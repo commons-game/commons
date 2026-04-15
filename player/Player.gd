@@ -5,6 +5,7 @@ const SPEED := 80.0
 
 var hp: int = 100
 var max_hp: int = 100
+var _dead: bool = false
 
 const ATTACK_DAMAGE := 25
 const ATTACK_RANGE := 1.5  # tiles
@@ -43,6 +44,7 @@ const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
+@onready var _camera: Camera2D = $Camera2D
 
 var inventory: Object = null   # Inventory — set up in _ready
 var equipment: Object = null   # EquipmentInventory — set up in _ready
@@ -108,11 +110,59 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, RADIUS + 6.0, facing_angle - 0.6, facing_angle + 0.6, 8, Color(1.0, 0.9, 0.2, alpha), 2.0)
 
 func take_damage(amount: int) -> void:
+	if _dead:
+		return
 	hp = max(0, hp - amount)
 	_damage_flash_timer = DAMAGE_FLASH_DURATION
 	print("Player: took %d damage, hp=%d/%d" % [amount, hp, max_hp])
 	if hp == 0:
-		print("Player: died (respawn not implemented yet)")
+		_on_player_died()
+	else:
+		_shake_camera(5.0, 0.25)
+
+func _shake_camera(intensity: float, duration: float) -> void:
+	if _camera == null:
+		return
+	var tween := create_tween()
+	var steps := 4
+	var step_time := duration / steps
+	for i in range(steps):
+		var offset := Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
+		tween.tween_property(_camera, "offset", offset, step_time)
+	tween.tween_property(_camera, "offset", Vector2.ZERO, step_time)
+
+func _on_player_died() -> void:
+	_dead = true
+	print("Player: died — starting respawn sequence")
+
+	# Build full-screen black overlay.
+	var overlay_layer := CanvasLayer.new()
+	overlay_layer.layer = 99
+	add_child(overlay_layer)
+	var overlay := ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0)
+	overlay.size = Vector2(1280, 720)
+	overlay_layer.add_child(overlay)
+
+	# Fade to black.
+	var tween := create_tween()
+	tween.tween_property(overlay, "color", Color(0, 0, 0, 1), 0.6)
+	await tween.finished
+
+	# Wait a moment at full black.
+	await get_tree().create_timer(0.4).timeout
+
+	# Reset player state.
+	hp = max_hp
+	position = Vector2.ZERO
+
+	# Fade back in.
+	_dead = false
+	var tween2 := create_tween()
+	tween2.tween_property(overlay, "color", Color(0, 0, 0, 0), 0.6)
+	await tween2.finished
+
+	overlay_layer.queue_free()
 
 func _do_attack() -> void:
 	if _attack_cooldown > 0.0:
@@ -144,6 +194,8 @@ func _process(delta: float) -> void:
 	_attack_arc_timer   = maxf(_attack_arc_timer   - delta, 0.0)
 
 func _physics_process(_delta: float) -> void:
+	if _dead:
+		return
 	var input := Vector2(Input.get_axis("ui_left", "ui_right"),
 	                     Input.get_axis("ui_up", "ui_down"))
 	velocity = input.normalized() * SPEED
@@ -185,6 +237,8 @@ func _physics_process(_delta: float) -> void:
 			remote.set("appearance_feet_id",       appearance.feet_id)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _dead:
+		return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	match event.keycode:
