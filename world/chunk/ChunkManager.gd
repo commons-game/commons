@@ -9,8 +9,10 @@ const MAIN_TILESET := preload("res://tilesets/MainTileSet.tres")
 
 var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
 var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
-var _load_queue: Array = []  # pending Vector2i coords
-const MAX_LOADS_PER_FRAME := 3
+var _load_queue: Array = []    # pending load  Vector2i coords — drained MAX_LOADS_PER_FRAME/frame
+var _unload_queue: Array = []  # pending unload Vector2i coords — drained MAX_UNLOADS_PER_FRAME/frame
+const MAX_LOADS_PER_FRAME   := 3
+const MAX_UNLOADS_PER_FRAME := 3
 
 func _ready() -> void:
 	_ensure_tileset_atlas_registered()
@@ -153,12 +155,14 @@ func _load_chunks_in_radius(center: Vector2i, radius: int) -> void:
 	if not _loaded_chunks.has(center):
 		_load_chunk(center)
 	# Everything else queues, sorted nearest-first so visible chunks pop in first.
-	# _load_queue.has() is O(n) — acceptable here (max ~80 items).
+	# _load_queue.has() / _unload_queue.erase() are O(n) — acceptable (max ~80 items).
 	for dy in range(-radius, radius + 1):
 		for dx in range(-radius, radius + 1):
 			var coords := center + Vector2i(dx, dy)
 			if coords == center:
 				continue
+			# Cancel a pending unload if the chunk is needed again (player reversed direction).
+			_unload_queue.erase(coords)
 			if not _loaded_chunks.has(coords) and not _load_queue.has(coords):
 				_load_queue.append(coords)
 	_sort_queue_by_distance(center)
@@ -174,6 +178,12 @@ func _process(_delta: float) -> void:
 		if not _loaded_chunks.has(coords):
 			_load_chunk(coords)
 		n += 1
+	var m := 0
+	while _unload_queue.size() > 0 and m < MAX_UNLOADS_PER_FRAME:
+		var coords: Vector2i = _unload_queue.pop_front()
+		if _loaded_chunks.has(coords):
+			_unload_chunk(coords)
+		m += 1
 
 func _load_chunk(coords: Vector2i) -> void:
 	var t0 := Time.get_ticks_usec()
@@ -234,17 +244,19 @@ func _check_generation_sanity(coords: Vector2i, entries: Dictionary) -> void:
 			% [coords, stone])
 
 func _unload_chunks_outside_radius(center: Vector2i, radius: int) -> void:
-	var to_unload: Array[Vector2i] = []
 	for coords in _loaded_chunks:
 		if abs(coords.x - center.x) > radius or abs(coords.y - center.y) > radius:
-			to_unload.append(coords)
-	for coords in to_unload:
-		_unload_chunk(coords)
+			if not _unload_queue.has(coords):
+				_unload_queue.append(coords)
 
 func _unload_chunk(coords: Vector2i) -> void:
 	var chunk := get_chunk(coords)
 	if chunk:
-		Backend.store_chunk(coords, _serialize_chunk(chunk))
+		# Only persist chunks the player actually modified — unmodified chunks are either
+		# freshly generated (proc gen recreates them identically) or unchanged since load
+		# (already on disk). Skipping the serialize+write eliminates most unload I/O.
+		if chunk.modification_count > 0:
+			Backend.store_chunk(coords, _serialize_chunk(chunk))
 		chunk.queue_free()
 	_loaded_chunks.erase(coords)
 
