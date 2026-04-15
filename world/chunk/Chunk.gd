@@ -35,6 +35,7 @@ const ATLAS_TILES := [
 	Vector2i(3, 1),  # loot_pickup
 	Vector2i(0, 2),  # campfire  (ObjectLayer, no collision)
 	Vector2i(1, 2),  # workbench (ObjectLayer, has collision)
+	Vector2i(2, 2),  # plant     (ObjectLayer, no collision, harvestable)
 ]
 
 func _ready() -> void:

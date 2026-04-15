@@ -46,4 +46,10 @@ static func generate_chunk(coords: Vector2i, world_seed: int) -> Dictionary:
 				entries[CoordUtils.make_crdt_key(1, lx, ly)] = {
 				    "tile_id": 0, "atlas_x": 1, "atlas_y": 1, "alt_tile": 0,
 				    "timestamp": 0.0, "author_id": ""}
+			elif atlas_x == 1 and o > 0.68:
+				# Plant on dirt (~8% of dirt tiles: p(x > 0.68) ≈ (1-0.68)/2 = 0.16,
+				# but dirt is a subset of ground, so effective density ~8% overall)
+				entries[CoordUtils.make_crdt_key(1, lx, ly)] = {
+				    "tile_id": 0, "atlas_x": 2, "atlas_y": 2, "alt_tile": 0,
+				    "timestamp": 0.0, "author_id": ""}
 	return entries

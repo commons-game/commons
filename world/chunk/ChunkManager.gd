@@ -124,6 +124,19 @@ func has_tile_at(world_coords: Vector2i, layer: int) -> bool:
 	var entry: Dictionary = chunk.crdt.get_tile(layer, local)
 	return not entry.is_empty() and int(entry.get("tile_id", -1)) != -1
 
+## Returns the full CRDT tile entry for the object layer at world_coords, or {}
+## if the chunk is not loaded or there is no tile there.
+func get_object_tile_at(world_coords: Vector2i) -> Dictionary:
+	var cc := CoordUtils.world_to_chunk(world_coords)
+	var local := CoordUtils.world_to_local(world_coords)
+	var chunk := get_chunk(cc)
+	if chunk == null:
+		return {}
+	var entry: Dictionary = chunk.crdt.get_tile(1, local)
+	if entry.is_empty() or int(entry.get("tile_id", -1)) == -1:
+		return {}
+	return entry
+
 ## Returns the atlas coords of the ground tile at world_coords, or (-1,-1) if
 ## the chunk is not loaded or has no ground tile at that position.
 func get_ground_atlas_at(world_coords: Vector2i) -> Vector2i:

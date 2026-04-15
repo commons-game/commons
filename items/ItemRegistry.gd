@@ -56,6 +56,9 @@ func _register_builtins() -> void:
 	register(_make("wood",  "material", "Wood",  32))
 	register(_make("stone", "material", "Stone", 32))
 
+	# --- Food ---
+	register(_make("berry", "food", "Berry", 32))
+
 	# --- Stone tools ---
 	register(_make("stone_axe",     "tool", "Stone Axe"))
 	register(_make("stone_pickaxe", "tool", "Stone Pickaxe"))

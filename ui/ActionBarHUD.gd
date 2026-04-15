@@ -43,6 +43,13 @@ const COLOR_HP_BG     := Color(0.2, 0.2, 0.2, 0.8)
 const COLOR_HP_FULL   := Color(0.2, 0.85, 0.2)
 const COLOR_HP_EMPTY  := Color(0.9, 0.1, 0.1)
 
+## Food bar (drawn below HP bar, above slot row)
+const FOOD_BAR_HEIGHT := 4
+const FOOD_BAR_GAP    := 3   # px between HP bar bottom and food bar top
+const COLOR_FOOD_BG   := Color(0.15, 0.15, 0.15, 0.8)
+const COLOR_FOOD_FULL := Color(0.2, 0.75, 0.2)   # green when full
+const COLOR_FOOD_LOW  := Color(0.8, 0.6, 0.1)    # amber when low
+
 var _panels: Array = []    # Panel nodes, one per slot
 var _labels: Array = []    # Label nodes, one per slot
 var _borders: Array = []   # ColorRect border indicator per slot
@@ -51,6 +58,9 @@ var _bag_label: Label = null  # shows bag item counts below action bar
 var _hp_bar_bg: ColorRect = null
 var _hp_bar_fill: ColorRect = null
 var _hp_bar_total_width: int = 0
+
+var _food_bar_bg: ColorRect = null
+var _food_bar_fill: ColorRect = null
 
 func _ready() -> void:
 	layer = 10
@@ -125,6 +135,19 @@ func _build_ui() -> void:
 	_hp_bar_fill.size = Vector2(total_width, HP_BAR_HEIGHT)
 	_hp_bar_fill.color = COLOR_HP_FULL
 	add_child(_hp_bar_fill)
+
+	# Food bar — directly below the HP bar.
+	var food_bar_y: int = bar_y + HP_BAR_HEIGHT + FOOD_BAR_GAP
+	_food_bar_bg = ColorRect.new()
+	_food_bar_bg.position = Vector2(start_x, food_bar_y)
+	_food_bar_bg.size = Vector2(total_width, FOOD_BAR_HEIGHT)
+	_food_bar_bg.color = COLOR_FOOD_BG
+	add_child(_food_bar_bg)
+	_food_bar_fill = ColorRect.new()
+	_food_bar_fill.position = Vector2(start_x, food_bar_y)
+	_food_bar_fill.size = Vector2(total_width, FOOD_BAR_HEIGHT)
+	_food_bar_fill.color = COLOR_FOOD_FULL
+	add_child(_food_bar_fill)
 
 func _border_color(slot_index: int) -> Color:
 	match slot_index:
@@ -207,10 +230,21 @@ func _update_hp_bar() -> void:
 	_hp_bar_fill.size.x = _hp_bar_total_width * fraction
 	_hp_bar_fill.color = COLOR_HP_EMPTY.lerp(COLOR_HP_FULL, fraction)
 
+func _update_food_bar() -> void:
+	if _food_bar_fill == null or player == null:
+		return
+	var max_food: int = int(player.get("max_food"))
+	if max_food <= 0:
+		return
+	var fraction: float = clampf(float(player.get("food")) / float(max_food), 0.0, 1.0)
+	_food_bar_fill.size.x = _hp_bar_total_width * fraction
+	_food_bar_fill.color = COLOR_FOOD_LOW.lerp(COLOR_FOOD_FULL, fraction)
+
 var _frame_counter: int = 0
 
 func _process(_delta: float) -> void:
 	_update_hp_bar()
+	_update_food_bar()
 	# Poll inventory every 6 frames so changes (dig/place) reflect immediately
 	# without needing explicit refresh() calls from every caller.
 	_frame_counter += 1

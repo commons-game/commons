@@ -7,6 +7,15 @@ var hp: int = 100
 var max_hp: int = 100
 var _dead: bool = false
 
+## Hunger stats.
+var food: int = 100
+var max_food: int = 100
+var _food_timer: float = 0.0
+const FOOD_DRAIN_INTERVAL := 8.0   # deplete 1 food every 8 seconds
+var _starvation_timer: float = 0.0
+const STARVATION_INTERVAL := 4.0   # take 2 damage every 4 seconds when food=0
+const STARVATION_DAMAGE := 2
+
 const ATTACK_DAMAGE := 25
 const ATTACK_RANGE := 1.5  # tiles
 
@@ -154,6 +163,7 @@ func _on_player_died() -> void:
 
 	# Reset player state.
 	hp = max_hp
+	food = max_food
 	position = Vector2.ZERO
 
 	# Fade back in.
@@ -200,6 +210,19 @@ func _process(delta: float) -> void:
 	_damage_flash_timer = maxf(_damage_flash_timer - delta, 0.0)
 	_pickup_flash_timer = maxf(_pickup_flash_timer - delta, 0.0)
 	_attack_arc_timer   = maxf(_attack_arc_timer   - delta, 0.0)
+	# Hunger drain — loop so large delta ticks (e.g. in tests) drain correctly.
+	_food_timer += delta
+	while _food_timer >= FOOD_DRAIN_INTERVAL:
+		_food_timer -= FOOD_DRAIN_INTERVAL
+		food = max(0, food - 1)
+	# Starvation damage when food hits 0.
+	if food == 0:
+		_starvation_timer += delta
+		if _starvation_timer >= STARVATION_INTERVAL:
+			_starvation_timer -= STARVATION_INTERVAL
+			take_damage(STARVATION_DAMAGE)
+	else:
+		_starvation_timer = 0.0
 
 func _physics_process(_delta: float) -> void:
 	if _dead:
@@ -282,6 +305,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_E:
 			# Open workbench if standing within 2 tiles of one.
 			_try_open_workbench()
+		KEY_F:
+			# Eat food from bag.
+			_try_eat()
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
@@ -322,6 +348,27 @@ func _on_buffs_changed(buffs: Array) -> void:
 	# Buff-granted item is cosmetic — shows while in shrine, independent of active tool.
 	# Functional tool sprites (lantern lit, shovel raised) are a future layer on top.
 	appearance.held_item_id = AssetPackScript.resolve_slot_for_buffs("held_item", appearance.active_buff_ids)
+
+## Eat the first food-category item in the bag, restoring 30 food.
+func _try_eat() -> void:
+	if inventory == null:
+		return
+	# Search bag for the first food-category item.
+	var food_id: String = ""
+	for i in range(inventory.BAG_SIZE):
+		var slot: Dictionary = inventory.bag[i] as Dictionary
+		if slot.is_empty():
+			continue
+		if str(slot.get("category", "")) == "food":
+			food_id = str(slot.get("id", ""))
+			break
+	if food_id == "":
+		print("Player: nothing to eat")
+		return
+	inventory.remove_from_bag(food_id, 1)
+	food = min(food + 30, max_food)
+	_pickup_flash_timer = PICKUP_FLASH_DURATION
+	print("Player: ate %s, food=%d/%d" % [food_id, food, max_food])
 
 func _check_item_pickup(tile_pos: Vector2i) -> void:
 	if not chunk_manager.has_tile_at(tile_pos, 1):
