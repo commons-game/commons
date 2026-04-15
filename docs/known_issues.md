@@ -479,3 +479,28 @@ a.active_buff_ids.append("undead_resilience")
 **Expected:** Re-enabling collision should cause the layer to generate physics bodies for all existing tiles.
 **Workaround (implemented):** Call `initialize()` before `add_child()` in ChunkManager. All `set_cell()` calls happen on a detached node. When the node enters the scene tree via `add_child()`, `_enter_tree()` batches all physics body creation at once — no collision toggle needed. `notify_runtime_tile_data_update()` and `update_internals()` were investigated but neither forces a rebuild for this specific bug (they only handle runtime tile data overrides and pending-dirty-quadrant flushes respectively).
 **Note for upstream ticket:** `collision_enabled` toggled false→true after `set_cell()` leaves dirty quadrant markers processed-with-no-bodies. The layer doesn't re-mark those quadrants dirty on re-enable, so `update_internals()` finds nothing to do. Expected behavior: re-enabling collision should mark all existing cells dirty.
+
+## MainMenu / Startup
+
+### MainMenu bypass for tests, CI, and dev CLI args
+**Status:** Implemented in `ui/MainMenu.gd`.
+**Detail:** `MainMenu._ready()` checks for bypass conditions before calling `_build_ui()`:
+- `--host` → `GameConfig.mode = "host"`, jump to World
+- `--join <ip>` → `GameConfig.mode = "join"`, `GameConfig.host_ip = <ip>`, jump to World
+- `--skip-menu` → jump to World as solo (`GameConfig.mode` stays `""`)
+- `DisplayServer.get_name() == "headless"` → jump to World immediately (test runner / CI)
+- All bypass paths use `change_scene_to_file.call_deferred(...)` and `return` before `_build_ui()`.
+
+**All bypass paths also honour `--port <n>`** via `_parse_port(args)`.
+
+**Invariant to test for:** `_name_edit` is `null` after `_ready()` in headless mode — proof that `_build_ui()` was never called. See `tests/unit/test_main_menu_bypass.gd`.
+
+**CLI invocation pattern** (args must follow `--` separator for `OS.get_cmdline_user_args()`):
+```bash
+# Host
+~/bin/godot4 --path /home/adam/development/freeland -- --host --port 7778
+# Join
+~/bin/godot4 --path /home/adam/development/freeland -- --join 192.168.1.5 --port 7778
+# Skip menu (solo, dev)
+~/bin/godot4 --path /home/adam/development/freeland -- --skip-menu
+```
