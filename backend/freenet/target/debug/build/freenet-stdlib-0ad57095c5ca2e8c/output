@@ -1,2 +1,0 @@
-failed compiling flatbuffers schema: No such file or directory (os error 2)
-refer to https://github.com/google/flatbuffers to install the flatc compiler
