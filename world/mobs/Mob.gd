@@ -30,6 +30,9 @@ var _patrol_target: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.DOWN
 var _attack_cooldown: float = 0.0
 var _dead_timer: float = 0.0
+var _flash_timer: float = 0.0
+
+const FLASH_DURATION := 0.12
 
 func _ready() -> void:
 	z_index = 2
@@ -44,6 +47,7 @@ func _ready() -> void:
 	h.max_hp = MOB_HP
 	h.current_hp = MOB_HP
 	h.died.connect(_on_health_died)
+	h.damaged.connect(func(_amount, _current, _maximum): _flash_timer = FLASH_DURATION)
 	_idle_timer = randf_range(1.0, 2.0)
 
 func _draw() -> void:
@@ -51,6 +55,8 @@ func _draw() -> void:
 	var base_color := Color(0.55, 0.05, 0.05)
 	if _state == State.DEAD:
 		base_color = Color(0.3, 0.05, 0.05, 0.5)
+	elif _flash_timer > 0.0:
+		base_color = Color(1.0, 0.6, 0.4)
 	draw_circle(Vector2.ZERO, RADIUS, Color(0.15, 0.0, 0.0))   # outline
 	draw_circle(Vector2.ZERO, RADIUS - 1.0, base_color)
 	# Direction triangle
@@ -58,13 +64,29 @@ func _draw() -> void:
 	var left  := _facing.rotated(deg_to_rad( 140.0)) * (TRI_SIZE * 0.8)
 	var right := _facing.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
 	draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.3, 0.1))
+	# HP bar (skip when dead or no health node)
+	if _state != State.DEAD:
+		var health_node = get_node_or_null("Health")
+		if health_node != null:
+			var hp_frac: float = float(health_node.current_hp) / float(health_node.max_hp)
+			var bar_x := -8.0
+			var bar_y := -(RADIUS + 7.0)
+			# Background
+			draw_rect(Rect2(bar_x, bar_y, 16.0, 3.0), Color(0.2, 0.2, 0.2, 0.8))
+			# Fill — lerp green to red
+			var fill_color := Color(0.2, 0.85, 0.2).lerp(Color(0.9, 0.1, 0.1), 1.0 - hp_frac)
+			draw_rect(Rect2(bar_x, bar_y, 16.0 * hp_frac, 3.0), fill_color)
 
 func _process(_delta: float) -> void:
 	queue_redraw()
 
 func _physics_process(delta: float) -> void:
+	if _flash_timer > 0.0:
+		_flash_timer = maxf(_flash_timer - delta, 0.0)
+
 	if _state == State.DEAD:
 		_dead_timer += delta
+		modulate.a = 1.0 - (_dead_timer / 0.5)
 		if _dead_timer >= 0.5:
 			queue_free()
 		return
