@@ -53,13 +53,25 @@ FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
 
 ## Performance
 
-### Perf torture baseline (2026-04-14 v2, llvmpipe software renderer)
-| Test | Result | vs v1 | Notes |
-|---|---|---|---|
-| chunk_flood | avg=2.5ms, peak=3.9ms, 120 chunks in 297ms | ≈ same | Raw pipeline unchanged |
-| mob_ramp | 60fps @ 80 mobs, 30fps @ 200 mobs, final=42fps | 60fps +10 mobs | More headroom before 60fps drop |
-| tile_flood | 184k mutations/sec, 10.9ms for 2000 | ≈ same | Not a concern |
-| chunk_thrash | peak=96.5ms, avg=20.4ms, 24 load bursts | **peak -8ms** | Physics batching (init-before-add_child) helped |
+### Perf torture baselines (2026-04-15, post physics-batching fix)
+
+**llvmpipe (software renderer)**
+| Test | Result | Notes |
+|---|---|---|
+| chunk_flood | avg=2.5ms, peak=3.9ms, 120 chunks | CPU-bound — GPU makes no difference |
+| mob_ramp | ~60fps @ 80 mobs, 30fps @ 200 mobs, final=42fps | |
+| tile_flood | 184k mutations/sec, 10.9ms for 2000 | CPU-bound |
+| chunk_thrash | peak=96.5ms, avg=20.4ms, 24 load bursts | Physics broadphase bottleneck |
+
+**RTX 3060 (PRIME offload, Xvfb :200, debug build)**
+| Test | Result | Notes |
+|---|---|---|
+| chunk_flood | avg=2.4ms, peak=3.5ms, 120 chunks | Same — chunk load is CPU |
+| mob_ramp | 59fps @ 10 mobs → 35fps @ 200 mobs, never drops below 30fps | Vsync-limited; graceful degradation |
+| tile_flood | 140k mutations/sec, 14.3ms | Slightly slower — debug overhead |
+| chunk_thrash | peak=118.5ms, avg=34ms, 24 load bursts | avg higher due to vsync; peak ≈ same physics cost |
+
+**Key finding:** 200 mobs stays above 30fps on the RTX 3060. Physics broadphase spike (~100ms peak) is the chunk_thrash ceiling on both renderers — it's CPU physics work, not rendering.
 
 **Re-run (CPU/llvmpipe):** `freeland-perf-cpu` alias, or:
 ```bash

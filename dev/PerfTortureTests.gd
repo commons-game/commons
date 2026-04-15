@@ -136,7 +136,7 @@ func _test_mob_ramp() -> Dictionary:
 		var mob_count := all_mobs.size()
 		print("[PERF] mob_ramp  mobs=%d  fps=%.0f" % [mob_count, avg_fps])
 
-		if avg_fps >= 60.0:
+		if avg_fps >= 58.0:  # 58 not 60 — vsync jitter means 60fps cap reads as 58-59
 			mobs_at_60fps = mob_count
 		if avg_fps >= 30.0:
 			mobs_at_30fps = mob_count
