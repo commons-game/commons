@@ -35,6 +35,7 @@ const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
 const VibeBusScript               := preload("res://world/VibeBus.gd")
 const DayNightSystemScript        := preload("res://world/DayNightSystem.gd")
 const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
+const PerformanceHUDScript        := preload("res://ui/PerformanceHUD.gd")
 const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack.gd")
 const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.gd")
 const GravestoneScatterScript     := preload("res://world/generation/GravestoneScatter.gd")
@@ -107,6 +108,7 @@ func _ready() -> void:
 		_parse_network_args(args)
 		_setup_merge_system(args)
 	_setup_action_bar()
+	_setup_performance_hud()
 	_setup_day_night_system()
 	_setup_debug_overlay()
 	_setup_equipment_ui()
@@ -261,6 +263,11 @@ func _setup_action_bar() -> void:
 	_action_bar.player = $Player
 	add_child(_action_bar)
 	_action_bar.refresh()
+
+func _setup_performance_hud() -> void:
+	var perf_hud := PerformanceHUDScript.new()
+	perf_hud.name = "PerformanceHUD"
+	add_child(perf_hud)
 
 func _setup_day_night_system() -> void:
 	# CanvasModulate tints all 2D content for the day/night visual.
