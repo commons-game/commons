@@ -93,7 +93,7 @@ func _process(delta: float) -> void:
 		print("[PERF SPIKE] %.1fms (frame %d)" % [ms, Engine.get_process_frames()])
 
 	if visible:
-		var fps: int = Engine.get_frames_per_second()
+		var fps: int = int(Engine.get_frames_per_second())
 		_label.text = "FPS: %d  |  %.1fms" % [fps, ms]
 		_label.add_theme_color_override("font_color",
 			Color(1, 0.2, 0.2) if ms > 33.0 else Color.WHITE)
