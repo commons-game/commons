@@ -32,9 +32,14 @@ cp contracts/chunk-contract/build/freenet/freeland_chunk_contract .
 **If the proxy fails after a node update:** Run `scripts/update_freenet_backend.sh` (planned) to re-verify the round-trip and update the pinned version.
 
 ### No proxy integration smoke test
-**Status:** Pending.
-**Detail:** All Freenet wire-format bugs (raw WASM, missing `?encodingProtocol=native`, IPv6/IPv4 mismatch) were caught at runtime against a live node. A compile + round-trip test would have caught them in CI.
-**Action:** Add `backend/freenet/proxy/tests/round_trip.rs` with a `#[ignore]` integration test requiring `FREENET_NODE_URL` env var. See `docs/freenet_retrospective.md` for proposed test structure.
+**Status:** Done — `backend/freenet/proxy/tests/round_trip.rs`.
+**Detail:** Test is gated behind `--features integration` so normal `cargo test` stays green.
+**Run it:**
+```bash
+FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
+FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
+  cargo test --features integration -p freeland-proxy -- round_trip --nocapture
+```
 
 ### fdev upstream bug: CARGO_TARGET_DIR must be set manually
 **Status:** Workaround in place, upstream bug to file.
