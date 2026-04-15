@@ -30,3 +30,9 @@ func save_reputation(_data: Dictionary) -> void:
 
 func load_reputation() -> Dictionary:
 	return {}
+
+func save_equipment(_data: Dictionary) -> void:
+	pass
+
+func load_equipment() -> Dictionary:
+	return {}

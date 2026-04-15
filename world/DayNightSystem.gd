@@ -16,17 +16,17 @@ extends Node
 ## Must be sorted by phase and end with phase=1.0 matching phase=0.0.
 const _GRADIENT: Array = [
 	[0.00, Color(0.85, 0.52, 0.30)],  # dawn: warm pink-orange
-	[0.12, Color(1.00, 0.92, 0.78)],  # early morning: soft warm white
-	[0.20, Color(1.00, 1.00, 1.00)],  # morning: full white
-	[0.30, Color(1.00, 1.00, 1.00)],  # midday peak: full white
-	[0.40, Color(1.00, 0.95, 0.75)],  # afternoon: warm yellow
-	[0.48, Color(1.00, 0.72, 0.30)],  # late afternoon: golden
-	[0.50, Color(0.95, 0.45, 0.12)],  # dusk: deep orange
-	[0.56, Color(0.55, 0.20, 0.30)],  # after dusk: dusky red-purple
-	[0.63, Color(0.18, 0.08, 0.28)],  # early night: dark purple
+	[0.06, Color(1.00, 0.78, 0.42)],  # sunrise: bright amber-gold
+	[0.14, Color(1.00, 0.97, 0.82)],  # morning: warm soft white
+	[0.27, Color(1.00, 1.00, 1.00)],  # midday: pure white
+	[0.38, Color(1.00, 0.98, 0.85)],  # early afternoon: warm white
+	[0.45, Color(1.00, 0.88, 0.52)],  # golden hour: rich gold
+	[0.50, Color(0.98, 0.52, 0.14)],  # dusk: deep amber-orange
+	[0.56, Color(0.52, 0.18, 0.28)],  # after dusk: dusky red-purple
+	[0.63, Color(0.16, 0.07, 0.26)],  # early night: deep purple
 	[0.75, Color(0.04, 0.03, 0.12)],  # midnight: deep blue-black
-	[0.87, Color(0.06, 0.05, 0.18)],  # late night: blue-black
-	[0.93, Color(0.22, 0.10, 0.28)],  # pre-dawn: dark purple
+	[0.86, Color(0.05, 0.04, 0.16)],  # late night: slight blue tint
+	[0.93, Color(0.18, 0.08, 0.24)],  # pre-dawn: dark purple hint
 	[1.00, Color(0.85, 0.52, 0.30)],  # dawn again (matches 0.00)
 ]
 
@@ -38,10 +38,19 @@ var vibe_bus: Object = null
 func _ready() -> void:
 	DayClock.phase_changed.connect(_on_phase_changed)
 
-func _process(_delta: float) -> void:
+var _debug_log_timer: float = 0.0
+
+func _process(delta: float) -> void:
 	if canvas_modulate == null:
 		return
-	canvas_modulate.color = sky_color_for_phase(DayClock.phase_fraction())
+	var phase := DayClock.phase_fraction()
+	var color := sky_color_for_phase(phase)
+	canvas_modulate.color = color
+	# Log phase + color once per second so we can spot unexpected jumps
+	_debug_log_timer += delta
+	if _debug_log_timer >= 1.0:
+		_debug_log_timer = 0.0
+		print("DayNight: phase=%.4f color=(%.2f,%.2f,%.2f)" % [phase, color.r, color.g, color.b])
 
 ## Returns the sky CanvasModulate color for a given phase fraction [0, 1).
 ## Static so tests can call DayNightSystemScript.sky_color_for_phase(phase)

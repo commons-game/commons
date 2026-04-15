@@ -20,6 +20,14 @@
       "duration": -1
     }
   ],
+  "items": [
+    {
+      "id": "bone_armor",
+      "slot": "armor",
+      "display_name": "Bone Armor",
+      "stats": { "defense_modifier": 1.3 }
+    }
+  ],
   "tiles": [
     {
       "id": "gravestone",

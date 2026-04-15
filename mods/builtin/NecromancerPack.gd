@@ -4,8 +4,9 @@
 ## CharacterRenderer can resolve necromancer body and held-item textures.
 ##
 ## Visual mappings:
-##   body slot     "necromancer"  → res://assets/necromancer/body/necromancer.png
+##   body slot      "necromancer" → res://assets/necromancer/body/necromancer.png
 ##   held_item slot "bone_wand"  → res://assets/necromancer/held_item/bone_wand.png
+##   armor slot     "bone_armor" → res://assets/necromancer/armor/bone_armor.png
 ##
 ## Buff → body_id mapping (used by Player._on_buffs_changed):
 ##   "blood_harvest"    → body_id = "necromancer"
@@ -15,7 +16,8 @@
 ## a mod loader that reads the bundle JSON and an accompanying pack manifest.
 extends Node
 
-const AssetPackScript := preload("res://player/AssetPack.gd")
+const AssetPackScript        := preload("res://player/AssetPack.gd")
+const EquipmentRegistryScript := preload("res://items/EquipmentRegistry.gd")
 
 ## Maps buff_id -> body_id override. Checked by Player when buffs change.
 const BUFF_BODY_MAP: Dictionary = {
@@ -28,12 +30,23 @@ const BUFF_ITEM_MAP: Dictionary = {
 }
 
 func _ready() -> void:
+	# Register equipment item
+	EquipmentRegistryScript.register({
+		"id":           "bone_armor",
+		"slot":         "armor",
+		"display_name": "Bone Armor",
+		"stats":        {"defense_modifier": 1.3},
+	})
+
 	AssetPackScript.register_pack("necromancer", {
 		"body": {
 			"necromancer": "res://assets/necromancer/body/necromancer.png",
 		},
 		"held_item": {
 			"bone_wand": "res://assets/necromancer/held_item/bone_wand.png",
+		},
+		"armor": {
+			"bone_armor": "res://assets/necromancer/armor/bone_armor.png",
 		},
 	})
 	AssetPackScript.register_buff_body_map(BUFF_BODY_MAP)

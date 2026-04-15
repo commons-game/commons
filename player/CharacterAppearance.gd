@@ -5,11 +5,20 @@ class_name CharacterAppearance
 
 ## Base body variant. "default" = plain human silhouette.
 ## Mod packs can register new body IDs (e.g. "necromancer" for robes).
-var body_id: String = "default"
+var base_body_id: String = "default"
 
 ## What the player is currently holding. "" = empty hand.
 ## Possible values: "lantern", "shovel", "bone_wand"
 var held_item_id: String = ""
+
+## Equipped armor visual ID (item_id from EquipmentInventory).
+var armor_id: String = ""
+
+## Equipped head visual ID (item_id from EquipmentInventory).
+var head_id: String = ""
+
+## Equipped feet visual ID (item_id from EquipmentInventory).
+var feet_id: String = ""
 
 ## Active buff IDs driving visual overlays (e.g. "blood_harvest", "undead_resilience").
 ## Populated by BuffManager; CharacterRenderer maps these to texture overlays.
@@ -33,16 +42,23 @@ func facing_to_row() -> int:
 
 func to_dict() -> Dictionary:
 	return {
-		"body_id": body_id,
-		"held_item_id": held_item_id,
+		"base_body_id":   base_body_id,
+		"held_item_id":   held_item_id,
+		"armor_id":       armor_id,
+		"head_id":        head_id,
+		"feet_id":        feet_id,
 		"active_buff_ids": active_buff_ids.duplicate(),
 		"facing_x": facing.x,
 		"facing_y": facing.y,
 	}
 
 func from_dict(d: Dictionary) -> void:
-	body_id = str(d.get("body_id", "default"))
+	# Support legacy "body_id" key for backwards compatibility.
+	base_body_id = str(d.get("base_body_id", d.get("body_id", "default")))
 	held_item_id = str(d.get("held_item_id", ""))
+	armor_id     = str(d.get("armor_id", ""))
+	head_id      = str(d.get("head_id", ""))
+	feet_id      = str(d.get("feet_id", ""))
 	var raw: Array = d.get("active_buff_ids", [])
 	active_buff_ids.clear()
 	for b in raw:

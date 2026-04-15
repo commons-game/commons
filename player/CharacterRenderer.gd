@@ -65,7 +65,7 @@ func refresh(appearance: Object) -> void:
 		return
 	_last_appearance["_anim_key"] = anim_key
 
-	_apply_body_slot(str(d.get("body_id", "default")), row, frame)
+	_apply_body_slot(str(d.get("base_body_id", "default")), row, frame)
 
 	var held: String = str(d.get("held_item_id", ""))
 	_apply_slot("held_item", held if held != "" else "__none__")
@@ -74,7 +74,17 @@ func refresh(appearance: Object) -> void:
 	var status_variant: String = str(buffs[0]) if not buffs.is_empty() else "__none__"
 	_apply_slot("status_effect", status_variant)
 
-	for slot: String in ["shadow", "feet", "armor", "head"]:
+	# Equipment slots — driven by appearance IDs set by Player from EquipmentInventory.
+	var armor_id: String = str(d.get("armor_id", ""))
+	_apply_slot("armor", armor_id if armor_id != "" else "__none__")
+
+	var head_id: String = str(d.get("head_id", ""))
+	_apply_slot("head", head_id if head_id != "" else "__none__")
+
+	var feet_id: String = str(d.get("feet_id", ""))
+	_apply_slot("feet", feet_id if feet_id != "" else "__none__")
+
+	for slot: String in ["shadow"]:
 		(_sprites[slot] as Sprite2D).visible = false
 
 	# Notify parent to re-evaluate whether draw-code fallback is needed.

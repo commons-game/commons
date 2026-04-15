@@ -56,5 +56,28 @@ func load_reputation() -> Dictionary:
 		return {}
 	return result as Dictionary
 
+func save_equipment(data: Dictionary) -> void:
+	var path: String = _chunk_dir.get_base_dir().path_join("equipment.json")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data))
+		file.close()
+	else:
+		push_error("LocalBackend: could not write equipment file: %s" % path)
+
+func load_equipment() -> Dictionary:
+	var path: String = _chunk_dir.get_base_dir().path_join("equipment.json")
+	if not FileAccess.file_exists(path):
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var text := file.get_as_text()
+	file.close()
+	var result = JSON.parse_string(text)
+	if result == null or not result is Dictionary:
+		return {}
+	return result as Dictionary
+
 func _path(coords: Vector2i) -> String:
 	return _chunk_dir + "%d_%d.json" % [coords.x, coords.y]

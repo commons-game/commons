@@ -18,17 +18,19 @@ var _walk_dist: float = 0.0
 ## Distance per walk frame step (pixels). At SPEED=80 this cycles ~every 0.15s.
 const WALK_STEP := 12.0
 
-const ShrineManagerScript       := preload("res://mods/ShrineManager.gd")
-const LanternScript             := preload("res://player/Lantern.gd")
-const CharacterAppearanceScript := preload("res://player/CharacterAppearance.gd")
-const CharacterRendererScript   := preload("res://player/CharacterRenderer.gd")
-const AssetPackScript           := preload("res://player/AssetPack.gd")
-const InventoryScript           := preload("res://items/Inventory.gd")
+const ShrineManagerScript          := preload("res://mods/ShrineManager.gd")
+const LanternScript                := preload("res://player/Lantern.gd")
+const CharacterAppearanceScript    := preload("res://player/CharacterAppearance.gd")
+const CharacterRendererScript      := preload("res://player/CharacterRenderer.gd")
+const AssetPackScript              := preload("res://player/AssetPack.gd")
+const InventoryScript              := preload("res://items/Inventory.gd")
+const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd")
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
 
-var inventory: Object = null  # Inventory — set up in _ready
+var inventory: Object = null   # Inventory — set up in _ready
+var equipment: Object = null   # EquipmentInventory — set up in _ready
 var _lantern: Node = null
 var appearance = null  # CharacterAppearance
 var _renderer  = null  # CharacterRenderer
@@ -45,6 +47,11 @@ func _ready() -> void:
 	# Starter loadout: lantern in slot 0, shovel in slot 1.
 	inventory.set_tool_slot(0, {"id": "lantern", "category": "tool", "count": 1})
 	inventory.set_tool_slot(1, {"id": "shovel",  "category": "tool", "count": 1})
+
+	equipment = EquipmentInventoryScript.new()
+	var eq_data: Dictionary = Backend.load_equipment()
+	if not eq_data.is_empty():
+		equipment.from_dict(eq_data)
 
 	_lantern = LanternScript.new()
 	_lantern.name = "Lantern"
@@ -98,11 +105,14 @@ func _physics_process(_delta: float) -> void:
 		var remote := get_node_or_null("../RemotePlayer_%d" % own_id)
 		if remote:
 			remote.position = global_position
-			remote.set("appearance_body_id",      appearance.body_id)
-			remote.set("appearance_held_item_id", appearance.held_item_id)
-			remote.set("appearance_facing_x",     appearance.facing.x)
-			remote.set("appearance_facing_y",     appearance.facing.y)
-			remote.set("appearance_walk_frame",   appearance.walk_frame)
+			remote.set("appearance_base_body_id", appearance.base_body_id)
+			remote.set("appearance_held_item_id",  appearance.held_item_id)
+			remote.set("appearance_facing_x",      appearance.facing.x)
+			remote.set("appearance_facing_y",      appearance.facing.y)
+			remote.set("appearance_walk_frame",    appearance.walk_frame)
+			remote.set("appearance_armor_id",      appearance.armor_id)
+			remote.set("appearance_head_id",       appearance.head_id)
+			remote.set("appearance_feet_id",       appearance.feet_id)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
@@ -125,6 +135,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Select tool slot 1 (shovel by default).
 			if inventory != null:
 				inventory.select_tool(1)
+		KEY_I:
+			# Toggle EquipmentUI — handled by EquipmentUI node when it exists.
+			var ui := get_node_or_null("../EquipmentUI")
+			if ui != null:
+				ui.call("toggle")
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
@@ -141,11 +156,11 @@ func _on_buffs_changed(buffs: Array) -> void:
 	appearance.active_buff_ids.clear()
 	for b in buffs:
 		appearance.active_buff_ids.append(str(b["buff_id"]))
-	# Resolve body + held item from active buffs.
-	appearance.body_id = AssetPackScript.resolve_body_for_buffs(appearance.active_buff_ids)
+	# Resolve body + held item from active buffs via unified slot resolver.
+	appearance.base_body_id = AssetPackScript.resolve_slot_for_buffs("body", appearance.active_buff_ids)
 	# Buff-granted item is cosmetic — shows while in shrine, independent of active tool.
 	# Functional tool sprites (lantern lit, shovel raised) are a future layer on top.
-	appearance.held_item_id = AssetPackScript.resolve_item_for_buffs(appearance.active_buff_ids)
+	appearance.held_item_id = AssetPackScript.resolve_slot_for_buffs("held_item", appearance.active_buff_ids)
 
 func _update_appearance() -> void:
 	if appearance == null or _renderer == null:
@@ -155,4 +170,9 @@ func _update_appearance() -> void:
 	if appearance.held_item_id == "":
 		var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
 		appearance.held_item_id = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
+	# Mirror equipment slots into appearance.
+	if equipment != null:
+		appearance.armor_id = equipment.get_equipped("armor")
+		appearance.head_id  = equipment.get_equipped("head")
+		appearance.feet_id  = equipment.get_equipped("feet")
 	_renderer.refresh(appearance)

@@ -25,3 +25,9 @@ func save_reputation(data: Dictionary) -> void:
 
 func load_reputation() -> Dictionary:
 	return _backend.load_reputation()
+
+func save_equipment(data: Dictionary) -> void:
+	_backend.save_equipment(data)
+
+func load_equipment() -> Dictionary:
+	return _backend.load_equipment()

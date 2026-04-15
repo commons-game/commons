@@ -2,9 +2,10 @@
 ## No input handling. Position is driven by MultiplayerSynchronizer.
 ## Extends Node2D (not CharacterBody2D) so it never participates in physics.
 ##
-## Appearance is synced via five additional replicated properties:
-##   appearance_body_id, appearance_held_item_id,
-##   appearance_facing_x, appearance_facing_y, appearance_walk_frame
+## Appearance is synced via eight replicated properties:
+##   appearance_base_body_id, appearance_held_item_id,
+##   appearance_facing_x, appearance_facing_y, appearance_walk_frame,
+##   appearance_armor_id, appearance_head_id, appearance_feet_id
 ## The local Player pushes these to its own RemotePlayer node each physics tick,
 ## and the MultiplayerSynchronizer replicates them to all peers.
 extends Node2D
@@ -20,11 +21,14 @@ var _color: Color = Color.CYAN
 
 ## Synced appearance state — written by the authoritative peer's Player node,
 ## replicated to all others by MultiplayerSynchronizer.
-var appearance_body_id:      String = "default"
-var appearance_held_item_id: String = ""
-var appearance_facing_x:     float  = 0.0
-var appearance_facing_y:     float  = -1.0
-var appearance_walk_frame:   int    = 0
+var appearance_base_body_id:  String = "default"
+var appearance_held_item_id:  String = ""
+var appearance_facing_x:      float  = 0.0
+var appearance_facing_y:      float  = -1.0
+var appearance_walk_frame:    int    = 0
+var appearance_armor_id:      String = ""
+var appearance_head_id:       String = ""
+var appearance_feet_id:       String = ""
 
 var _appearance = null  # CharacterAppearance
 var _renderer   = null  # CharacterRenderer
@@ -43,10 +47,17 @@ func _enter_tree() -> void:
 	config.add_property(NodePath(".:position"))
 	config.property_set_spawn(NodePath(".:position"), true)
 	config.property_set_sync(NodePath(".:position"), true)
-	# Appearance
-	for prop in [".:appearance_body_id", ".:appearance_held_item_id",
-	             ".:appearance_facing_x", ".:appearance_facing_y",
-	             ".:appearance_walk_frame"]:
+	# Appearance — all 8 vars
+	for prop in [
+		".:appearance_base_body_id",
+		".:appearance_held_item_id",
+		".:appearance_facing_x",
+		".:appearance_facing_y",
+		".:appearance_walk_frame",
+		".:appearance_armor_id",
+		".:appearance_head_id",
+		".:appearance_feet_id",
+	]:
 		config.add_property(NodePath(prop))
 		config.property_set_spawn(NodePath(prop), true)
 		config.property_set_sync(NodePath(prop), true)
@@ -62,10 +73,13 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# Rebuild appearance from synced vars and refresh the renderer.
 	if _appearance != null and _renderer != null:
-		_appearance.body_id      = appearance_body_id
-		_appearance.held_item_id = appearance_held_item_id
-		_appearance.facing       = Vector2(appearance_facing_x, appearance_facing_y)
-		_appearance.walk_frame   = appearance_walk_frame
+		_appearance.base_body_id  = appearance_base_body_id
+		_appearance.held_item_id  = appearance_held_item_id
+		_appearance.facing        = Vector2(appearance_facing_x, appearance_facing_y)
+		_appearance.walk_frame    = appearance_walk_frame
+		_appearance.armor_id      = appearance_armor_id
+		_appearance.head_id       = appearance_head_id
+		_appearance.feet_id       = appearance_feet_id
 		_renderer.refresh(_appearance)
 	queue_redraw()
 

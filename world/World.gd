@@ -37,6 +37,8 @@ const DayNightSystemScript        := preload("res://world/DayNightSystem.gd")
 const ActionBarHUDScript          := preload("res://ui/ActionBarHUD.gd")
 const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack.gd")
 const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.gd")
+const GravestoneScatterScript     := preload("res://world/generation/GravestoneScatter.gd")
+const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 
 var _session: Object
 var _authority: Object
@@ -106,6 +108,7 @@ func _ready() -> void:
 	_setup_action_bar()
 	_setup_day_night_system()
 	_setup_debug_overlay()
+	_setup_equipment_ui()
 	_assert_layer_order()
 	if not is_web and "--dev-screenshot-cycle" in args:
 		_run_screenshot_cycle.call_deferred()
@@ -420,6 +423,15 @@ func _place_necro_shrine_at_spawn() -> void:
 	var sm := $ShrineManager as ShrineManagerScript
 	var shrine_id := sm.place_shrine(Vector2i.ZERO, json, "dev")
 	print("DevNecroShrine: placed shrine '%s' at origin — walk into chunk (0,0) to activate" % shrine_id)
+	# Wait two frames so ChunkManager has loaded the initial chunks around spawn.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_scatter_gravestones_near(Vector2i.ZERO)
+
+func _scatter_gravestones_near(shrine_chunk: Vector2i) -> void:
+	var cm := $ChunkManager as ChunkManager
+	var placed := GravestoneScatterScript.scatter(cm, shrine_chunk, Constants.WORLD_SEED)
+	print("NecroShrine: scattered %d gravestones near chunk %s" % [placed, shrine_chunk])
 
 ## Place alchemist shrine one chunk east of spawn for side-by-side mod testing.
 func _place_alch_shrine_nearby() -> void:
@@ -658,10 +670,21 @@ func _run_world_stats() -> void:
 	print("─────────────────────────────────────")
 	get_tree().quit()
 
+func _setup_equipment_ui() -> void:
+	var ui := EquipmentUIScript.new()
+	ui.name = "EquipmentUI"
+	add_child(ui)
+	ui.call("init", $Player)
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		$ChunkManager._persist_all_loaded_chunks()
 		if _reputation_store != null:
 			Backend.save_reputation(_reputation_store.to_dict())
+		# Save equipment state for the local player.
+		var player_eq = $Player.get("equipment")
+		if player_eq != null:
+			var eq_data: Dictionary = player_eq.call("to_dict")
+			Backend.save_equipment(eq_data)
 		NetworkManager.disconnect_all()
 		get_tree().quit()

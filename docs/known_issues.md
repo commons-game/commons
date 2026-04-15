@@ -303,3 +303,11 @@ a.active_buff_ids.append("blood_harvest")
 a.active_buff_ids.append("undead_resilience")
 ```
 **Applies to:** Any `Array[T]` property on an object accessed through an untyped variable (e.g. from `preload().new()` in tests). Direct `:=` assignment from `[]` literals works only when the variable is declared with a known typed type at parse time.
+
+### GDScript static var not shared across preload() calls in different scripts (GDScript 4.3)
+**Status:** Workaround in place.
+**Symptom:** Two files each do `const FooScript := preload("res://Foo.gd")`. Assigning to `FooScript._static_var` in one file does NOT affect what `FooScript._static_var` reads in the other file, even though the path is identical. `static var _items = {}` in `EquipmentRegistry.gd` registered from test `before_each()` was invisible inside `EquipmentInventory.gd` when calling `get_slot()`.
+**Root cause:** In GDScript 4.3, `preload()` may return different Script resource objects for the same path when scripts are loaded in different compilation units (test runner vs game scripts). The `static var` is stored per-Script-resource-object, so two different objects → two independent static dictionaries.
+**Workaround:** Design data classes so they do NOT depend on static var lookups from other scripts at call time. Instead, pass any required data (e.g. slot name) at the time items enter the inventory (`add_to_bag(item_id, slot)`), and store it alongside the item. This way the lookup happens once at the caller's site (where the registry IS visible) rather than deep inside the method.
+**Alternative workaround (for tests only):** Use direct property assignment in `before_each()`: `FooScript._items = {}` rather than calling a `reset()` static method — the direct assignment pattern matches what `test_asset_pack.gd` does for `_buff_body_map`.
+**Note:** The direct assignment workaround alone does NOT fix the inverse problem (test sets state, method reads different state). The architectural fix (no cross-script static dependency) is the correct solution.
