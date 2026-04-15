@@ -17,6 +17,7 @@ const EXPECTED_SYNCED_VARS: Array[String] = [
 	"appearance_armor_id",
 	"appearance_head_id",
 	"appearance_feet_id",
+	"player_display_name",
 ]
 
 # ---------------------------------------------------------------------------
@@ -40,6 +41,7 @@ func test_default_values_are_neutral() -> void:
 	assert_str(rp.appearance_armor_id).is_equal("")
 	assert_str(rp.appearance_head_id).is_equal("")
 	assert_str(rp.appearance_feet_id).is_equal("")
+	assert_str(rp.player_display_name).is_equal("")
 	rp.free()
 
 # ---------------------------------------------------------------------------
@@ -47,7 +49,7 @@ func test_default_values_are_neutral() -> void:
 # ---------------------------------------------------------------------------
 
 func test_replication_config_has_correct_property_count() -> void:
-	# Position (1) + 8 appearance vars = 9 total replicated properties.
+	# Position (1) + 8 appearance vars + player_display_name (1) = 10 total replicated properties.
 	var rp = load("res://player/RemotePlayer.tscn").instantiate()
 	rp.name = "RemotePlayer_1"
 	add_child(rp)
@@ -55,7 +57,7 @@ func test_replication_config_has_correct_property_count() -> void:
 
 	var sync: MultiplayerSynchronizer = rp.get_node("MultiplayerSynchronizer")
 	var config: SceneReplicationConfig = sync.replication_config
-	assert_int(config.get_properties().size()).is_equal(9)
+	assert_int(config.get_properties().size()).is_equal(10)
 
 	rp.queue_free()
 

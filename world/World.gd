@@ -114,6 +114,15 @@ func _ready() -> void:
 	if not is_web:
 		_parse_network_args(args)
 		_setup_merge_system(args)
+	# GameConfig set by MainMenu (takes priority over CLI args, only acts when idle)
+	if not is_web and NetworkManager.get_state() == NetworkManager.STATE_IDLE:
+		if GameConfig.mode == "host":
+			NetworkManager.host(GameConfig.port)
+			_session.start_session()
+			_spawn_remote_player(1)
+		elif GameConfig.mode == "join":
+			NetworkManager.join(GameConfig.host_ip, GameConfig.port)
+			_session.start_session()
 	_setup_action_bar()
 	_setup_performance_hud()
 	_setup_day_night_system()

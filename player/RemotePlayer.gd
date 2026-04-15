@@ -30,6 +30,9 @@ var appearance_armor_id:      String = ""
 var appearance_head_id:       String = ""
 var appearance_feet_id:       String = ""
 
+## Synced display name — shown as a name tag above the player sprite.
+var player_display_name: String = ""
+
 var _appearance = null  # CharacterAppearance
 var _renderer   = null  # CharacterRenderer
 
@@ -47,7 +50,7 @@ func _enter_tree() -> void:
 	config.add_property(NodePath(".:position"))
 	config.property_set_spawn(NodePath(".:position"), true)
 	config.property_set_sync(NodePath(".:position"), true)
-	# Appearance — all 8 vars
+	# Appearance — all 8 vars + display name
 	for prop in [
 		".:appearance_base_body_id",
 		".:appearance_held_item_id",
@@ -57,6 +60,7 @@ func _enter_tree() -> void:
 		".:appearance_armor_id",
 		".:appearance_head_id",
 		".:appearance_feet_id",
+		".:player_display_name",
 	]:
 		config.add_property(NodePath(prop))
 		config.property_set_spawn(NodePath(prop), true)
@@ -86,6 +90,8 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	# Suppress draw-code when CharacterRenderer has sprites showing.
 	if _renderer != null and _renderer.has_visible_sprites():
+		# Still draw name tag even when sprites are active.
+		_draw_name_tag()
 		return
 	# Fallback: peer-colored circle + fixed upward direction marker.
 	draw_circle(Vector2.ZERO, RADIUS, Color(0.1, 0.1, 0.1))
@@ -94,6 +100,18 @@ func _draw() -> void:
 	var left  := Vector2.UP.rotated(deg_to_rad( 140.0)) * (TRI_SIZE * 0.8)
 	var right := Vector2.UP.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
 	draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.7, 0.1))
+	_draw_name_tag()
+
+func _draw_name_tag() -> void:
+	if player_display_name.is_empty():
+		return
+	var font := ThemeDB.fallback_font
+	# Shadow/outline for readability
+	draw_string(font, Vector2(-20, -20), player_display_name,
+		HORIZONTAL_ALIGNMENT_CENTER, 40, 9, Color(0.0, 0.0, 0.0, 0.7))
+	# White text
+	draw_string(font, Vector2(-21, -21), player_display_name,
+		HORIZONTAL_ALIGNMENT_CENTER, 40, 9, Color(1.0, 1.0, 1.0, 0.95))
 
 ## Derive a visually distinct hue from peer_id using golden-ratio spacing.
 static func _color_for_peer(peer_id: int) -> Color:
