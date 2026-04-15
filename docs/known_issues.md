@@ -51,6 +51,25 @@ FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
 **Status:** Deferred — Freenet delegates not implemented yet.
 **Detail:** `save_reputation`, `load_reputation`, `save_equipment`, `load_equipment` fall back to local files in `FreenetBackend`. These need a Freenet delegate (private per-user storage) for true decentralization.
 
+## Performance
+
+### Perf torture baseline (2026-04-14, llvmpipe software renderer)
+| Test | Result | Notes |
+|---|---|---|
+| chunk_flood | avg=2.5ms, peak=4.2ms, 120 chunks in 299ms | Good — raw pipeline is fast |
+| mob_ramp | 60fps @ 70 mobs, 30fps @ 200 mobs | Software renderer limited; real hardware will be better |
+| tile_flood | 196k mutations/sec, 10ms for 2000 | Fast — not a concern |
+| chunk_thrash | peak=105ms, avg=21ms, 24 load bursts | Bottleneck is physics broadphase (see below) |
+
+Re-run to check regressions: `DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --perf-torture`
+Results saved to `user://perf_baselines/`.
+
+### chunk_thrash peak frames are physics broadphase, not I/O
+**Status:** Known limitation, not addressable in GDScript.
+**Root cause:** Each chunk loaded via `_render_all()` adds ~90 ObjectLayer collision shapes to the physics world. The engine rebuilds its broadphase per-frame. 3 chunks × 90 shapes = 270 new collision bodies/frame. On real GPU hardware this is much cheaper than llvmpipe.
+**What was fixed:** Unload path now spreads across frames (MAX_UNLOADS_PER_FRAME=3) and skips `Backend.store_chunk()` for unmodified chunks (eliminates nearly all unload I/O in normal gameplay).
+**What can't be fixed easily:** Disabling ObjectLayer `collision_enabled` during bulk `set_cell()` then re-enabling it silently breaks physics body generation in Godot 4.3 TileMapLayer — this would be the natural fix but is a known engine bug.
+
 ## Combat / Mob Polish (next pass)
 
 ### No visual feedback on pickup or combat
