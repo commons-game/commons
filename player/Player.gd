@@ -164,11 +164,19 @@ func _on_player_died() -> void:
 
 	overlay_layer.queue_free()
 
-func _do_attack() -> void:
+## Attempt to start an attack swing. Sets cooldown and triggers the arc visual.
+## Returns true if the swing was initiated (cooldown was ready), false if still
+## on cooldown. Call this from TileInteraction for tile hits to share cooldown.
+func start_swing() -> bool:
 	if _attack_cooldown > 0.0:
-		return
+		return false
 	_attack_cooldown = 0.5
 	_attack_arc_timer = ATTACK_ARC_DURATION
+	return true
+
+func _do_attack() -> void:
+	if not start_swing():
+		return
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
 	# Find any mob within ATTACK_RANGE tiles — duck-type check via "mob_died" signal
@@ -266,6 +274,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			var ui := get_node_or_null("../EquipmentUI")
 			if ui != null:
 				ui.call("toggle")
+		KEY_C:
+			# Toggle CraftingUI.
+			var cui := get_node_or_null("../CraftingUI")
+			if cui != null:
+				cui.call("toggle")
+		KEY_E:
+			# Open workbench if standing within 2 tiles of one.
+			_try_open_workbench()
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
@@ -273,6 +289,25 @@ func _on_talisman_toggled(awakened: bool) -> void:
 	# awakening/dormanting just changes what the talisman does passively.
 	print("Player: talisman %s" % ("awakened" if awakened else "dormant"))
 	# Future: emit signal for HUD, VibeBus, visual effect.
+
+## Check tiles within 2-tile radius for a workbench (atlas 1,2 on object layer).
+## If found, opens the CraftingUI in workbench mode.
+func _try_open_workbench() -> void:
+	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+	                         int(floorf(position.y / Constants.TILE_SIZE)))
+	const WORKBENCH_RANGE := 2
+	for dy in range(-WORKBENCH_RANGE, WORKBENCH_RANGE + 1):
+		for dx in range(-WORKBENCH_RANGE, WORKBENCH_RANGE + 1):
+			var check_pos := tile_pos + Vector2i(dx, dy)
+			var tile: Dictionary = chunk_manager.get_object_tile_at(check_pos)
+			if tile.is_empty():
+				continue
+			var atlas := Vector2i(int(tile.get("atlas_x", -1)), int(tile.get("atlas_y", -1)))
+			if atlas == Vector2i(1, 2):  # workbench
+				var cui := get_node_or_null("../CraftingUI")
+				if cui != null:
+					cui.call("open_workbench")
+				return
 
 ## Called by World when ShrineManager.buffs_changed fires.
 ## Updates appearance so CharacterRenderer switches to mod visuals.

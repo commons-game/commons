@@ -33,6 +33,8 @@ const ATLAS_TILES := [
 	Vector2i(1, 1),  # rock
 	Vector2i(2, 1),  # gravestone
 	Vector2i(3, 1),  # loot_pickup
+	Vector2i(0, 2),  # campfire  (ObjectLayer, no collision)
+	Vector2i(1, 2),  # workbench (ObjectLayer, has collision)
 ]
 
 func _ready() -> void:
@@ -146,6 +148,8 @@ func _ensure_tileset_collision(tileset: TileSet, source: TileSetAtlasSource) -> 
 		Vector2i(1, 1): bottom_poly, # rock      (ObjectLayer → blocks at base)
 		Vector2i(2, 1): bottom_poly, # gravestone (ObjectLayer → blocks at base)
 		# loot_pickup (3,1) intentionally omitted — no collision, player walks over it
+		# campfire (0,2) intentionally omitted — no collision, player walks over it
+		Vector2i(1, 2): bottom_poly, # workbench (ObjectLayer → blocks at base)
 	}
 	for coords in tile_polys:
 		if not source.has_tile(coords):

@@ -32,9 +32,11 @@ func _make(id: String, category: String, display_name: String,
 
 func _register_builtins() -> void:
 	# --- Tools ---
-	register(_make("lantern",     "tool",    "Lantern"))
-	register(_make("hammer",      "tool",    "Hammer"))
-	register(_make("shovel",      "tool",    "Shovel"))
+	register(_make("lantern",        "tool", "Lantern"))
+	register(_make("hammer",         "tool", "Hammer"))
+	register(_make("shovel",         "tool", "Shovel"))
+	register(_make("wooden_axe",     "tool", "Wooden Axe"))
+	register(_make("wooden_pickaxe", "tool", "Wooden Pickaxe"))
 
 	# --- Weapons ---
 	register(_make("iron_sword",  "weapon",  "Iron Sword"))
@@ -53,3 +55,11 @@ func _register_builtins() -> void:
 	# --- Materials (stackable) ---
 	register(_make("wood",  "material", "Wood",  32))
 	register(_make("stone", "material", "Stone", 32))
+
+	# --- Stone tools ---
+	register(_make("stone_axe",     "tool", "Stone Axe"))
+	register(_make("stone_pickaxe", "tool", "Stone Pickaxe"))
+
+	# --- Structures (placed in the world) ---
+	register(_make("campfire",  "structure", "Campfire",  1))
+	register(_make("workbench", "structure", "Workbench", 1))

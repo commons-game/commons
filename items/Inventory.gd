@@ -184,7 +184,8 @@ func get_active_tool() -> Dictionary:
 func set_tool_slot(index: int, stack: Dictionary) -> bool:
 	if index < 0 or index >= TOOL_SLOT_COUNT:
 		return false
-	if str(stack.get("category", "")) != "tool":
+	var cat: String = str(stack.get("category", ""))
+	if cat != "tool" and cat != "structure":
 		return false
 	tool_slots[index] = stack.duplicate()
 	return true

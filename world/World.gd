@@ -43,6 +43,8 @@ const GravestoneScatterScript     := preload("res://world/generation/GravestoneS
 const MobSpawnerScript            := preload("res://world/mobs/MobSpawner.gd")
 const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
+const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
+const CampfireSystemScript        := preload("res://world/CampfireSystem.gd")
 
 var _session: Object
 var _authority: Object
@@ -114,6 +116,8 @@ func _ready() -> void:
 	_setup_day_night_system()
 	_setup_debug_overlay()
 	_setup_equipment_ui()
+	_setup_crafting_ui()
+	_setup_campfire_system()
 	_assert_layer_order()
 	if not is_web and "--dev-screenshot-cycle" in args:
 		_run_screenshot_cycle.call_deferred()
@@ -135,6 +139,8 @@ func _ready() -> void:
 	if not is_web and "--dev-frame-log" in args:
 		_dev_frame_log = true
 		print("FrameLog: per-frame visual logging enabled")
+	if not is_web and "--force-day" in args:
+		DayClock._time_override = Constants.DAY_CYCLE_SECONDS * 0.25  # pin to midday
 
 func _parse_network_args(args: Array) -> void:
 	if args.is_empty():
@@ -710,6 +716,18 @@ func _setup_equipment_ui() -> void:
 	ui.name = "EquipmentUI"
 	add_child(ui)
 	ui.call("init", $Player)
+
+func _setup_crafting_ui() -> void:
+	var cui := CraftingUIScript.new()
+	cui.name = "CraftingUI"
+	cui.inventory = $Player.inventory
+	add_child(cui)
+
+func _setup_campfire_system() -> void:
+	var cs := CampfireSystemScript.new()
+	cs.name = "CampfireSystem"
+	cs._chunk_mgr = $ChunkManager
+	add_child(cs)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
