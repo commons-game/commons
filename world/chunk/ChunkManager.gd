@@ -33,6 +33,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(0, 1),  # tree
 		Vector2i(1, 1),  # rock
 		Vector2i(2, 1),  # gravestone
+		Vector2i(3, 1),  # loot_pickup
 	]
 	for coords in needed:
 		if not source.has_tile(coords):
@@ -52,7 +53,7 @@ func _validate_tileset() -> void:
 	if source.texture_region_size.x <= 0:
 		push_error("TileSetAtlasSource.texture_region_size is zero — tiles will silently not render")
 	for coords in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
-	               Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1)]:
+	               Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]:
 		if not source.has_tile(coords):
 			push_error("Atlas tile %s not registered — set_cell() calls for it will silently fail" % coords)
 

@@ -55,11 +55,13 @@ func test_buff_body_map_first_match_wins() -> void:
 	var result: String = AssetPackScript.resolve_body_for_buffs(["buff_a", "buff_b"])
 	assert_str(result).is_equal("body_a")
 
-func test_buff_body_map_no_match_returns_default() -> void:
-	assert_str(AssetPackScript.resolve_body_for_buffs(["unknown_buff"])).is_equal("default")
+func test_buff_body_map_no_match_returns_empty() -> void:
+	# No buff match → "" (empty) signals "use world/default body"
+	assert_str(AssetPackScript.resolve_body_for_buffs(["unknown_buff"])).is_equal("")
 
-func test_buff_body_map_empty_list_returns_default() -> void:
-	assert_str(AssetPackScript.resolve_body_for_buffs([])).is_equal("default")
+func test_buff_body_map_empty_list_returns_empty() -> void:
+	# No active buffs → "" (empty) signals "use world/default body"
+	assert_str(AssetPackScript.resolve_body_for_buffs([])).is_equal("")
 
 func test_buff_item_map_resolves_registered_buff() -> void:
 	AssetPackScript.register_buff_item_map({"blood_harvest": "bone_wand"})
@@ -73,8 +75,9 @@ func test_buff_item_map_empty_list_returns_empty() -> void:
 
 # --- New unified API: resolve_slot_for_buffs ---
 
-func test_resolve_slot_for_buffs_body_returns_default_when_no_match() -> void:
-	assert_str(AssetPackScript.resolve_slot_for_buffs("body", [])).is_equal("default")
+func test_resolve_slot_for_buffs_body_returns_empty_when_no_match() -> void:
+	# No active buffs → "" signals "use world/default body"
+	assert_str(AssetPackScript.resolve_slot_for_buffs("body", [])).is_equal("")
 
 func test_resolve_slot_for_buffs_non_body_returns_empty_when_no_match() -> void:
 	assert_str(AssetPackScript.resolve_slot_for_buffs("armor", [])).is_equal("")

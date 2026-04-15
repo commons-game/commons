@@ -432,6 +432,9 @@ func _scatter_gravestones_near(shrine_chunk: Vector2i) -> void:
 	var cm := $ChunkManager as ChunkManager
 	var placed := GravestoneScatterScript.scatter(cm, shrine_chunk, Constants.WORLD_SEED)
 	print("NecroShrine: scattered %d gravestones near chunk %s" % [placed, shrine_chunk])
+	# Drop a bone_armor pickup just east of the shrine
+	cm.place_tile(Vector2i(3, 0), 1, 0, Vector2i(3, 1), 0, "world_gen")
+	print("NecroShrine: placed bone_armor loot tile at (3,0)")
 
 ## Place alchemist shrine one chunk east of spawn for side-by-side mod testing.
 func _place_alch_shrine_nearby() -> void:

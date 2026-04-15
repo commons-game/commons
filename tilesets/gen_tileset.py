@@ -199,11 +199,44 @@ for tx in range(5, 12):
 border_tile(2, 1)
 
 # ---------------------------------------------------------------------------
+# Loot pickup (3,1) — glowing orb / pile of bones
+# ---------------------------------------------------------------------------
+LOOT_BG    = (0xdd, 0xcc, 0x44, 0xff)   # golden glow core
+LOOT_INNER = (0xff, 0xf0, 0x88, 0xff)   # bright center highlight
+LOOT_BONES = (0xcc, 0xbb, 0x88, 0xff)   # bone color
+LOOT_GLOW  = (0xff, 0xee, 0x44, 0x80)   # semi-transparent outer glow
+
+fill_tile(3, 1, EMPTY)
+# Outer glow ring: circle r=6 centred at (8,9)
+lx, ly = 8, 9
+for dy in range(-6, 7):
+    for dx in range(-6, 7):
+        if dx*dx + dy*dy <= 36:
+            put(3*TILE + lx+dx, 1*TILE + ly+dy, LOOT_GLOW)
+# Bone pile base: two crossed diagonal lines
+for i in range(-3, 4):
+    put(3*TILE + lx+i, 1*TILE + ly+i,    LOOT_BONES)
+    put(3*TILE + lx+i, 1*TILE + ly-i,    LOOT_BONES)
+    put(3*TILE + lx+i+1, 1*TILE + ly+i,  LOOT_BONES)
+    put(3*TILE + lx+i+1, 1*TILE + ly-i,  LOOT_BONES)
+# Central orb: filled circle r=3
+for dy in range(-3, 4):
+    for dx in range(-3, 4):
+        if dx*dx + dy*dy <= 9:
+            put(3*TILE + lx+dx, 1*TILE + ly+dy-3, LOOT_BG)
+# Bright inner highlight: small circle r=1
+for dy in range(-1, 2):
+    for dx in range(-1, 2):
+        if dx*dx + dy*dy <= 1:
+            put(3*TILE + lx+dx-1, 1*TILE + ly+dy-4, LOOT_INNER)
+border_tile(3, 1)
+
+# ---------------------------------------------------------------------------
 # Remaining tiles — transparent
 # ---------------------------------------------------------------------------
 for tc in range(4, COLS):
     fill_tile(tc, 0, EMPTY)
-for tc in range(3, COLS):
+for tc in range(4, COLS):
     fill_tile(tc, 1, EMPTY)
 for tr in range(2, ROWS):
     for tc in range(COLS):
