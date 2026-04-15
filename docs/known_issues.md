@@ -1,5 +1,19 @@
 # Known Issues
 
+## Chat System
+
+### T key did not open chat (FIXED)
+**Status:** Fixed in commit "fix: T key chat".
+**Root cause:** Two compounding issues:
+1. `Player._unhandled_input` called `chat_input.is_visible_in_tree()` — but `CanvasLayer` extends `Node` directly, NOT `CanvasItem`, so `is_visible_in_tree()` does not exist on it. The call failed silently, the guard always evaluated false, and activate() was never called. The fix is to use `chat_input.visible` (a property CanvasLayer does have).
+2. `ChatInput._build_ui()` used `Panel + StyleBoxFlat` which can fail to render in CanvasLayer context. Replaced with `ColorRect` for reliable rendering. Added `mouse_filter = MOUSE_FILTER_IGNORE` and `focus_mode = FOCUS_NONE` on the background rect to prevent it consuming input events.
+3. `activate()`/`deactivate()` now use `show()`/`hide()` instead of direct `visible =` assignment for robustness.
+**Tests added:** `test_ui_scripts_compile.gd`, `test_chat_input_behavior.gd`, `test_chat_key_routing.gd` (19 total).
+
+### CanvasLayer does not have is_visible_in_tree()
+**Status:** Known Godot 4 type hierarchy issue.
+**Detail:** `CanvasLayer` extends `Node`, not `CanvasItem`. Methods like `is_visible_in_tree()`, `hide()`, `show()` from `CanvasItem` are NOT available on `CanvasLayer`. Use the `visible` property directly. If you need show()/hide() convenience methods, they DO work on CanvasLayer in Godot 4 (CanvasLayer implements them separately), but `is_visible_in_tree()` does not exist.
+
 ## Freenet Backend (Phase 6 spike — open items)
 
 ### End-to-end spike complete

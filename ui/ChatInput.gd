@@ -1,4 +1,4 @@
-## ChatInput — text input bar for chat. Activated by Enter, dismissed by Esc.
+## ChatInput — text input bar for chat. Activated by T, dismissed by Esc or Enter.
 ##
 ## CanvasLayer at layer 20. Invisible by default.
 ## World sets `player` reference after adding to scene tree.
@@ -18,52 +18,39 @@ func _init() -> void:
 	layer = 20
 
 func _ready() -> void:
-	visible = false
+	hide()
 	_build_ui()
 
 func _build_ui() -> void:
-	var panel := Panel.new()
-	panel.name = "InputBG"
-	# Position anchored to bottom-center of viewport (1280×720)
-	panel.custom_minimum_size = Vector2(480, 32)
-	panel.size = Vector2(480, 32)
-	panel.position = Vector2((1280 - 480) / 2, 720 - 48)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.1, 0.85)
-	style.border_width_bottom = 1
-	style.border_width_top    = 1
-	style.border_width_left   = 1
-	style.border_width_right  = 1
-	style.border_color = Color(0.4, 0.5, 0.8, 0.9)
-	style.corner_radius_bottom_left  = 3
-	style.corner_radius_bottom_right = 3
-	style.corner_radius_top_left     = 3
-	style.corner_radius_top_right    = 3
-	panel.add_theme_stylebox_override("panel", style)
-	add_child(panel)
+	var bg := ColorRect.new()
+	bg.name = "InputBG"
+	bg.color = Color(0.05, 0.05, 0.1, 0.88)
+	bg.position = Vector2((1280 - 480) / 2, 720 - 50)
+	bg.size = Vector2(480, 36)
+	# Prevent the bg rect from consuming input events when hidden.
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.focus_mode   = Control.FOCUS_NONE
+	add_child(bg)
 
 	_line_edit = LineEdit.new()
 	_line_edit.name = "LineEdit"
-	_line_edit.placeholder_text = "Type to chat... /dm <name> <msg>  /addfriend <name>"
-	_line_edit.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_line_edit.offset_left   = 6
-	_line_edit.offset_top    = 2
-	_line_edit.offset_right  = -6
-	_line_edit.offset_bottom = -2
+	_line_edit.placeholder_text = "Type to chat...  /dm <name> <msg>  /addfriend <name>"
+	_line_edit.position = Vector2(6, 4)
+	_line_edit.size = Vector2(468, 28)
 	_line_edit.add_theme_font_size_override("font_size", 13)
 	_line_edit.add_theme_color_override("font_color", Color(1, 1, 1))
-	panel.add_child(_line_edit)
+	bg.add_child(_line_edit)
 
 	_line_edit.text_submitted.connect(_on_text_submitted)
 	_line_edit.gui_input.connect(_on_line_edit_input)
 
 func activate() -> void:
-	visible = true
+	show()
 	_line_edit.clear()
 	_line_edit.grab_focus()
 
 func deactivate() -> void:
-	visible = false
+	hide()
 	_line_edit.release_focus()
 
 func _on_text_submitted(text: String) -> void:

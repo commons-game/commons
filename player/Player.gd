@@ -284,7 +284,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _lantern != null:
 				_lantern.toggle()
 		KEY_T:
-			# Open chat input.
+			# Open chat input. CanvasLayer has no is_visible_in_tree(); use .visible.
 			var chat_input := get_node_or_null("../ChatInput")
 			if chat_input != null and not chat_input.visible:
 				chat_input.call("activate")
