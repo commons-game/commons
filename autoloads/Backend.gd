@@ -4,12 +4,23 @@
 extends Node
 
 const LocalBackendScript := preload("res://backend/local/LocalBackend.gd")
+const FreenetBackendScript := preload("res://backend/freenet/FreenetBackend.gd")
+
+## Set to true to use FreenetBackend instead of LocalBackend.
+## In production this will be driven by a project setting or command-line flag.
+var use_freenet: bool = false
 
 var _backend: IBackend
 
 func _ready() -> void:
-	_backend = LocalBackendScript.new()
+	if use_freenet:
+		_backend = FreenetBackendScript.new()
+	else:
+		_backend = LocalBackendScript.new()
 	_backend.initialize()
+
+func _process(_delta: float) -> void:
+	_backend.poll()
 
 func store_chunk(coords: Vector2i, data: PackedByteArray) -> void:
 	_backend.store_chunk(coords, data)

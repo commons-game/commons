@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "common",
+    "contracts/chunk-contract",
+    "proxy",
+]
+resolver = "2"

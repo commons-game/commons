@@ -1,0 +1,19 @@
+[package]
+name = "freeland-proxy"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "freeland-proxy"
+path = "src/main.rs"
+
+[dependencies]
+freenet-stdlib = { version = "0.6.0", features = ["net"] }
+freeland-common = { path = "../common" }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.27.0"
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+anyhow = "1"

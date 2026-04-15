@@ -36,3 +36,7 @@ func save_equipment(_data: Dictionary) -> void:
 
 func load_equipment() -> Dictionary:
 	return {}
+
+## Called every frame by Backend._process. Override for async backends.
+func poll() -> void:
+	pass
