@@ -12,6 +12,7 @@
 extends CanvasLayer
 
 var inventory: Object = null  # Inventory
+var player: Node = null
 
 const SLOT_SIZE   := 40
 const SLOT_GAP    := 6
@@ -34,6 +35,13 @@ const COLOR_TOOL_BORDER     := Color(0.3, 0.6, 0.9)
 const COLOR_ACTIVE_BORDER   := Color(1.0, 0.9, 0.2)           # bright yellow for active slot
 const COLOR_AWAKENED        := Color(0.9, 0.5, 1.0)
 const COLOR_LABEL           := Color(1.0, 1.0, 0.9)
+
+## HP bar
+const HP_BAR_HEIGHT   := 6
+const HP_BAR_GAP      := 8   # px above the slot bar
+const COLOR_HP_BG     := Color(0.2, 0.2, 0.2, 0.8)
+const COLOR_HP_FULL   := Color(0.2, 0.85, 0.2)
+const COLOR_HP_EMPTY  := Color(0.9, 0.1, 0.1)
 
 var _panels: Array = []    # Panel nodes, one per slot
 var _labels: Array = []    # Label nodes, one per slot
@@ -171,9 +179,26 @@ func _update_slot(index: int, stack: Dictionary) -> void:
 		var raw: String = str(stack.get("id", ""))
 		lbl.text = raw.replace("_", "\n").left(12)
 
+func _draw() -> void:
+	if player == null:
+		return
+	var total_width: int = SLOT_COUNT * SLOT_SIZE + (SLOT_COUNT - 1) * SLOT_GAP
+	var start_x: int = (1280 - total_width) / 2
+	var bar_y: int = 720 - BAR_HEIGHT - HP_BAR_GAP - HP_BAR_HEIGHT
+	var bg_rect := Rect2(start_x, bar_y, total_width, HP_BAR_HEIGHT)
+	draw_rect(bg_rect, COLOR_HP_BG)
+	var max_hp: int = int(player.get("max_hp"))
+	if max_hp > 0:
+		var fraction: float = clampf(float(player.get("hp")) / float(max_hp), 0.0, 1.0)
+		var fill_color: Color = COLOR_HP_EMPTY.lerp(COLOR_HP_FULL, fraction)
+		var fill_rect := Rect2(start_x, bar_y, int(total_width * fraction), HP_BAR_HEIGHT)
+		draw_rect(fill_rect, fill_color)
+
 var _frame_counter: int = 0
 
 func _process(_delta: float) -> void:
+	if player != null:
+		queue_redraw()
 	# Poll inventory every 6 frames so changes (dig/place) reflect immediately
 	# without needing explicit refresh() calls from every caller.
 	_frame_counter += 1

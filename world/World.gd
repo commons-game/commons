@@ -258,6 +258,7 @@ func _setup_action_bar() -> void:
 	_action_bar = ActionBarHUDScript.new()
 	_action_bar.name = "ActionBarHUD"
 	_action_bar.inventory = $Player.inventory
+	_action_bar.player = $Player
 	add_child(_action_bar)
 	_action_bar.refresh()
 
