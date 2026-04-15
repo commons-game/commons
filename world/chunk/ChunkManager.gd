@@ -9,6 +9,8 @@ const MAIN_TILESET := preload("res://tilesets/MainTileSet.tres")
 
 var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
 var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
+var _load_queue: Array = []  # pending Vector2i coords
+const MAX_LOADS_PER_FRAME := 3
 
 func _ready() -> void:
 	_ensure_tileset_atlas_registered()
@@ -147,27 +149,59 @@ func _persist_all_loaded_chunks() -> void:
 		Backend.store_chunk(coords, _serialize_chunk(chunk))
 
 func _load_chunks_in_radius(center: Vector2i, radius: int) -> void:
+	# Player's chunk loads immediately — they're standing on it
+	if not _loaded_chunks.has(center):
+		_load_chunk(center)
+	# Everything else queues, sorted nearest-first so visible chunks pop in first.
+	# _load_queue.has() is O(n) — acceptable here (max ~80 items).
 	for dy in range(-radius, radius + 1):
 		for dx in range(-radius, radius + 1):
 			var coords := center + Vector2i(dx, dy)
-			if not _loaded_chunks.has(coords):
-				_load_chunk(coords)
+			if coords == center:
+				continue
+			if not _loaded_chunks.has(coords) and not _load_queue.has(coords):
+				_load_queue.append(coords)
+	_sort_queue_by_distance(center)
+
+func _sort_queue_by_distance(center: Vector2i) -> void:
+	_load_queue.sort_custom(func(a, b):
+		return (a - center).length_squared() < (b - center).length_squared())
+
+func _process(_delta: float) -> void:
+	var n := 0
+	while _load_queue.size() > 0 and n < MAX_LOADS_PER_FRAME:
+		var coords: Vector2i = _load_queue.pop_front()
+		if not _loaded_chunks.has(coords):
+			_load_chunk(coords)
+		n += 1
 
 func _load_chunk(coords: Vector2i) -> void:
+	var t0 := Time.get_ticks_usec()
 	## 16-bit TileMapLayer coordinate guard — never exceed signed 16-bit range.
 	assert(abs(coords.x) <= 2047 and abs(coords.y) <= 2047,
 	       "Chunk coords %s would exceed 16-bit TileMapLayer limit" % coords)
+	var t1 := Time.get_ticks_usec()
 	var raw := Backend.retrieve_chunk(coords)
 	var from_disk := not raw.is_empty()
 	var entries := _deserialize_entries(raw) if from_disk \
 	               else ProceduralGenerator.generate_chunk(coords, Constants.WORLD_SEED)
 	if not from_disk:
 		_check_generation_sanity(coords, entries)
+	var t2 := Time.get_ticks_usec()
 	var chunk := CHUNK_SCENE.instantiate() as ChunkData
 	add_child(chunk)
 	chunk.initialize(coords, entries)
 	chunk.last_visited = Time.get_unix_time_from_system()
 	_loaded_chunks[coords] = chunk
+	var t3 := Time.get_ticks_usec()
+	var total_ms := (t3 - t0) / 1000.0
+	if total_ms > 5.0:  # only log slow chunks
+		print("[CHUNK] %s  total=%.1fms  gen=%.1fms  render=%.1fms" % [
+			coords,
+			total_ms,
+			(t2 - t1) / 1000.0,
+			(t3 - t2) / 1000.0,
+		])
 
 ## Sanity-check a freshly-generated chunk's entries.
 ## Fires push_warning (non-fatal) so miscalibration is visible without crashing.
