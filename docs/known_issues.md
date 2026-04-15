@@ -1,5 +1,25 @@
 # Known Issues
 
+## Freenet Backend (Phase 6 spike — open items)
+
+### freenet node binary not installed
+**Status:** Open — needed for end-to-end test.
+**Symptom:** `cargo install freenet` ran but produced no binary. Only `fdev v0.3.208` was installed.
+**Next step:** Run `fdev node` (if that's the command) or check the [freenet/freenet-core](https://github.com/freenet/freenet-core) repo for the correct binary install command. Needed to run an actual local node for the proxy to connect to.
+
+### Proxy default node URL may be wrong
+**Status:** Unverified — needs real node to test.
+**Symptom:** Proxy connects to `ws://127.0.0.1:50509/v1/contract/command` by default. This port/path is unconfirmed; real Freenet node may use a different address.
+**Workaround:** Set `FREENET_NODE_URL` env var when running the proxy.
+
+### FreenetBackend.gd requires `use_freenet = true` in Backend.gd
+**Status:** Manual toggle until we decide when to auto-enable.
+**How to enable:** In `autoloads/Backend.gd`, set `use_freenet = true` before `_ready()` runs (or expose as a project setting / command-line arg in a future pass).
+
+### Reputation and equipment not on Freenet
+**Status:** Deferred — Freenet delegates not implemented yet.
+**Detail:** `save_reputation`, `load_reputation`, `save_equipment`, `load_equipment` fall back to local files in `FreenetBackend`. These need a Freenet delegate (private per-user storage) for true decentralization.
+
 ## Combat / Mob Polish (next pass)
 
 ### No visual feedback on pickup or combat
