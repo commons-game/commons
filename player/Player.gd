@@ -73,7 +73,7 @@ func _ready() -> void:
 	add_child(_lantern)
 
 func _draw() -> void:
-	var has_sprites := _renderer != null and _renderer.has_visible_sprites()
+	var has_sprites: bool = _renderer != null and _renderer.has_visible_sprites()
 	if has_sprites:
 		# With sprites: apply modulate tint for flash feedback.
 		if _damage_flash_timer > 0.0:
