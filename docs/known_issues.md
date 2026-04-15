@@ -189,6 +189,20 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 - `key-js <key> [code] [keyCode]` — prints JS for a single keydown+keyup
 - In desktop mode, keyboard events go to the X11-focused window. Click the desired window area in the browser canvas first, then dispatch keys to `document`.
 
+## Layer 4 — Food/Hunger, Berry Plant, Eat with F (2026-04-15)
+
+### Food drain uses a while-loop to handle large deltas
+**Status:** Implemented correctly.
+**Detail:** `_process` accumulates `_food_timer` and uses `while _food_timer >= FOOD_DRAIN_INTERVAL` (not `if`) so that a single large delta (e.g. test calling `_process(16.0)`) drains the correct number of ticks. The `if` variant was the initial bug — caught by `test_food_decrements_twice_after_two_intervals` going red.
+
+### Plant tile at atlas (2,2) is walkable (no collision)
+**Status:** By design.
+**Detail:** Plant at atlas (2,2) has no entry in `_ensure_tileset_collision`'s tile_polys, so no collision polygon is generated. Player walks through plants. If blocking plants are ever wanted, add `Vector2i(2,2): bottom_poly` to the tile_polys dict in `Chunk._ensure_tileset_collision()`.
+
+### Starvation timer test requires assert_float not assert_int
+**Status:** Fixed in test.
+**Detail:** `_starvation_timer` is a float. `assert_int(_starvation_timer).is_equal(0)` throws "unexpected type <float>". Use `assert_float(_player._starvation_timer).is_equal(0.0)` when testing timer state.
+
 ## Layer 3 — Campfire, Workbench, Stone Tools (2026-04-15)
 
 ### Inventory.set_tool_slot() now accepts "structure" category
