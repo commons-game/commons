@@ -98,6 +98,11 @@ func _physics_process(_delta: float) -> void:
 		var remote := get_node_or_null("../RemotePlayer_%d" % own_id)
 		if remote:
 			remote.position = global_position
+			remote.set("appearance_body_id",      appearance.body_id)
+			remote.set("appearance_held_item_id", appearance.held_item_id)
+			remote.set("appearance_facing_x",     appearance.facing.x)
+			remote.set("appearance_facing_y",     appearance.facing.y)
+			remote.set("appearance_walk_frame",   appearance.walk_frame)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:

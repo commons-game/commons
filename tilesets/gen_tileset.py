@@ -34,6 +34,9 @@ TREE_FG    = (0x0a, 0x2a, 0x0a, 0xff)   # deep shadow
 TREE_TRUNK = (0x5a, 0x32, 0x14, 0xff)   # brown trunk
 ROCK_BG    = (0x44, 0x44, 0x50, 0xff)   # charcoal
 ROCK_FG    = (0xcc, 0xcc, 0xcc, 0xff)   # highlight
+GRAVE_BG   = (0x55, 0x55, 0x5f, 0xff)   # medium gray stone
+GRAVE_FG   = (0x33, 0x33, 0x3b, 0xff)   # dark shadow/edge
+GRAVE_MARK = (0x88, 0x88, 0x94, 0xff)   # lighter cross inscription
 BORDER     = (0x00, 0x00, 0x00, 0x80)   # semi-transparent black border
 EMPTY      = (0x00, 0x00, 0x00, 0x00)   # transparent
 
@@ -159,11 +162,48 @@ dot(1, 1, 6, 5, ROCK_FG, 1)
 border_tile(1, 1)
 
 # ---------------------------------------------------------------------------
+# Gravestone (2,1) — arch top + rectangular body + base slab + cross mark
+# ---------------------------------------------------------------------------
+fill_tile(2, 1, EMPTY)
+# Arch spans: dict of row → (x_start, x_end) for filled region
+grave_spans = {
+    1:  (5, 10),   # rounded arch peak
+    2:  (4, 11),
+    3:  (3, 12),   # arch shoulders
+    4:  (3, 12),
+    5:  (3, 12),   # body
+    6:  (3, 12),
+    7:  (3, 12),
+    8:  (3, 12),
+    9:  (3, 12),
+    10: (3, 12),
+    11: (3, 12),
+    12: (3, 12),
+    13: (2, 13),   # wider base slab
+    14: (2, 13),
+}
+for ty, (x0, x1) in grave_spans.items():
+    for dx in range(x0, x1 + 1):
+        put(2 * TILE + dx, 1 * TILE + ty, GRAVE_BG)
+# Shadow edge — left and right inner border, 1px inset
+for ty in range(1, 13):
+    if ty in grave_spans:
+        x0, x1 = grave_spans[ty]
+        put(2 * TILE + x0, 1 * TILE + ty, GRAVE_FG)
+        put(2 * TILE + x1, 1 * TILE + ty, GRAVE_FG)
+# Cross inscription: vertical bar x=8 rows 4-11, horizontal bar y=7 x=5-11
+for ty in range(4, 12):
+    put(2 * TILE + 8, 1 * TILE + ty, GRAVE_MARK)
+for tx in range(5, 12):
+    put(2 * TILE + tx, 1 * TILE + 7, GRAVE_MARK)
+border_tile(2, 1)
+
+# ---------------------------------------------------------------------------
 # Remaining tiles — transparent
 # ---------------------------------------------------------------------------
 for tc in range(4, COLS):
     fill_tile(tc, 0, EMPTY)
-for tc in range(2, COLS):
+for tc in range(3, COLS):
     fill_tile(tc, 1, EMPTY)
 for tr in range(2, ROWS):
     for tc in range(COLS):
@@ -192,4 +232,4 @@ with open(out, "wb") as f:
 print(f"Written {W}x{H} tileset → {out}")
 print("Tile layout:")
 print("  (0,0) grass   (1,0) dirt   (2,0) stone  (3,0) water")
-print("  (0,1) tree    (1,1) rock")
+print("  (0,1) tree    (1,1) rock   (2,1) gravestone")

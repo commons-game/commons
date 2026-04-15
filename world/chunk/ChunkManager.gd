@@ -32,6 +32,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(3, 0),  # water
 		Vector2i(0, 1),  # tree
 		Vector2i(1, 1),  # rock
+		Vector2i(2, 1),  # gravestone
 	]
 	for coords in needed:
 		if not source.has_tile(coords):
@@ -51,7 +52,7 @@ func _validate_tileset() -> void:
 	if source.texture_region_size.x <= 0:
 		push_error("TileSetAtlasSource.texture_region_size is zero — tiles will silently not render")
 	for coords in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
-	               Vector2i(0, 1), Vector2i(1, 1)]:
+	               Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1)]:
 		if not source.has_tile(coords):
 			push_error("Atlas tile %s not registered — set_cell() calls for it will silently fail" % coords)
 
@@ -117,6 +118,16 @@ func has_tile_at(world_coords: Vector2i, layer: int) -> bool:
 		return false
 	var entry: Dictionary = chunk.crdt.get_tile(layer, local)
 	return not entry.is_empty() and int(entry.get("tile_id", -1)) != -1
+
+## Returns the atlas coords of the ground tile at world_coords, or (-1,-1) if
+## the chunk is not loaded or has no ground tile at that position.
+func get_ground_atlas_at(world_coords: Vector2i) -> Vector2i:
+	var cc := CoordUtils.world_to_chunk(world_coords)
+	var local := CoordUtils.world_to_local(world_coords)
+	var chunk := get_chunk(cc)
+	if chunk == null:
+		return Vector2i(-1, -1)
+	return chunk.ground_layer.get_cell_atlas_coords(local)
 
 func get_loaded_chunk_coords() -> Array:
 	return _loaded_chunks.keys()

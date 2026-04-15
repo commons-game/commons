@@ -24,6 +24,7 @@ const ATLAS_TILES := [
 	Vector2i(3, 0),  # water
 	Vector2i(0, 1),  # tree
 	Vector2i(1, 1),  # rock
+	Vector2i(2, 1),  # gravestone
 ]
 
 func _ready() -> void:
@@ -116,8 +117,9 @@ func _ensure_tileset_collision(tileset: TileSet, source: TileSetAtlasSource) -> 
 		Vector2i(1, 0): full_poly,   # dirt   (GroundLayer only → no bodies)
 		Vector2i(2, 0): full_poly,   # stone  (GroundLayer only → no bodies)
 		# water (3,0) intentionally omitted — no collision
-		Vector2i(0, 1): bottom_poly, # tree   (ObjectLayer → blocks at trunk)
-		Vector2i(1, 1): bottom_poly, # rock   (ObjectLayer → blocks at base)
+		Vector2i(0, 1): bottom_poly, # tree      (ObjectLayer → blocks at trunk)
+		Vector2i(1, 1): bottom_poly, # rock      (ObjectLayer → blocks at base)
+		Vector2i(2, 1): bottom_poly, # gravestone (ObjectLayer → blocks at base)
 	}
 	for coords in tile_polys:
 		if not source.has_tile(coords):
