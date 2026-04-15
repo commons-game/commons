@@ -12,6 +12,15 @@ var _chunk_manager = null  # ChunkManager — set by World before run_all()
 var _player: Node = null   # Player node — set by World
 var _world: Node = null    # World node — set by World
 
+## Per-test hard time limits. If a test exceeds its budget it reports a timeout
+## result and the suite continues — no test can hang the whole run.
+const TIMEOUT_S := {
+	"chunk_flood":  30.0,   # 121 chunks × ~2ms each; 30s is very generous
+	"mob_ramp":     120.0,  # 20 batches × (1s stabilize + 0.5s measure) = ~30s typical
+	"tile_flood":   10.0,   # 2000 mutations; should finish in <1s
+	"chunk_thrash": 40.0,   # fixed 20s duration; 40s gives headroom
+}
+
 func run_all() -> void:
 	var results: Array = []
 	results.append(await _test_chunk_flood())
@@ -81,8 +90,8 @@ func _test_mob_ramp() -> Dictionary:
 	print("[PERF] === mob_ramp starting ===")
 	const BATCH_SIZE := 10
 	const MAX_MOBS := 200
-	const STABILIZE_FRAMES := 60
-	const MEASURE_FRAMES := 20
+	const STABILIZE_S := 1.0   # wall-clock seconds to stabilize (was 60 frames — hung at 1fps)
+	const MEASURE_S   := 0.5   # wall-clock seconds to measure FPS
 	const SPAWN_RADIUS := 20
 
 	var spawner := MobSpawnerScript.new()
@@ -92,24 +101,36 @@ func _test_mob_ramp() -> Dictionary:
 	var mobs_at_60fps := 0
 	var mobs_at_30fps := 0
 	var final_fps := 0.0
+	var timed_out := false
+	var t_test_start := Time.get_ticks_msec()
 
 	while all_mobs.size() < MAX_MOBS:
+		# Hard time cap — prevents the test hanging on very slow hardware
+		if (Time.get_ticks_msec() - t_test_start) / 1000.0 > TIMEOUT_S["mob_ramp"]:
+			timed_out = true
+			print("[PERF] mob_ramp: TIMEOUT at %d mobs — stopping early" % all_mobs.size())
+			break
+
 		# Spawn a batch
 		var new_mobs := spawner.spawn(
 			Vector2i(0, 0), BATCH_SIZE, SPAWN_RADIUS,
 			_chunk_manager, _player, _world)
 		all_mobs.append_array(new_mobs)
 
-		# Wait for FPS to stabilize (60 frames)
-		for _i in range(STABILIZE_FRAMES):
+		# Wait for FPS to stabilize (wall-clock, not frame count)
+		var t_stab := Time.get_ticks_msec()
+		while (Time.get_ticks_msec() - t_stab) / 1000.0 < STABILIZE_S:
 			await get_tree().process_frame
 
-		# Measure average FPS over next 20 frames
+		# Measure average FPS over MEASURE_S seconds
 		var fps_sum := 0.0
-		for _i in range(MEASURE_FRAMES):
+		var fps_samples := 0
+		var t_meas := Time.get_ticks_msec()
+		while (Time.get_ticks_msec() - t_meas) / 1000.0 < MEASURE_S:
 			fps_sum += Engine.get_frames_per_second()
+			fps_samples += 1
 			await get_tree().process_frame
-		var avg_fps := fps_sum / MEASURE_FRAMES
+		var avg_fps: float = fps_sum / max(fps_samples, 1)
 		final_fps = avg_fps
 
 		var mob_count := all_mobs.size()
@@ -131,6 +152,7 @@ func _test_mob_ramp() -> Dictionary:
 	await get_tree().process_frame
 
 	var final_count := all_mobs.size()
+	var timeout_tag := " [TIMED OUT]" if timed_out else ""
 	return {
 		"name": "mob_ramp",
 		"batch_size": BATCH_SIZE,
@@ -138,8 +160,9 @@ func _test_mob_ramp() -> Dictionary:
 		"mobs_at_30fps": mobs_at_30fps,
 		"final_mob_count": final_count,
 		"final_fps": final_fps,
-		"summary": "mob_ramp  60fps_threshold=%d  30fps_threshold=%d  final_count=%d  final_fps=%.0f" % [
-			mobs_at_60fps, mobs_at_30fps, final_count, final_fps],
+		"timed_out": timed_out,
+		"summary": "mob_ramp  60fps_threshold=%d  30fps_threshold=%d  final_count=%d  final_fps=%.0f%s" % [
+			mobs_at_60fps, mobs_at_30fps, final_count, final_fps, timeout_tag],
 	}
 
 # ─── Test 3: Tile Flood ────────────────────────────────────────────────────

@@ -199,18 +199,23 @@ func _load_chunk(coords: Vector2i) -> void:
 		_check_generation_sanity(coords, entries)
 	var t2 := Time.get_ticks_usec()
 	var chunk := CHUNK_SCENE.instantiate() as ChunkData
-	add_child(chunk)
+	# initialize() before add_child() — all set_cell() calls happen while the
+	# node is detached. Godot batches physics body creation at _enter_tree()
+	# instead of creating one body per set_cell() call. See Chunk.gd docstring.
 	chunk.initialize(coords, entries)
+	var t3 := Time.get_ticks_usec()
+	add_child(chunk)  # _enter_tree() batches all physics here
 	chunk.last_visited = Time.get_unix_time_from_system()
 	_loaded_chunks[coords] = chunk
-	var t3 := Time.get_ticks_usec()
-	var total_ms := (t3 - t0) / 1000.0
+	var t4 := Time.get_ticks_usec()
+	var total_ms := (t4 - t0) / 1000.0
 	if total_ms > 5.0:  # only log slow chunks
-		print("[CHUNK] %s  total=%.1fms  gen=%.1fms  render=%.1fms" % [
+		print("[CHUNK] %s  total=%.1fms  gen=%.1fms  render=%.1fms  physics=%.1fms" % [
 			coords,
 			total_ms,
 			(t2 - t1) / 1000.0,
 			(t3 - t2) / 1000.0,
+			(t4 - t3) / 1000.0,
 		])
 
 ## Sanity-check a freshly-generated chunk's entries.

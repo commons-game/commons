@@ -53,22 +53,23 @@ FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
 
 ## Performance
 
-### Perf torture baseline (2026-04-14, llvmpipe software renderer)
-| Test | Result | Notes |
-|---|---|---|
-| chunk_flood | avg=2.5ms, peak=4.2ms, 120 chunks in 299ms | Good — raw pipeline is fast |
-| mob_ramp | 60fps @ 70 mobs, 30fps @ 200 mobs | Software renderer limited; real hardware will be better |
-| tile_flood | 196k mutations/sec, 10ms for 2000 | Fast — not a concern |
-| chunk_thrash | peak=105ms, avg=21ms, 24 load bursts | Bottleneck is physics broadphase (see below) |
+### Perf torture baseline (2026-04-14 v2, llvmpipe software renderer)
+| Test | Result | vs v1 | Notes |
+|---|---|---|---|
+| chunk_flood | avg=2.5ms, peak=3.9ms, 120 chunks in 297ms | ≈ same | Raw pipeline unchanged |
+| mob_ramp | 60fps @ 80 mobs, 30fps @ 200 mobs, final=42fps | 60fps +10 mobs | More headroom before 60fps drop |
+| tile_flood | 184k mutations/sec, 10.9ms for 2000 | ≈ same | Not a concern |
+| chunk_thrash | peak=96.5ms, avg=20.4ms, 24 load bursts | **peak -8ms** | Physics batching (init-before-add_child) helped |
 
-Re-run to check regressions: `DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --perf-torture`
+Re-run: `DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture`
+Note: use `godot4 --path`, NOT `./freeland.x86_64` — the binary has embedded PCK (old scripts); `--path` reads live .gd files.
 Results saved to `user://perf_baselines/`.
 
 ### chunk_thrash peak frames are physics broadphase, not I/O
-**Status:** Known limitation, not addressable in GDScript.
+**Status:** Mitigated — see "initialize before add_child" fix below.
 **Root cause:** Each chunk loaded via `_render_all()` adds ~90 ObjectLayer collision shapes to the physics world. The engine rebuilds its broadphase per-frame. 3 chunks × 90 shapes = 270 new collision bodies/frame. On real GPU hardware this is much cheaper than llvmpipe.
-**What was fixed:** Unload path now spreads across frames (MAX_UNLOADS_PER_FRAME=3) and skips `Backend.store_chunk()` for unmodified chunks (eliminates nearly all unload I/O in normal gameplay).
-**What can't be fixed easily:** Disabling ObjectLayer `collision_enabled` during bulk `set_cell()` then re-enabling it silently breaks physics body generation in Godot 4.3 TileMapLayer — this would be the natural fix but is a known engine bug.
+**What was fixed (round 1):** Unload path now spreads across frames (MAX_UNLOADS_PER_FRAME=3) and skips `Backend.store_chunk()` for unmodified chunks (eliminates nearly all unload I/O in normal gameplay).
+**What was fixed (round 2):** `ChunkManager._load_chunk()` now calls `chunk.initialize()` BEFORE `add_child()`. All `set_cell()` calls happen on a detached node — Godot batches all physics body creation in one pass during `_enter_tree()` instead of one body per `set_cell()`. The `collision_enabled` toggle workaround is NOT needed; the batch happens naturally.
 
 ## Combat / Mob Polish (next pass)
 
@@ -403,3 +404,17 @@ a.active_buff_ids.append("undead_resilience")
 **Workaround:** Design data classes so they do NOT depend on static var lookups from other scripts at call time. Instead, pass any required data (e.g. slot name) at the time items enter the inventory (`add_to_bag(item_id, slot)`), and store it alongside the item. This way the lookup happens once at the caller's site (where the registry IS visible) rather than deep inside the method.
 **Alternative workaround (for tests only):** Use direct property assignment in `before_each()`: `FooScript._items = {}` rather than calling a `reset()` static method — the direct assignment pattern matches what `test_asset_pack.gd` does for `_buff_body_map`.
 **Note:** The direct assignment workaround alone does NOT fix the inverse problem (test sets state, method reads different state). The architectural fix (no cross-script static dependency) is the correct solution.
+
+### Godot upstream bug: TileMapLayer collision_enabled toggle breaks physics after set_cell()
+**Status:** Unreported upstream (no account yet). Recorded here to file when ready. Workaround found — see "initialize before add_child" fix.
+**Godot version:** 4.3
+**Reproduction:**
+1. Create a TileMapLayer with a TileSet that has a physics layer and tile collision shapes
+2. Set `collision_enabled = false`
+3. Call `set_cell()` to place several tiles
+4. Set `collision_enabled = true`
+5. Observe: tiles render correctly but CharacterBody2D passes through them — no physics bodies generated
+
+**Expected:** Re-enabling collision should cause the layer to generate physics bodies for all existing tiles.
+**Workaround (implemented):** Call `initialize()` before `add_child()` in ChunkManager. All `set_cell()` calls happen on a detached node. When the node enters the scene tree via `add_child()`, `_enter_tree()` batches all physics body creation at once — no collision toggle needed. `notify_runtime_tile_data_update()` and `update_internals()` were investigated but neither forces a rebuild for this specific bug (they only handle runtime tile data overrides and pending-dirty-quadrant flushes respectively).
+**Note for upstream ticket:** `collision_enabled` toggled false→true after `set_cell()` leaves dirty quadrant markers processed-with-no-bodies. The layer doesn't re-mark those quadrants dirty on re-enable, so `update_internals()` finds nothing to do. Expected behavior: re-enabling collision should mark all existing cells dirty.

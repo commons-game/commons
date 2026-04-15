@@ -1,7 +1,12 @@
 ## ChunkData — one 16x16 tile chunk in the world.
 ## Positioned at pixel offset chunk_coords * CHUNK_SIZE * TILE_SIZE.
 ## Has two TileMapLayer children: GroundLayer (layer 0) and ObjectLayer (layer 1).
-## Collision disabled during bulk _render_all() to avoid per-cell physics rebuilds.
+##
+## Physics batching: ChunkManager calls initialize() BEFORE add_child() so all
+## set_cell() calls happen while the node is detached from the scene tree.
+## Godot then creates all physics bodies in one pass during _enter_tree() rather
+## than one per set_cell() call. This eliminates per-cell physics overhead during
+## chunk load. See docs/known_issues.md: "TileMapLayer collision_enabled toggle".
 class_name ChunkData
 extends Node2D
 
@@ -16,6 +21,8 @@ var last_visited: float = 0.0
 var weight: float = 0.0
 var is_fading: bool = false
 
+var _layers_ready: bool = false
+
 ## Atlas positions used by ProceduralGenerator — must be registered before set_cell().
 const ATLAS_TILES := [
 	Vector2i(0, 0),  # grass
@@ -29,8 +36,30 @@ const ATLAS_TILES := [
 ]
 
 func _ready() -> void:
-	ground_layer = $GroundLayer
-	object_layer = $ObjectLayer
+	# _ready() fires when the node enters the scene tree (via add_child).
+	# ChunkManager calls initialize() BEFORE add_child(), so layers are already
+	# set up by the time _ready() runs. This guard prevents double-init.
+	_setup_layers()
+
+## Call once before add_child() to populate tile data while detached from the
+## scene tree. Physics bodies are then created in one batch by _enter_tree().
+func initialize(coords: Vector2i, entries: Dictionary) -> void:
+	_setup_layers()
+	chunk_coords = coords
+	position = Vector2(coords.x * Constants.CHUNK_SIZE * Constants.TILE_SIZE,
+	                   coords.y * Constants.CHUNK_SIZE * Constants.TILE_SIZE)
+	crdt.load_from_entries(entries)
+	_render_all()
+
+## Set up layer refs and TileSet. Safe to call before add_child() — get_node()
+## works on detached trees. Idempotent via _layers_ready guard.
+func _setup_layers() -> void:
+	if _layers_ready:
+		return
+	_layers_ready = true
+
+	ground_layer = get_node("GroundLayer") as TileMapLayer
+	object_layer = get_node("ObjectLayer") as TileMapLayer
 	crdt = CRDTTileStore.new()
 
 	# GroundLayer is never collidable — player always walks on it freely.
@@ -57,17 +86,12 @@ func _ready() -> void:
 				source.create_tile(coords)
 		_ensure_tileset_collision(ground_layer.tile_set, source)
 
-func initialize(coords: Vector2i, entries: Dictionary) -> void:
-	chunk_coords = coords
-	position = Vector2(coords.x * Constants.CHUNK_SIZE * Constants.TILE_SIZE,
-	                   coords.y * Constants.CHUNK_SIZE * Constants.TILE_SIZE)
-	crdt.load_from_entries(entries)
-	_render_all()
-
 func _render_all() -> void:
-	## GroundLayer collision stays disabled permanently (player walks on ground freely).
-	## ObjectLayer collision stays ENABLED throughout — toggling it false/true after
-	## placing cells silently breaks physics body generation in Godot 4.3 TileMapLayer.
+	## When called from initialize() (before add_child), set_cell() calls are free —
+	## no physics bodies are created until _enter_tree() batches them all at once.
+	## When called later (e.g. apply_crdt_snapshot), the chunk is in the tree and
+	## each set_cell() creates a physics body immediately — acceptable since snapshots
+	## are rare. GroundLayer collision is permanently disabled.
 	ground_layer.clear()
 	object_layer.clear()
 	for key in crdt.get_all_entries():
