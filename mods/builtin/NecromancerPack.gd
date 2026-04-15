@@ -22,6 +22,10 @@ const BUFF_BODY_MAP: Dictionary = {
 	"blood_harvest":     "necromancer",
 	"undead_resilience": "necromancer",
 }
+## Maps buff_id -> held_item_id. Shrine grants the wand visually on entry.
+const BUFF_ITEM_MAP: Dictionary = {
+	"blood_harvest": "bone_wand",
+}
 
 func _ready() -> void:
 	AssetPackScript.register_pack("necromancer", {
@@ -33,3 +37,4 @@ func _ready() -> void:
 		},
 	})
 	AssetPackScript.register_buff_body_map(BUFF_BODY_MAP)
+	AssetPackScript.register_buff_item_map(BUFF_ITEM_MAP)

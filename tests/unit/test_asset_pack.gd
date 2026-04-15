@@ -8,6 +8,7 @@ func before_each() -> void:
 	AssetPackScript.current_pack = "debug"
 	AssetPackScript._registered = {}
 	AssetPackScript._buff_body_map = {}
+	AssetPackScript._buff_item_map = {}
 
 func test_registered_pack_found_regardless_of_current_pack() -> void:
 	# Registered pack assets are resolved even when current_pack != pack_name.
@@ -57,3 +58,13 @@ func test_buff_body_map_no_match_returns_default() -> void:
 
 func test_buff_body_map_empty_list_returns_default() -> void:
 	assert_str(AssetPackScript.resolve_body_for_buffs([])).is_equal("default")
+
+func test_buff_item_map_resolves_registered_buff() -> void:
+	AssetPackScript.register_buff_item_map({"blood_harvest": "bone_wand"})
+	assert_str(AssetPackScript.resolve_item_for_buffs(["blood_harvest"])).is_equal("bone_wand")
+
+func test_buff_item_map_no_match_returns_empty() -> void:
+	assert_str(AssetPackScript.resolve_item_for_buffs(["unknown_buff"])).is_equal("")
+
+func test_buff_item_map_empty_list_returns_empty() -> void:
+	assert_str(AssetPackScript.resolve_item_for_buffs([])).is_equal("")

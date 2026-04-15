@@ -25,6 +25,8 @@ static var _registered: Dictionary = {}
 
 ## buff_id -> body_variant, registered by mods.
 static var _buff_body_map: Dictionary = {}
+## buff_id -> held_item_id, registered by mods.
+static var _buff_item_map: Dictionary = {}
 
 ## Register a custom asset pack (called by mod packs at load time).
 static func register_pack(pack_name: String, mappings: Dictionary) -> void:
@@ -36,6 +38,12 @@ static func register_buff_body_map(mappings: Dictionary) -> void:
 	for k in mappings:
 		_buff_body_map[k] = str(mappings[k])
 
+## Register buff_id → held_item_id mappings (called by mod packs at load time).
+## First matching buff wins. "" means no held item override.
+static func register_buff_item_map(mappings: Dictionary) -> void:
+	for k in mappings:
+		_buff_item_map[k] = str(mappings[k])
+
 ## Given a list of active buff IDs, return the body_variant to render.
 ## Returns "default" if no buff has a registered body override.
 static func resolve_body_for_buffs(buff_ids: Array) -> String:
@@ -43,6 +51,14 @@ static func resolve_body_for_buffs(buff_ids: Array) -> String:
 		if _buff_body_map.has(buff_id):
 			return _buff_body_map[buff_id]
 	return "default"
+
+## Given a list of active buff IDs, return the held_item_id to render.
+## Returns "" (no override) if no buff has a registered item.
+static func resolve_item_for_buffs(buff_ids: Array) -> String:
+	for buff_id in buff_ids:
+		if _buff_item_map.has(buff_id):
+			return _buff_item_map[buff_id]
+	return ""
 
 ## Resolve slot+variant to a Texture2D.
 ## Search order: registered packs first (any pack), then built-in packs.

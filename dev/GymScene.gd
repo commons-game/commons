@@ -20,6 +20,7 @@ var _player: CharacterBody2D = null
 var _pos_label: Label = null
 
 func _ready() -> void:
+	_register_wasd()
 	# Gym chunk — rock border around an open stone interior.
 	var chunk := ChunkScene.instantiate()
 	add_child(chunk)
@@ -87,3 +88,16 @@ func _make_gym_entries() -> Dictionary:
 				entries[rkey] = {"tile_id": 0, "atlas_x": ROCK.x, "atlas_y": ROCK.y,
 				                 "alt_tile": 0, "timestamp": 0.0, "author_id": ""}
 	return entries
+
+func _register_wasd() -> void:
+	var map := {"ui_left": KEY_A, "ui_right": KEY_D, "ui_up": KEY_W, "ui_down": KEY_S}
+	for action in map:
+		var ev := InputEventKey.new()
+		ev.keycode = map[action]
+		var already := false
+		for existing in InputMap.action_get_events(action):
+			if existing is InputEventKey and (existing as InputEventKey).keycode == map[action]:
+				already = true
+				break
+		if not already:
+			InputMap.action_add_event(action, ev)

@@ -136,13 +136,18 @@ func _on_buffs_changed(buffs: Array) -> void:
 	appearance.active_buff_ids.clear()
 	for b in buffs:
 		appearance.active_buff_ids.append(str(b["buff_id"]))
-	# Resolve body variant from active buffs (e.g. blood_harvest → necromancer).
+	# Resolve body + held item from active buffs.
 	appearance.body_id = AssetPackScript.resolve_body_for_buffs(appearance.active_buff_ids)
+	# Buff-granted item is cosmetic — shows while in shrine, independent of active tool.
+	# Functional tool sprites (lantern lit, shovel raised) are a future layer on top.
+	appearance.held_item_id = AssetPackScript.resolve_item_for_buffs(appearance.active_buff_ids)
 
 func _update_appearance() -> void:
 	if appearance == null or _renderer == null:
 		return
-	# Held item from active inventory slot
-	var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
-	appearance.held_item_id = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
+	# Held item: buff-granted item takes priority (cosmetic shrine visual).
+	# Falls back to active inventory tool when no buff overrides.
+	if appearance.held_item_id == "":
+		var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
+		appearance.held_item_id = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
 	_renderer.refresh(appearance)

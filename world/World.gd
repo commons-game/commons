@@ -60,6 +60,7 @@ var _health_check_counter: int = 0
 
 func _ready() -> void:
 	get_tree().auto_accept_quit = false
+	_register_wasd()
 
 	# Dev scene switches — bail out before any normal setup.
 	var _early_args := OS.get_cmdline_user_args()
@@ -384,6 +385,27 @@ func _setup_hud() -> void:
 	_clock_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	_clock_label.text = ""
 	hud.add_child(_clock_label)
+
+## Add WASD keys to the built-in ui_left/right/up/down actions at runtime.
+## Avoids editing project.godot; safe to call multiple times (has_action guards).
+func _register_wasd() -> void:
+	var map := {
+		"ui_left":  KEY_A,
+		"ui_right": KEY_D,
+		"ui_up":    KEY_W,
+		"ui_down":  KEY_S,
+	}
+	for action in map:
+		var ev := InputEventKey.new()
+		ev.keycode = map[action]
+		# Only add if not already present (idempotent across scene reloads)
+		var already := false
+		for existing in InputMap.action_get_events(action):
+			if existing is InputEventKey and (existing as InputEventKey).keycode == map[action]:
+				already = true
+				break
+		if not already:
+			InputMap.action_add_event(action, ev)
 
 ## Auto-place a necromancer shrine at spawn for visual dev testing.
 ## Run with: DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-necro-shrine --dev-health-check
