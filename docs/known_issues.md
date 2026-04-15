@@ -2,15 +2,24 @@
 
 ## Freenet Backend (Phase 6 spike — open items)
 
-### freenet node binary not installed
-**Status:** Open — needed for end-to-end test.
-**Symptom:** `cargo install freenet` ran but produced no binary. Only `fdev v0.3.208` was installed.
-**Next step:** Run `fdev node` (if that's the command) or check the [freenet/freenet-core](https://github.com/freenet/freenet-core) repo for the correct binary install command. Needed to run an actual local node for the proxy to connect to.
-
-### Proxy default node URL may be wrong
-**Status:** Unverified — needs real node to test.
-**Symptom:** Proxy connects to `ws://127.0.0.1:50509/v1/contract/command` by default. This port/path is unconfirmed; real Freenet node may use a different address.
-**Workaround:** Set `FREENET_NODE_URL` env var when running the proxy.
+### End-to-end spike complete
+**Status:** Done. Chunk Put + Get round-trips through Freenet node verified.
+**How to run:**
+```bash
+# 1. Install Freenet node (once): curl -fsSL https://freenet.org/install.sh | sh
+# 2. Start node in local mode:
+freenet local --ws-api-address 0.0.0.0
+# 3. Build packaged contract:
+cd backend/freenet/contracts/chunk-contract
+CARGO_TARGET_DIR=../../target fdev build
+# 4. Build and run proxy:
+cargo build -p freeland-proxy --release
+cp contracts/chunk-contract/build/freenet/freeland_chunk_contract .
+./target/release/freeland-proxy
+# 5. In Backend.gd: use_freenet = true
+```
+**Known fdev bug:** `fdev build` panics with "Could not find workspace root" unless `CARGO_TARGET_DIR` is set. Workaround: `CARGO_TARGET_DIR=$(pwd)/../../target fdev build`.
+**Node binds IPv6 by default:** Must pass `--ws-api-address 0.0.0.0` for IPv4 clients. The proxy URL needs `?encodingProtocol=native` suffix.
 
 ### FreenetBackend.gd requires `use_freenet = true` in Backend.gd
 **Status:** Manual toggle until we decide when to auto-enable.

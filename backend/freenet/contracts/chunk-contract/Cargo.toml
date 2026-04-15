@@ -6,6 +6,12 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+contract = ["freenet-stdlib/contract"]
+default = ["freenet-main-contract"]
+freenet-main-contract = []
+trace = ["freenet-stdlib/trace"]
+
 [dependencies]
 freenet-stdlib = { version = "0.6.0", features = ["contract"] }
 freeland-common = { path = "../../common" }

@@ -1,10 +1,12 @@
 /// Freeland proxy — translates JSON WebSocket (GDScript) ↔ Freenet binary protocol.
 ///
 /// Listens on ws://127.0.0.1:7510  (configurable via FREELAND_PROXY_ADDR)
-/// Connects to   ws://127.0.0.1:50509/v1/contract/command  (configurable via FREENET_NODE_URL)
+/// Connects to   ws://localhost:7509/v1/contract/command?encodingProtocol=native  (configurable via FREENET_NODE_URL)
 ///
-/// Contract WASM loaded from FREELAND_WASM_PATH (default: ./freeland-chunk-contract.wasm).
-/// Each Put/Get derives the ContractInstanceId from the WASM hash + ChunkParameters{x,y}.
+/// Contract loaded from FREELAND_CONTRACT_PATH (default: ./freeland_chunk_contract).
+/// This must be the versioned package produced by `fdev build`, NOT a raw .wasm file.
+/// Build it: cd contracts/chunk-contract && CARGO_TARGET_DIR=../../target fdev build
+/// Each Put/Get derives the ContractInstanceId from the code hash + ChunkParameters{x,y}.
 use std::{env, path::PathBuf, sync::Arc};
 
 use freenet_stdlib::{
@@ -33,17 +35,22 @@ async fn main() {
 
     let listen_addr = env::var("FREELAND_PROXY_ADDR").unwrap_or("127.0.0.1:7510".into());
     let node_url = env::var("FREENET_NODE_URL")
-        .unwrap_or("ws://127.0.0.1:50509/v1/contract/command".into());
-    let wasm_path = PathBuf::from(
-        env::var("FREELAND_WASM_PATH").unwrap_or("freeland-chunk-contract.wasm".into()),
+        .unwrap_or("ws://localhost:7509/v1/contract/command?encodingProtocol=native".into());
+    let contract_path = PathBuf::from(
+        env::var("FREELAND_CONTRACT_PATH").unwrap_or("freeland_chunk_contract".into()),
     );
 
-    let wasm_bytes = Arc::new(
-        std::fs::read(&wasm_path).unwrap_or_else(|e| {
-            panic!("Failed to read WASM from {}: {e}", wasm_path.display())
+    let contract_bytes = Arc::new(
+        std::fs::read(&contract_path).unwrap_or_else(|e| {
+            panic!(
+                "Failed to read contract from {}: {e}\n\
+                 Build it with: cd contracts/chunk-contract && \
+                 CARGO_TARGET_DIR=../../target fdev build",
+                contract_path.display()
+            )
         }),
     );
-    info!(path = %wasm_path.display(), bytes = wasm_bytes.len(), "Loaded contract WASM");
+    info!(path = %contract_path.display(), bytes = contract_bytes.len(), "Loaded packaged contract");
 
     let listener = TcpListener::bind(&listen_addr)
         .await
@@ -53,9 +60,9 @@ async fn main() {
     while let Ok((stream, peer)) = listener.accept().await {
         info!(%peer, "GDScript client connected");
         let node_url = node_url.clone();
-        let wasm = wasm_bytes.clone();
+        let cb = contract_bytes.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_client(stream, node_url, wasm).await {
+            if let Err(e) = handle_client(stream, node_url, cb).await {
                 error!(%peer, error = %e, "Client handler error");
             }
         });
@@ -69,7 +76,7 @@ async fn main() {
 async fn handle_client(
     stream: TcpStream,
     node_url: String,
-    wasm_bytes: Arc<Vec<u8>>,
+    contract_bytes: Arc<Vec<u8>>,
 ) -> anyhow::Result<()> {
     use futures::{SinkExt, StreamExt};
 
@@ -106,7 +113,7 @@ async fn handle_client(
             }
         };
 
-        let response = dispatch(&mut freenet, &wasm_bytes, request).await;
+        let response = dispatch(&mut freenet, &contract_bytes, request).await;
         ws.send(Message::Text(serde_json::to_string(&response)?.into()))
             .await?;
     }
@@ -120,7 +127,7 @@ async fn handle_client(
 
 async fn dispatch(
     freenet: &mut WebApi,
-    wasm_bytes: &[u8],
+    contract_bytes: &[u8],
     request: ProxyRequest,
 ) -> ProxyResponse {
     match request {
@@ -128,10 +135,10 @@ async fn dispatch(
             chunk_x,
             chunk_y,
             state_json,
-        } => put_chunk(freenet, wasm_bytes, chunk_x, chunk_y, state_json).await,
+        } => put_chunk(freenet, contract_bytes, chunk_x, chunk_y, state_json).await,
 
         ProxyRequest::Get { chunk_x, chunk_y } => {
-            get_chunk(freenet, wasm_bytes, chunk_x, chunk_y).await
+            get_chunk(freenet, contract_bytes, chunk_x, chunk_y).await
         }
 
         ProxyRequest::Delete { chunk_x, chunk_y } => {
@@ -139,7 +146,7 @@ async fn dispatch(
             // We write an empty ChunkState to effectively tombstone it.
             let empty = serde_json::to_string(&ChunkState::default())
                 .unwrap_or_else(|_| "{}".into());
-            put_chunk(freenet, wasm_bytes, chunk_x, chunk_y, empty).await
+            put_chunk(freenet, contract_bytes, chunk_x, chunk_y, empty).await
         }
     }
 }
@@ -150,7 +157,7 @@ async fn dispatch(
 
 async fn put_chunk(
     freenet: &mut WebApi,
-    wasm_bytes: &[u8],
+    contract_bytes: &[u8],
     chunk_x: i32,
     chunk_y: i32,
     state_json: String,
@@ -159,7 +166,7 @@ async fn put_chunk(
         Ok(p) => p,
         Err(e) => return ProxyResponse::Error { message: e },
     };
-    let container = match ContractContainer::try_from((wasm_bytes.to_vec(), params)) {
+    let container = match ContractContainer::try_from((contract_bytes.to_vec(), params)) {
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("Contract init: {e}") },
     };
@@ -194,7 +201,7 @@ async fn put_chunk(
 
 async fn get_chunk(
     freenet: &mut WebApi,
-    wasm_bytes: &[u8],
+    contract_bytes: &[u8],
     chunk_x: i32,
     chunk_y: i32,
 ) -> ProxyResponse {
@@ -202,7 +209,7 @@ async fn get_chunk(
         Ok(p) => p,
         Err(e) => return ProxyResponse::Error { message: e },
     };
-    let container = match ContractContainer::try_from((wasm_bytes.to_vec(), params)) {
+    let container = match ContractContainer::try_from((contract_bytes.to_vec(), params)) {
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("Contract init: {e}") },
     };
