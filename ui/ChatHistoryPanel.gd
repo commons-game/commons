@@ -31,9 +31,8 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var panel := Panel.new()
 	panel.name = "HistoryBG"
-	# Anchor bottom-left
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	panel.position = Vector2(MARGIN, -PANEL_HEIGHT - MARGIN)
+	# Position bottom-left of viewport (1280×720)
+	panel.position = Vector2(MARGIN, 720 - PANEL_HEIGHT - MARGIN - 48)
 	panel.custom_minimum_size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
 	panel.size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
 	var style := StyleBoxFlat.new()
@@ -52,7 +51,7 @@ func _build_ui() -> void:
 
 	_scroll = ScrollContainer.new()
 	_scroll.name = "Scroll"
-	_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_scroll.offset_left   = 4
 	_scroll.offset_top    = 4
 	_scroll.offset_right  = -4

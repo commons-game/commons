@@ -24,10 +24,10 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var panel := Panel.new()
 	panel.name = "InputBG"
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_CENTER)
+	# Position anchored to bottom-center of viewport (1280×720)
 	panel.custom_minimum_size = Vector2(480, 32)
 	panel.size = Vector2(480, 32)
-	panel.position = Vector2(-240, -40)
+	panel.position = Vector2((1280 - 480) / 2, 720 - 48)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.05, 0.1, 0.85)
 	style.border_width_bottom = 1
