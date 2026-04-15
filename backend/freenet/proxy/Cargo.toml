@@ -7,6 +7,16 @@ edition = "2021"
 name = "freeland-proxy"
 path = "src/main.rs"
 
+[lib]
+name = "freeland_proxy"
+path = "src/lib.rs"
+
+[features]
+# Enable with: cargo test --features integration
+# Requires FREENET_NODE_URL pointing to a running local node
+# and FREELAND_CONTRACT_PATH pointing to a built contract package.
+integration = []
+
 [dependencies]
 freenet-stdlib = { version = "0.6.0", features = ["net"] }
 freeland-common = { path = "../common" }
