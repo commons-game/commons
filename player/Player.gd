@@ -414,12 +414,9 @@ const SpeechBubbleScript := preload("res://ui/SpeechBubble.gd")
 
 ## Called when ChatSystem emits message_received.
 ## Spawns a speech bubble on the correct node (self or a RemotePlayer).
+## History panel is wired separately in World._setup_chat_system — do NOT call
+## add_message here or every message appears twice.
 func _on_chat_message(sender_name: String, text: String, is_dm: bool, sender_id: String) -> void:
-	# Update history panel regardless of who spoke
-	var history_panel := get_node_or_null("../ChatHistoryPanel")
-	if history_panel != null:
-		history_panel.call("add_message", sender_name, text, is_dm)
-
 	# Determine which node should display the bubble
 	var target_node: Node2D = null
 	var my_id: String = PlayerIdentity.id
