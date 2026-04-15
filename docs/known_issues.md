@@ -189,6 +189,16 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 - `key-js <key> [code] [keyCode]` — prints JS for a single keydown+keyup
 - In desktop mode, keyboard events go to the X11-focused window. Click the desired window area in the browser canvas first, then dispatch keys to `document`.
 
+## Layer 3 — Campfire, Workbench, Stone Tools (2026-04-15)
+
+### Inventory.set_tool_slot() now accepts "structure" category
+**Status:** Intentional change.
+**Detail:** Structures (campfire, workbench) can now live in tool slots so TileInteraction can detect them via get_active_tool(). The category gate now allows "tool" OR "structure". Test_inventory tests still pass because they only set tools; no regression expected.
+
+### CampfireSystem uses polling (not signals) for light sync
+**Status:** Acceptable for current scope.
+**Detail:** CampfireSystem scans loaded chunks every 2s. Lights may lag up to 2s after campfire placement/removal. If real-time sync is needed, wire to TileMutationBus's tile_store events in a future pass.
+
 ## Project Code
 
 ### Player renders under ObjectLayer / collision unusable in dense forest
