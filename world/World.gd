@@ -10,6 +10,7 @@
 ##   --dev-gym                  Load collision gym scene: player inside rock box, verify collision
 ##   --dev-render-gym           Load render gym: one of every tile type shown, verify atlas
 ##   --dev-world-stats          Generate 100 chunks, print density histogram, quit
+##   --perf-torture             Run performance torture suite (chunk/mob/tile/thrash), print results, quit
 ##
 ## In-game dev keys:
 ##   F1    Toggle debug overlay (FPS, phase, chunk weight, vibe, tool, merge pressure)
@@ -40,6 +41,7 @@ const NecromancerPackScript       := preload("res://mods/builtin/NecromancerPack
 const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.gd")
 const GravestoneScatterScript     := preload("res://world/generation/GravestoneScatter.gd")
 const MobSpawnerScript            := preload("res://world/mobs/MobSpawner.gd")
+const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 
 var _session: Object
@@ -117,6 +119,8 @@ func _ready() -> void:
 		_run_screenshot_cycle.call_deferred()
 	if not is_web and "--dev-world-stats" in args:
 		_run_world_stats.call_deferred()
+	if not is_web and "--perf-torture" in args:
+		_run_perf_torture.call_deferred()
 	if not is_web and "--dev-health-check" in args:
 		_health_check_timer = 0.0
 		print("HealthCheck: running 30s check, screenshot every 5s")
@@ -690,6 +694,16 @@ func _run_world_stats() -> void:
 				% [tree_on_grass, EXPECTED_TREE_PCT])
 	print("─────────────────────────────────────")
 	get_tree().quit()
+
+func _run_perf_torture() -> void:
+	print("[PERF] Starting torture suite...")
+	var suite := PerfTortureTestsScript.new()
+	suite.name = "PerfTortureTests"
+	suite._chunk_manager = $ChunkManager
+	suite._player = $Player
+	suite._world = self
+	add_child(suite)
+	await suite.run_all()
 
 func _setup_equipment_ui() -> void:
 	var ui := EquipmentUIScript.new()
