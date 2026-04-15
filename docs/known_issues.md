@@ -61,8 +61,19 @@ FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
 | tile_flood | 184k mutations/sec, 10.9ms for 2000 | ≈ same | Not a concern |
 | chunk_thrash | peak=96.5ms, avg=20.4ms, 24 load bursts | **peak -8ms** | Physics batching (init-before-add_child) helped |
 
-Re-run: `DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture`
-Note: use `godot4 --path`, NOT `./freeland.x86_64` — the binary has embedded PCK (old scripts); `--path` reads live .gd files.
+**Re-run (CPU/llvmpipe):** `freeland-perf-cpu` alias, or:
+```bash
+DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture
+```
+**Re-run (GPU/RTX 3060):** `freeland-perf-gpu` alias, or:
+```bash
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture
+```
+**Notes:**
+- Use `:200` (Xvfb, managed by `xvfb-test.service`) not `:100` (xpra) — xpra adds ~33ms/frame encoding overhead that pollutes all frame-time measurements
+- Use `godot4 --path`, NOT `./freeland.x86_64` — the binary has an embedded PCK with old scripts
+- chunk_flood and tile_flood are CPU-bound; GPU makes no difference there
+- chunk_thrash and mob_ramp reflect physics+AI cost, which IS affected by GPU frame budget
 Results saved to `user://perf_baselines/`.
 
 ### chunk_thrash peak frames are physics broadphase, not I/O

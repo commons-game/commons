@@ -16,7 +16,7 @@ var _world: Node = null    # World node — set by World
 ## result and the suite continues — no test can hang the whole run.
 const TIMEOUT_S := {
 	"chunk_flood":  30.0,   # 121 chunks × ~2ms each; 30s is very generous
-	"mob_ramp":     120.0,  # 20 batches × (1s stabilize + 0.5s measure) = ~30s typical
+	"mob_ramp":     180.0,  # 20 batches × (3s stabilize + 0.5s measure) = ~70s typical
 	"tile_flood":   10.0,   # 2000 mutations; should finish in <1s
 	"chunk_thrash": 40.0,   # fixed 20s duration; 40s gives headroom
 }
@@ -90,7 +90,7 @@ func _test_mob_ramp() -> Dictionary:
 	print("[PERF] === mob_ramp starting ===")
 	const BATCH_SIZE := 10
 	const MAX_MOBS := 200
-	const STABILIZE_S := 1.0   # wall-clock seconds to stabilize (was 60 frames — hung at 1fps)
+	const STABILIZE_S := 3.0   # wall-clock seconds to stabilize — must outlast initial chunk-load queue drain
 	const MEASURE_S   := 0.5   # wall-clock seconds to measure FPS
 	const SPAWN_RADIUS := 20
 
