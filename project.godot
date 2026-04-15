@@ -26,6 +26,8 @@ PlayerIdentity="*res://autoloads/PlayerIdentity.gd"
 DayClock="*res://autoloads/DayClock.gd"
 ItemRegistry="*res://items/ItemRegistry.gd"
 RecipeRegistry="*res://autoloads/RecipeRegistry.gd"
+ChatSystem="*res://autoloads/ChatSystem.gd"
+FreenetDMQueue="*res://autoloads/FreenetDMQueue.gd"
 
 [display]
 

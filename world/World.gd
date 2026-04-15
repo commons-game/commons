@@ -45,6 +45,9 @@ const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
 const CampfireSystemScript        := preload("res://world/CampfireSystem.gd")
+const ChatInputScript             := preload("res://ui/ChatInput.gd")
+const ChatHistoryPanelScript      := preload("res://ui/ChatHistoryPanel.gd")
+const ChatRPCScript               := preload("res://multiplayer/ChatRPC.gd")
 
 var _session: Object
 var _authority: Object
@@ -118,6 +121,7 @@ func _ready() -> void:
 	_setup_equipment_ui()
 	_setup_crafting_ui()
 	_setup_campfire_system()
+	_setup_chat_system()
 	_assert_layer_order()
 	if not is_web and "--dev-screenshot-cycle" in args:
 		_run_screenshot_cycle.call_deferred()
@@ -728,6 +732,26 @@ func _setup_campfire_system() -> void:
 	cs.name = "CampfireSystem"
 	cs._chunk_mgr = $ChunkManager
 	add_child(cs)
+
+func _setup_chat_system() -> void:
+	# ChatRPC — thin multiplayer RPC wrapper
+	var chat_rpc := ChatRPCScript.new()
+	chat_rpc.name = "ChatRPC"
+	add_child(chat_rpc)
+
+	# ChatHistoryPanel — Tab-toggled history view (layer 19)
+	var history_panel := ChatHistoryPanelScript.new()
+	history_panel.name = "ChatHistoryPanel"
+	add_child(history_panel)
+	# Wire history panel to ChatSystem
+	ChatSystem.message_received.connect(func(sender_name, text, is_dm, _id):
+		history_panel.add_message(sender_name, text, is_dm))
+
+	# ChatInput — Enter-activated input bar (layer 20)
+	var chat_input := ChatInputScript.new()
+	chat_input.name = "ChatInput"
+	chat_input.player = $Player
+	add_child(chat_input)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:

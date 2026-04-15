@@ -83,6 +83,10 @@ func _ready() -> void:
 	_lantern.name = "Lantern"
 	add_child(_lantern)
 
+	# Connect ChatSystem for speech bubble spawning
+	if Engine.get_main_loop() != null:
+		ChatSystem.message_received.connect(_on_chat_message)
+
 func _draw() -> void:
 	var has_sprites: bool = _renderer != null and _renderer.has_visible_sprites()
 	if has_sprites:
@@ -308,6 +312,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F:
 			# Eat food from bag.
 			_try_eat()
+		KEY_ENTER, KEY_KP_ENTER:
+			var chat_input := get_node_or_null("../ChatInput")
+			if chat_input != null and not chat_input.visible:
+				chat_input.call("activate")
+				get_viewport().set_input_as_handled()
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
@@ -387,6 +396,57 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 		if equipment != null:
 			equipment.call("add_to_bag", "bone_armor", "armor")
 			print("Player: picked up bone_armor")
+
+## Active SpeechBubble nodes above this player (for stacking).
+var _speech_bubbles: Array = []
+
+const SpeechBubbleScript := preload("res://ui/SpeechBubble.gd")
+
+## Called when ChatSystem emits message_received.
+## Spawns a speech bubble on the correct node (self or a RemotePlayer).
+func _on_chat_message(sender_name: String, text: String, is_dm: bool, sender_id: String) -> void:
+	# Update history panel regardless of who spoke
+	var history_panel := get_node_or_null("../ChatHistoryPanel")
+	if history_panel != null:
+		history_panel.call("add_message", sender_name, text, is_dm)
+
+	# Determine which node should display the bubble
+	var target_node: Node2D = null
+	var my_id: String = PlayerIdentity.id
+	if sender_id == my_id or sender_id == "":
+		target_node = self
+	else:
+		# Try to find a RemotePlayer node with matching id
+		for child in get_parent().get_children():
+			if child.get("id") == sender_id:
+				target_node = child as Node2D
+				break
+		# Fallback: own node if sender not found (e.g. system messages)
+		if target_node == null and sender_id.is_empty():
+			target_node = self
+
+	if target_node == null:
+		return
+
+	_spawn_bubble_on(target_node, sender_name, text, is_dm)
+
+func _spawn_bubble_on(target: Node2D, sender_name: String, text: String, is_dm: bool) -> void:
+	# Clean up freed bubbles first
+	_speech_bubbles = _speech_bubbles.filter(func(b): return is_instance_valid(b))
+
+	var bubble := SpeechBubbleScript.new()
+	target.add_child(bubble)
+	bubble.setup(text, sender_name, is_dm)
+
+	# Stack above existing bubbles (most recent at bottom, older shift up)
+	var stack_offset: float = 24.0  # base offset above player head
+	for existing in _speech_bubbles:
+		if is_instance_valid(existing) and existing.get_parent() == target:
+			existing.position.y -= bubble.bubble_height + 2.0
+
+	bubble.position = Vector2(0.0, -stack_offset)
+	if target == self:
+		_speech_bubbles.append(bubble)
 
 func _update_appearance() -> void:
 	if appearance == null or _renderer == null:
