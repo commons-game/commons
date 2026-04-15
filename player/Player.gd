@@ -9,6 +9,14 @@ var max_hp: int = 100
 const ATTACK_DAMAGE := 25
 const ATTACK_RANGE := 1.5  # tiles
 
+## Visual flash timers for combat feedback.
+var _damage_flash_timer: float = 0.0
+const DAMAGE_FLASH_DURATION := 0.15
+var _pickup_flash_timer: float = 0.0
+const PICKUP_FLASH_DURATION := 0.2
+var _attack_arc_timer: float = 0.0
+const ATTACK_ARC_DURATION := 0.12
+
 ## Filled circle radius and direction-triangle half-width (in pixels).
 const RADIUS := 7.0
 const TRI_SIZE := 4.0
@@ -65,21 +73,43 @@ func _ready() -> void:
 	add_child(_lantern)
 
 func _draw() -> void:
-	# Suppress draw-code when CharacterRenderer has a sprite showing.
-	if _renderer != null and _renderer.has_visible_sprites():
-		return
-	# Fallback: white filled circle with dark outline + direction triangle.
-	# Active when no sprite sheet is loaded (renderer not ready, or pack returns null).
-	draw_circle(Vector2.ZERO, RADIUS, Color(0.15, 0.15, 0.15))   # shadow/outline
-	draw_circle(Vector2.ZERO, RADIUS - 1.0, Color.WHITE)
-	# Direction triangle: small filled triangle pointing in _facing direction
-	var tip   := _facing * (RADIUS + TRI_SIZE)
-	var left  := _facing.rotated(deg_to_rad( 140.0)) * (TRI_SIZE * 0.8)
-	var right := _facing.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
-	draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.7, 0.1))
+	var has_sprites := _renderer != null and _renderer.has_visible_sprites()
+	if has_sprites:
+		# With sprites: apply modulate tint for flash feedback.
+		if _damage_flash_timer > 0.0:
+			modulate = Color(1.0, 0.3, 0.3)
+		elif _pickup_flash_timer > 0.0:
+			modulate = Color(0.3, 1.0, 0.3)
+		else:
+			modulate = Color.WHITE
+	else:
+		# Reset modulate so fallback circle colors are unaffected.
+		modulate = Color.WHITE
+		# Determine circle fill color based on active flash.
+		var fill_color: Color
+		if _damage_flash_timer > 0.0:
+			fill_color = Color(1.0, 0.2, 0.2)
+		elif _pickup_flash_timer > 0.0:
+			fill_color = Color(0.3, 1.0, 0.3)
+		else:
+			fill_color = Color.WHITE
+		# Fallback: filled circle with dark outline + direction triangle.
+		draw_circle(Vector2.ZERO, RADIUS, Color(0.15, 0.15, 0.15))   # shadow/outline
+		draw_circle(Vector2.ZERO, RADIUS - 1.0, fill_color)
+		# Direction triangle: small filled triangle pointing in _facing direction
+		var tip   := _facing * (RADIUS + TRI_SIZE)
+		var left  := _facing.rotated(deg_to_rad( 140.0)) * (TRI_SIZE * 0.8)
+		var right := _facing.rotated(deg_to_rad(-140.0)) * (TRI_SIZE * 0.8)
+		draw_colored_polygon(PackedVector2Array([tip, left, right]), Color(0.9, 0.7, 0.1))
+	# Attack arc: drawn on top regardless of sprite mode.
+	if _attack_arc_timer > 0.0:
+		var facing_angle := _facing.angle()
+		var alpha := _attack_arc_timer / ATTACK_ARC_DURATION
+		draw_arc(Vector2.ZERO, RADIUS + 6.0, facing_angle - 0.6, facing_angle + 0.6, 8, Color(1.0, 0.9, 0.2, alpha), 2.0)
 
 func take_damage(amount: int) -> void:
 	hp = max(0, hp - amount)
+	_damage_flash_timer = DAMAGE_FLASH_DURATION
 	print("Player: took %d damage, hp=%d/%d" % [amount, hp, max_hp])
 	if hp == 0:
 		print("Player: died (respawn not implemented yet)")
@@ -88,6 +118,7 @@ func _do_attack() -> void:
 	if _attack_cooldown > 0.0:
 		return
 	_attack_cooldown = 0.5
+	_attack_arc_timer = ATTACK_ARC_DURATION
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
 	# Find any mob within ATTACK_RANGE tiles — duck-type check via "mob_died" signal
@@ -108,6 +139,9 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	if _attack_cooldown > 0.0:
 		_attack_cooldown -= delta
+	_damage_flash_timer = maxf(_damage_flash_timer - delta, 0.0)
+	_pickup_flash_timer = maxf(_pickup_flash_timer - delta, 0.0)
+	_attack_arc_timer   = maxf(_attack_arc_timer   - delta, 0.0)
 
 func _physics_process(_delta: float) -> void:
 	var input := Vector2(Input.get_axis("ui_left", "ui_right"),
@@ -213,6 +247,7 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 	# Atlas (3,1) = loot_pickup → bone_armor for now
 	if tile.get("atlas_x", -1) == 3 and tile.get("atlas_y", -1) == 1:
 		chunk_manager.remove_tile(tile_pos, 1, "pickup")
+		_pickup_flash_timer = PICKUP_FLASH_DURATION
 		if equipment != null:
 			equipment.call("add_to_bag", "bone_armor", "armor")
 			print("Player: picked up bone_armor")

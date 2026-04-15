@@ -445,7 +445,7 @@ func _scatter_gravestones_near(shrine_chunk: Vector2i) -> void:
 	var spawner := MobSpawnerScript.new()
 	spawner.name = "MobSpawner"
 	add_child(spawner)
-	spawner.spawn(Vector2i(0, 0), 3, 8, $ChunkManager, $Player, self)
+	spawner.spawn(Vector2i(0, 0), 3, 14, $ChunkManager, $Player, self)
 
 ## Place alchemist shrine one chunk east of spawn for side-by-side mod testing.
 func _place_alch_shrine_nearby() -> void:
