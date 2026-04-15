@@ -50,7 +50,7 @@ func _test_chunk_flood() -> Dictionary:
 	await get_tree().process_frame
 
 	# Unload everything except (0,0)
-	var to_unload := _chunk_manager._loaded_chunks.keys().duplicate()
+	var to_unload: Array = _chunk_manager._loaded_chunks.keys().duplicate()
 	for coords in to_unload:
 		if coords != Vector2i(0, 0):
 			_chunk_manager.force_unload_chunk_no_persist(coords)
@@ -161,7 +161,7 @@ func _test_tile_flood() -> Dictionary:
 
 	for i in range(TOTAL_MUTATIONS):
 		var lx := i % CHUNK_SIDE
-		var ly := (i / CHUNK_SIDE) % CHUNK_SIDE
+		var ly := (i / CHUNK_SIDE) % CHUNK_SIDE  # integer division intentional
 		var world_coords := Vector2i(lx, ly)  # chunk (0,0) → world == local
 		_chunk_manager.place_tile(world_coords, 1, 0, Vector2i(0, 1), 0, "perf_test")
 		if not mutated_coords.has(world_coords):
@@ -232,7 +232,7 @@ func _test_chunk_thrash() -> Dictionary:
 		elapsed_s = (Time.get_ticks_usec() - test_start_usec) / 1_000_000.0
 
 		# Detect load bursts: queue went from 0 → >0
-		var q_size := _chunk_manager._load_queue.size()
+		var q_size: int = _chunk_manager._load_queue.size()
 		if last_queue_size == 0 and q_size > 0:
 			loads_triggered += 1
 		last_queue_size = q_size
