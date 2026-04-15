@@ -118,7 +118,11 @@ func _ready() -> void:
 	if not is_web and "--dev-health-check" in args:
 		_health_check_timer = 0.0
 		print("HealthCheck: running 30s check, screenshot every 5s")
-	if not is_web and "--dev-necro-shrine" in args:
+	# Dev content auto-enables in debug builds (editor / godot4 --path).
+	# Pass --no-dev to suppress when you want a clean debug start.
+	var dev_mode := not is_web and (OS.is_debug_build() or "--dev-necro-shrine" in args) \
+	               and not "--no-dev" in args
+	if dev_mode:
 		_place_necro_shrine_at_spawn.call_deferred()
 	if not is_web and "--dev-alch-shrine" in args:
 		_place_alch_shrine_nearby.call_deferred()

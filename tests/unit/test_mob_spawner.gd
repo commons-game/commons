@@ -31,9 +31,9 @@ func after_test() -> void:
 	_parent = null
 
 func test_spawn_returns_mob_nodes() -> void:
-	# Spawn 2 mobs near origin; expect each returned node has "mob_died" signal.
+	# Spawn 2 mobs near origin; retry loop must place exactly the requested count.
 	var mobs: Array = _spawner.spawn(Vector2i(0, 0), 2, 4, _cm, null, _parent)
-	assert_int(mobs.size()).is_greater(0)
+	assert_int(mobs.size()).is_equal(2)
 	for mob in mobs:
 		assert_bool("mob_died" in mob).is_true()
 

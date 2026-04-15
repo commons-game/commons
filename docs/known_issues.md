@@ -1,5 +1,21 @@
 # Known Issues
 
+## Combat / Mob Polish (next pass)
+
+### No visual feedback on pickup or combat
+**Status:** Deferred.
+**Symptom:** Walking over a loot tile and attacking mobs are silent — no flash, sound, or HUD update. Only console prints.
+**Next pass:** Brief pickup flash on item tile removal, HP bar above mobs, player HP shown in HUD.
+
+### Mobs spawn on top of the player
+**Status:** Deferred.
+**Symptom:** Spawn radius 8 tiles with chase range 6 — mobs enter aggro immediately on spawn, attacking before the player can orient.
+**Next pass:** Increase spawn radius to 12–15 tiles, or add a 2s aggro-grace period after spawning.
+
+### No combat audio or death effects
+**Status:** Deferred.
+**Next pass:** Screen shake on hit, red flash on player damage, mob death particle/fade.
+
 ## Environment
 
 ### Worktree isolation hook broken (WorktreeCreate)
