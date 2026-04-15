@@ -126,7 +126,7 @@ func _shake_camera(intensity: float, duration: float) -> void:
 	var tween := create_tween()
 	var steps := 4
 	var step_time := duration / steps
-	for i in range(steps):
+	for _i in range(steps):
 		var offset := Vector2(randf_range(-intensity, intensity), randf_range(-intensity, intensity))
 		tween.tween_property(_camera, "offset", offset, step_time)
 	tween.tween_property(_camera, "offset", Vector2.ZERO, step_time)
