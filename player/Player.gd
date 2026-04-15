@@ -289,6 +289,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			if chat_input != null and not chat_input.visible:
 				chat_input.call("activate")
 				get_viewport().set_input_as_handled()
+		KEY_TAB:
+			# Toggle chat history panel.
+			var history := get_node_or_null("../ChatHistoryPanel")
+			if history != null:
+				history.call("toggle")
+				get_viewport().set_input_as_handled()
 		KEY_Y:
 			# Toggle talisman dormant/awakened.
 			if inventory != null:

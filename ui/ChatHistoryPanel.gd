@@ -29,39 +29,36 @@ func _ready() -> void:
 	_build_ui()
 
 func _build_ui() -> void:
-	var panel := Panel.new()
-	panel.name = "HistoryBG"
-	# Position bottom-left of viewport (1280×720)
-	panel.position = Vector2(MARGIN, 720 - PANEL_HEIGHT - MARGIN - 48)
-	panel.custom_minimum_size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
-	panel.size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.1, 0.75)
-	style.border_width_bottom = 1
-	style.border_width_top    = 1
-	style.border_width_left   = 1
-	style.border_width_right  = 1
-	style.border_color = Color(0.3, 0.3, 0.5, 0.8)
-	style.corner_radius_bottom_left  = 4
-	style.corner_radius_bottom_right = 4
-	style.corner_radius_top_left     = 4
-	style.corner_radius_top_right    = 4
-	panel.add_theme_stylebox_override("panel", style)
-	add_child(panel)
+	const px: int = MARGIN
+	const py: int = 720 - PANEL_HEIGHT - MARGIN - 52  # sits above input bar
+
+	# Border
+	var border := ColorRect.new()
+	border.name = "HistoryBorder"
+	border.color = Color(0.3, 0.3, 0.55, 0.9)
+	border.position = Vector2(px - 2, py - 2)
+	border.size = Vector2(PANEL_WIDTH + 4, PANEL_HEIGHT + 4)
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(border)
+
+	# Background
+	var bg := ColorRect.new()
+	bg.name = "HistoryBG"
+	bg.color = Color(0.05, 0.05, 0.12, 0.88)
+	bg.position = Vector2(px, py)
+	bg.size = Vector2(PANEL_WIDTH, PANEL_HEIGHT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
 
 	_scroll = ScrollContainer.new()
 	_scroll.name = "Scroll"
-	_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_scroll.offset_left   = 4
-	_scroll.offset_top    = 4
-	_scroll.offset_right  = -4
-	_scroll.offset_bottom = -4
-	panel.add_child(_scroll)
+	_scroll.position = Vector2(px + 4, py + 4)
+	_scroll.size = Vector2(PANEL_WIDTH - 8, PANEL_HEIGHT - 8)
+	add_child(_scroll)
 
 	_vbox = VBoxContainer.new()
 	_vbox.name = "Messages"
 	_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_vbox.size_flags_vertical   = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_vbox)
 
 func add_message(sender_name: String, text: String, is_dm: bool) -> void:
@@ -95,11 +92,9 @@ func add_message(sender_name: String, text: String, is_dm: bool) -> void:
 	await get_tree().process_frame
 	_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not event is InputEventKey:
-		return
-	if not event.pressed or event.echo:
-		return
-	if event.keycode == KEY_TAB:
-		visible = not visible
-		get_viewport().set_input_as_handled()
+## Called by Player._unhandled_input — more reliable than CanvasLayer input routing.
+func toggle() -> void:
+	if visible:
+		hide()
+	else:
+		show()

@@ -46,8 +46,6 @@ func _compute_layout() -> void:
 	_lines = _wrap_text(_text, chars_per_line)
 	var line_height := float(FONT_SIZE) + 2.0
 	var content_h := float(_lines.size()) * line_height
-	if not _sender_name.is_empty():
-		content_h += line_height  # name row
 	_bubble_size = Vector2(MAX_WIDTH + PADDING_X * 2.0, content_h + PADDING_Y * 2.0)
 	bubble_height = _bubble_size.y
 
@@ -86,13 +84,6 @@ func _draw() -> void:
 
 	var line_height := float(FONT_SIZE) + 2.0
 	var y := rect_pos.y + PADDING_Y
-
-	# Draw sender name in a slightly lighter color if present
-	if not _sender_name.is_empty():
-		draw_string(ThemeDB.fallback_font,
-			Vector2(rect_pos.x + PADDING_X, y + float(FONT_SIZE)),
-			_sender_name, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, COLOR_NAME)
-		y += line_height
 
 	# Draw text lines
 	for line in _lines:
