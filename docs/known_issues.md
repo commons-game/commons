@@ -25,6 +25,23 @@ cp contracts/chunk-contract/build/freenet/freeland_chunk_contract .
 **Status:** Manual toggle until we decide when to auto-enable.
 **How to enable:** In `autoloads/Backend.gd`, set `use_freenet = true` before `_ready()` runs (or expose as a project setting / command-line arg in a future pass).
 
+### Freenet node auto-updates on startup — no --no-auto-update flag
+**Status:** Accepted risk, mitigation planned.
+**Detail:** The Freenet node binary checks GitHub on startup and self-updates. It also force-exits if it detects peer version mismatch >6h. There is no CLI flag to disable this. The binary only skips update if it detects a "dirty (locally modified) build" (found via `strings`).
+**Mitigation plan:** See `docs/freenet_retrospective.md` — Layer 1 (proxy version assertion in `FREENET_VERSION`), Layer 2 (commit `Cargo.lock`), Layer 3 (commit packaged contract artifact). Do NOT try to suppress auto-update; instead make breakage loud and fast.
+**If the proxy fails after a node update:** Run `scripts/update_freenet_backend.sh` (planned) to re-verify the round-trip and update the pinned version.
+
+### No proxy integration smoke test
+**Status:** Pending.
+**Detail:** All Freenet wire-format bugs (raw WASM, missing `?encodingProtocol=native`, IPv6/IPv4 mismatch) were caught at runtime against a live node. A compile + round-trip test would have caught them in CI.
+**Action:** Add `backend/freenet/proxy/tests/round_trip.rs` with a `#[ignore]` integration test requiring `FREENET_NODE_URL` env var. See `docs/freenet_retrospective.md` for proposed test structure.
+
+### fdev upstream bug: CARGO_TARGET_DIR must be set manually
+**Status:** Workaround in place, upstream bug to file.
+**Detail:** `fdev build` panics "Could not find workspace root" because `env!("CARGO_MANIFEST_DIR")` is baked in from the cargo registry path at fdev's compile time.
+**Workaround:** `CARGO_TARGET_DIR=$(pwd)/../../target fdev build` (from the contract directory).
+**Action:** File upstream issue on freenet/freenet-core.
+
 ### Reputation and equipment not on Freenet
 **Status:** Deferred — Freenet delegates not implemented yet.
 **Detail:** `save_reputation`, `load_reputation`, `save_equipment`, `load_equipment` fall back to local files in `FreenetBackend`. These need a Freenet delegate (private per-user storage) for true decentralization.
