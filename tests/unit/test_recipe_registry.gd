@@ -213,3 +213,16 @@ func test_match_returns_independent_copy() -> void:
 	out1["id"] = "tampered"
 	var out2: Dictionary = r.match_recipe({"wood": 4})
 	assert_str(str(out2.get("id", ""))).is_equal("campfire")
+
+func test_all_recipes_entries_have_requires_workbench_field() -> void:
+	var r = _make()
+	for recipe in r.all_recipes():
+		assert_bool(recipe.has("requires_workbench")).is_true()
+
+func test_empty_input_workbench_mode_returns_empty() -> void:
+	var r = _make()
+	assert_bool(r.match_recipe({}, true).is_empty()).is_true()
+
+func test_unknown_ingredient_workbench_mode_no_match() -> void:
+	var r = _make()
+	assert_bool(r.match_recipe({"unicorn_dust": 1}, true).is_empty()).is_true()
