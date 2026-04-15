@@ -284,6 +284,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _lantern != null:
 				_lantern.toggle()
 		KEY_T:
+			# Open chat input.
+			var chat_input := get_node_or_null("../ChatInput")
+			if chat_input != null and not chat_input.visible:
+				chat_input.call("activate")
+				get_viewport().set_input_as_handled()
+		KEY_Y:
 			# Toggle talisman dormant/awakened.
 			if inventory != null:
 				var awakened: bool = inventory.toggle_talisman()
@@ -313,10 +319,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Eat food from bag.
 			_try_eat()
 		KEY_ENTER, KEY_KP_ENTER:
-			var chat_input := get_node_or_null("../ChatInput")
-			if chat_input != null and not chat_input.visible:
-				chat_input.call("activate")
-				get_viewport().set_input_as_handled()
+			# Enter is handled by ChatInput's LineEdit when chat is active.
+			pass
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
