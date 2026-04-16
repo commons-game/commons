@@ -16,21 +16,33 @@
 
 ## Freenet Backend (Phase 6 spike — open items)
 
-### End-to-end spike complete
-**Status:** Done. Chunk Put + Get round-trips through Freenet node verified.
+### End-to-end spike complete (chunk + lobby)
+**Status:** Done. Chunk Put/Get and Lobby Put/Get round-trips through Freenet node verified.
 **How to run:**
 ```bash
 # 1. Install Freenet node (once): curl -fsSL https://freenet.org/install.sh | sh
 # 2. Start node in local mode:
 freenet local --ws-api-address 0.0.0.0
-# 3. Build packaged contract:
+# 3. Build both contracts:
 cd backend/freenet/contracts/chunk-contract
 CARGO_TARGET_DIR=../../target fdev build
-# 4. Build and run proxy:
+cd ../lobby-contract
+CARGO_TARGET_DIR=../../target fdev build
+# 4. Build and run proxy (both contracts in working dir):
+cd backend/freenet
 cargo build -p freeland-proxy --release
 cp contracts/chunk-contract/build/freenet/freeland_chunk_contract .
+cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
 ./target/release/freeland-proxy
 # 5. In Backend.gd: use_freenet = true
+# 6. FreenetPresenceService is now the default presence backend in World.gd
+```
+**Integration smoke test:**
+```bash
+FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
+FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
+FREELAND_LOBBY_CONTRACT_PATH=./freeland_lobby_contract \
+  cargo test --features integration -p freeland-proxy -- --nocapture
 ```
 **Known fdev bug:** `fdev build` panics with "Could not find workspace root" unless `CARGO_TARGET_DIR` is set. Workaround: `CARGO_TARGET_DIR=$(pwd)/../../target fdev build`.
 **Node binds IPv6 by default:** Must pass `--ws-api-address 0.0.0.0` for IPv4 clients. The proxy URL needs `?encodingProtocol=native` suffix.

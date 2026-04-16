@@ -17,7 +17,8 @@
 ##   F12   Save numbered screenshot to /tmp/freeland_screenshot_NNN.png
 ##
 ## Phase 4 merge lifecycle (auto-discovery, no manual --host/--join needed):
-##   UDPPresenceService broadcasts presence → MergeCoordinator discovers peers →
+##   FreenetPresenceService publishes presence to Freenet lobby contract →
+##   MergeCoordinator discovers peers →
 ##   connection_needed → NetworkManager.host/join → ENet peer_connected →
 ##   MergeRPCBus hello exchange → on_peer_connected → merge_ready →
 ##   send_snapshot → merge_applied.
@@ -28,8 +29,9 @@ const RegionAuthorityScript       := preload("res://networking/RegionAuthority.g
 const RemotePlayerScene           := preload("res://player/RemotePlayer.tscn")
 const ModEditorScript             := preload("res://mods/ModEditor.gd")
 const ShrineManagerScript         := preload("res://mods/ShrineManager.gd")
-const MergeCoordinatorScript      := preload("res://networking/MergeCoordinator.gd")
-const UDPPresenceServiceScript    := preload("res://networking/UDPPresenceService.gd")
+const MergeCoordinatorScript         := preload("res://networking/MergeCoordinator.gd")
+const UDPPresenceServiceScript       := preload("res://networking/UDPPresenceService.gd")
+const FreenetPresenceServiceScript   := preload("res://networking/FreenetPresenceService.gd")
 const MergeRPCBusScript           := preload("res://networking/MergeRPCBus.gd")
 const ReputationStoreScript       := preload("res://reputation/ReputationStore.gd")
 const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
@@ -193,8 +195,10 @@ func _setup_merge_system(args: Array) -> void:
 	_reputation_store.from_dict(Backend.load_reputation())
 	var reputation_router := MergeRouterScript.new()
 
-	var presence := UDPPresenceServiceScript.new()
-	presence.name = "UDPPresenceService"
+	# FreenetPresenceService for internet discovery; falls back to UDP on LAN.
+	# Requires the proxy running: cd backend/freenet && ./target/release/freeland-proxy
+	var presence := FreenetPresenceServiceScript.new()
+	presence.name = "FreenetPresenceService"
 
 	_coordinator = MergeCoordinatorScript.new()
 	_coordinator.name = "MergeCoordinator"
