@@ -76,7 +76,7 @@ func test_stale_entry_is_ignored() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 50,
 		func(sid, _c, _i, _p): fired.append(sid))
-	var stale_ts := Time.get_unix_time_from_system() - (_svc.PRESENCE_TTL + 10.0)
+	var stale_ts: float = Time.get_unix_time_from_system() - (float(_svc.get("PRESENCE_TTL")) + 10.0)
 	_svc._process_lobby_state({
 		"entries": {
 			"ghost-player": {
