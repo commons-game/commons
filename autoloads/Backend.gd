@@ -42,3 +42,11 @@ func save_equipment(data: Dictionary) -> void:
 
 func load_equipment() -> Dictionary:
 	return _backend.load_equipment()
+
+## Submit an opt-in error telemetry report.
+## Returns true if the report was acknowledged by the proxy.
+## Only FreenetBackend sends this over the wire; LocalBackend silently returns false.
+func report_error(entry: Dictionary) -> bool:
+	if _backend.has_method("report_error"):
+		return await _backend.report_error(entry)
+	return false

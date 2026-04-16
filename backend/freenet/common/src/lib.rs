@@ -312,6 +312,20 @@ pub enum ProxyRequest {
         /// "reputation" or "equipment"
         kind: String,
     },
+    /// Submit an opt-in error/crash telemetry report.
+    /// session_id is a random UUID per-launch — NOT the persistent PlayerIdentity.id.
+    ReportError {
+        session_id: String,
+        error_hash: String,
+        error_type: String,
+        file: String,
+        line: i32,
+        phase: String,
+        game_version: String,
+        platform: String,
+        godot_version: String,
+        ts: f64,
+    },
 }
 
 /// Response from proxy to GDScript.
@@ -383,4 +397,6 @@ pub enum ProxyResponse {
         player_id: String,
         kind: String,
     },
+    /// Error report acknowledged.
+    ReportErrorOk,
 }

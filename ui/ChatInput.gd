@@ -70,12 +70,40 @@ func deactivate() -> void:
 
 func _on_text_submitted(text: String) -> void:
 	var trimmed := text.strip_edges()
+	if trimmed.begins_with("/"):
+		_handle_slash(trimmed)
+		deactivate()
+		get_viewport().set_input_as_handled()
+		return
 	if not trimmed.is_empty():
 		var player_id:   String = PlayerIdentity.id
 		var player_name: String = PlayerIdentity.display_name
 		ChatSystem.handle_input(trimmed, player_id, player_name)
 	deactivate()
 	get_viewport().set_input_as_handled()
+
+func _handle_slash(cmd: String) -> void:
+	match cmd:
+		"/telemetry on":
+			ErrorReporter.set_consent(true)
+			_show_system("Telemetry enabled. Thank you for helping!")
+		"/telemetry off":
+			ErrorReporter.set_consent(false)
+			_show_system("Telemetry disabled. Pending reports cleared.")
+		"/telemetry reset":
+			ErrorReporter.consent_asked = false
+			ErrorReporter._save_consent()
+			_show_system("Telemetry consent reset — you'll be asked again next launch.")
+		_:
+			if cmd == "/telemetry" or cmd == "/telemetry status":
+				var s := "on" if ErrorReporter.opted_in else "off"
+				_show_system("Telemetry is %s.  /telemetry on | off | reset" % s)
+			else:
+				_show_system("Unknown command: %s" % cmd)
+
+func _show_system(msg: String) -> void:
+	print("[System] %s" % msg)
+	ChatSystem.handle_input("[System] " + msg, "system", "System")
 
 func _on_line_edit_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

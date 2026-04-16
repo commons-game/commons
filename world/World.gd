@@ -158,6 +158,7 @@ func _ready() -> void:
 		DayClock._time_override = Constants.DAY_CYCLE_SECONDS * 0.25  # pin to midday
 
 func _setup_merge_system(args: Array) -> void:
+	ErrorReporter.set_phase("connecting")
 	# Reputation — load persisted state before wiring coordinator
 	_reputation_store = ReputationStoreScript.new()
 	_reputation_store.from_dict(Backend.load_reputation())
@@ -345,6 +346,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _on_webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool) -> void:
 	## WebRTC connection: start offer/answer flow through Freenet pairing contract.
+	ErrorReporter.set_phase("signaling")
 	if _webrtc_manager != null and not _webrtc_manager.is_queued_for_deletion():
 		print("World: ignoring webrtc_pairing_needed — already have active WebRTCManager")
 		return
@@ -376,6 +378,7 @@ func _on_webrtc_peer_established(_mp: WebRTCMultiplayerPeer, _i_am_host: bool) -
 
 func _on_webrtc_connection_failed() -> void:
 	push_warning("World: WebRTC connection failed — resetting for retry")
+	ErrorReporter.report("webrtc_timeout", "networking/MergeCoordinator.gd", 0)
 	if _webrtc_manager != null:
 		if _signaling != null and _signaling.pairing_received.is_connected(_webrtc_manager.on_pairing_received):
 			_signaling.pairing_received.disconnect(_webrtc_manager.on_pairing_received)
@@ -396,6 +399,7 @@ func _on_merge_ready(_remote_session_id: String) -> void:
 
 func _on_merge_applied() -> void:
 	print("World: merge_applied")
+	ErrorReporter.set_phase("playing")
 
 func _setup_shifting_lands_hud() -> void:
 	_shifting_hud = ShiftingLandsHUDScript.new()

@@ -16,6 +16,7 @@ use freeland_common::{
     PlayerDelegateRequest, PlayerDelegateResponse,
     ProxyRequest, ProxyResponse,
 };
+use serde_json::json;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
@@ -33,6 +34,7 @@ pub async fn run_listener(
     lobby_contract_path: PathBuf,
     pairing_contract_path: PathBuf,
     delegate_path: PathBuf,
+    error_contract_path: Option<PathBuf>,
 ) -> anyhow::Result<SocketAddr> {
     let contract_bytes = Arc::new(std::fs::read(&contract_path).map_err(|e| {
         anyhow::anyhow!(
@@ -75,6 +77,18 @@ pub async fn run_listener(
     })?);
     info!(path = %delegate_path.display(), bytes = delegate_bytes.len(), "Loaded player delegate");
 
+    let error_bytes: Option<Arc<Vec<u8>>> = match error_contract_path {
+        Some(path) => {
+            let b = std::fs::read(&path).map_err(|e| anyhow::anyhow!("Failed to read error contract from {}: {e}", path.display()))?;
+            info!(path = %path.display(), bytes = b.len(), "Loaded error contract");
+            Some(Arc::new(b))
+        }
+        None => {
+            info!("Error contract not configured — telemetry reports will be dropped");
+            None
+        }
+    };
+
     let listener = TcpListener::bind(listen_addr).await?;
     let bound = listener.local_addr()?;
     info!(addr = %bound, "Proxy listening");
@@ -87,8 +101,9 @@ pub async fn run_listener(
             let lb = lobby_bytes.clone();
             let pb = pairing_bytes.clone();
             let db = delegate_bytes.clone();
+            let eb = error_bytes.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle_client(stream, url, cb, lb, pb, db).await {
+                if let Err(e) = handle_client(stream, url, cb, lb, pb, db, eb).await {
                     error!(%peer, error = %e, "Client handler error");
                 }
             });
@@ -109,6 +124,7 @@ async fn handle_client(
     lobby_bytes: Arc<Vec<u8>>,
     pairing_bytes: Arc<Vec<u8>>,
     delegate_bytes: Arc<Vec<u8>>,
+    error_bytes: Option<Arc<Vec<u8>>>,
 ) -> anyhow::Result<()> {
     use futures::{SinkExt, StreamExt};
 
@@ -174,6 +190,7 @@ async fn handle_client(
             &lobby_bytes,
             &pairing_bytes,
             &delegate_key,
+            error_bytes.as_deref().map(|v| v.as_slice()),
             request,
         )
         .await;
@@ -194,6 +211,7 @@ async fn dispatch(
     lobby_bytes: &[u8],
     pairing_bytes: &[u8],
     delegate_key: &DelegateKey,
+    error_bytes: Option<&[u8]>,
     request: ProxyRequest,
 ) -> ProxyResponse {
     match request {
@@ -256,6 +274,25 @@ async fn dispatch(
                 }
             };
             player_delegate_call(freenet, delegate_key, req, &player_id, &kind).await
+        }
+        ProxyRequest::ReportError {
+            session_id, error_hash, error_type, file, line,
+            phase, game_version, platform, godot_version, ts,
+        } => {
+            match error_bytes {
+                None => {
+                    // Not configured — silently accept to avoid spamming the client.
+                    ProxyResponse::ReportErrorOk
+                }
+                Some(eb) => {
+                    report_error(
+                        freenet, eb,
+                        session_id, error_hash, error_type, file, line,
+                        phase, game_version, platform, godot_version, ts,
+                    )
+                    .await
+                }
+            }
         }
     }
 }
@@ -743,5 +780,79 @@ async fn player_delegate_call(
         PlayerDelegateResponse::ExportedSecrets { .. } => ProxyResponse::Error {
             message: "Unexpected ExportedSecrets response to Save/Load request".into(),
         },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Report error (telemetry)
+// ---------------------------------------------------------------------------
+
+/// PUT a single error report into the error contract.
+#[allow(clippy::too_many_arguments)]
+async fn report_error(
+    freenet: &mut WebApi,
+    error_bytes: &[u8],
+    session_id: String,
+    error_hash: String,
+    error_type: String,
+    file: String,
+    line: i32,
+    phase: String,
+    game_version: String,
+    platform: String,
+    godot_version: String,
+    ts: f64,
+) -> ProxyResponse {
+    // Error contract uses empty parameters (single global instance).
+    let params = Arc::new(Parameters::from(vec![]));
+    let container = match ContractContainer::try_from((error_bytes.to_vec(), params)) {
+        Ok(c) => c,
+        Err(e) => return ProxyResponse::Error { message: format!("Error contract init: {e}") },
+    };
+
+    let key = format!("{session_id}:{error_hash}");
+    let report = json!({
+        "error_type": error_type,
+        "file": file,
+        "line": line,
+        "phase": phase,
+        "game_version": game_version,
+        "platform": platform,
+        "godot_version": godot_version,
+        "ts": ts,
+    });
+    let state = json!({ "reports": { key: report } });
+    let state_bytes = match serde_json::to_vec(&state) {
+        Ok(b) => b,
+        Err(e) => return ProxyResponse::Error { message: format!("Serialize error report: {e}") },
+    };
+
+    let put = ClientRequest::ContractOp(ContractRequest::Put {
+        contract: container,
+        state: WrappedState::from(state_bytes),
+        related_contracts: RelatedContracts::default(),
+        subscribe: false,
+        blocking_subscribe: false,
+    });
+
+    if let Err(e) = freenet.send(put).await {
+        return ProxyResponse::Error { message: format!("Send failed: {e}") };
+    }
+
+    match freenet.recv().await {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. }))
+        | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
+            ProxyResponse::ReportErrorOk
+        }
+        Ok(other) => {
+            warn!(op = "report_error", response = ?other, "Unexpected Freenet response");
+            // Return Ok anyway — telemetry failure should not surface as a client error.
+            ProxyResponse::ReportErrorOk
+        }
+        Err(e) => {
+            warn!(op = "report_error", error = %e, "Freenet node error");
+            // Same reasoning: don't surface telemetry errors to game client.
+            ProxyResponse::ReportErrorOk
+        }
     }
 }

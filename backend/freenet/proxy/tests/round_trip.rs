@@ -92,6 +92,7 @@ mod integration {
             lobby_contract_path(),
             pairing_contract_path(),
             player_delegate_path(),
+            None, // error contract optional; integration tests don't exercise telemetry
         )
         .await
         .expect("Proxy failed to start");

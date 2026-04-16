@@ -388,6 +388,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeland-error-contract"
+version = "0.1.0"
+dependencies = [
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "freeland-lobby-contract"
 version = "0.1.0"
 dependencies = [

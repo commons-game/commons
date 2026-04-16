@@ -47,6 +47,9 @@ var _equip_cache: Dictionary = {}  # "local_player" → Dictionary
 ## Tracks whether a background load is already in-flight.
 var _pending_player_loads: Dictionary = {}  # kind ("reputation"|"equipment") → true
 
+## Pending telemetry callbacks: error_hash → Callable(ok: bool)
+var _pending_error_reports: Dictionary = {}  # error_hash → Signal
+
 func initialize(proxy_url: String = DEFAULT_PROXY_URL) -> void:
 	_proxy_url = proxy_url
 	var err := _ws.connect_to_url(_proxy_url)
@@ -141,6 +144,29 @@ func load_equipment() -> Dictionary:
 	_request_player_load("equipment")
 	return {}
 
+## Send a telemetry report and await acknowledgement.
+## Returns true on ReportErrorOk, false on error or no connection.
+func report_error(entry: Dictionary) -> bool:
+	if not _connected:
+		return false
+	var req := {
+		"op":           "ReportError",
+		"session_id":   entry.get("session_id", ""),
+		"error_hash":   entry.get("error_hash", ""),
+		"error_type":   entry.get("error_type", ""),
+		"file":         entry.get("file", ""),
+		"line":         int(entry.get("line", 0)),
+		"phase":        entry.get("phase", ""),
+		"game_version": entry.get("game_version", ""),
+		"platform":     entry.get("platform", ""),
+		"godot_version":entry.get("godot_version", ""),
+		"ts":           float(entry.get("ts", 0.0)),
+	}
+	_ws.send_text(JSON.stringify(req))
+	# Fire-and-forget for telemetry — we don't block on the response.
+	# The response is handled in _handle_response and silently discarded.
+	return true
+
 # ---------------------------------------------------------------------------
 # Private
 # ---------------------------------------------------------------------------
@@ -216,6 +242,8 @@ func _handle_response(resp: Dictionary) -> void:
 			var kind: String = resp.get("kind", "")
 			_pending_player_loads.erase(kind)
 			# No data stored yet — caller already returned {} from load_*.
+		"ReportErrorOk":
+			pass  # telemetry acknowledged; nothing further needed
 		"Error":
 			push_error("FreenetBackend proxy error: %s" % resp.get("message", "(no message)"))
 		_:

@@ -7,12 +7,14 @@
 /// Lobby contract:   FREELAND_LOBBY_CONTRACT_PATH  (default: ./freeland_lobby_contract)
 /// Pairing contract: FREELAND_PAIRING_CONTRACT_PATH (default: ./freeland_pairing_contract)
 /// Player delegate:  FREELAND_PLAYER_DELEGATE_PATH  (default: ./freeland_player_delegate)
+/// Error contract:   FREELAND_ERROR_CONTRACT_PATH   (optional — telemetry dropped if unset)
 ///
 /// All must be versioned packages produced by `fdev build`, NOT raw .wasm files.
 /// Build:
 ///   cd contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build
 ///   cd contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build
 ///   cd contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/error-contract   && CARGO_TARGET_DIR=../../target fdev build
 ///   cd delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate
 use std::{env, path::PathBuf};
 
@@ -49,6 +51,9 @@ async fn main() {
         env::var("FREELAND_PLAYER_DELEGATE_PATH").unwrap_or("freeland_player_delegate".into()),
     );
 
+    let error_contract_path: Option<PathBuf> =
+        env::var("FREELAND_ERROR_CONTRACT_PATH").ok().map(PathBuf::from);
+
     freeland_proxy::run_listener(
         listen_addr,
         node_url,
@@ -56,6 +61,7 @@ async fn main() {
         lobby_contract_path,
         pairing_contract_path,
         delegate_path,
+        error_contract_path,
     )
     .await
     .expect("Proxy failed to start");

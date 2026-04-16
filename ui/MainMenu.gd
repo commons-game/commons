@@ -35,6 +35,13 @@ func _ready() -> void:
 		return
 	_build_ui()
 	_start_probe()
+	# Show consent prompt on first non-headless launch
+	if ErrorReporter.needs_consent_prompt():
+		var ConsentOverlayScript: GDScript = load("res://ui/ConsentOverlay.gd")
+		var overlay: Control = ConsentOverlayScript.new()
+		add_child(overlay)
+		overlay.connect("accepted", func(): ErrorReporter.set_consent(true))
+		overlay.connect("declined", func(): ErrorReporter.set_consent(false))
 
 func _process(delta: float) -> void:
 	if _probe_ws == null:
