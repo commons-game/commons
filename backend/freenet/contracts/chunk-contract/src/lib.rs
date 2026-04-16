@@ -9,6 +9,12 @@
 use freenet_stdlib::prelude::*;
 use freeland_common::{ChunkDelta, ChunkState, ChunkSummary};
 
+/// Tracks breaking changes to the chunk contract WASM.
+/// Incrementing this changes the contract instance IDs, making old world data
+/// inaccessible (world reset). Increment rarely and document it explicitly.
+/// Current: 1 (initial implementation)
+pub const CONTRACT_VERSION: u32 = 1;
+
 struct ChunkContract;
 
 #[contract]

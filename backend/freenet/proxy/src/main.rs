@@ -8,14 +8,16 @@
 /// Pairing contract: FREELAND_PAIRING_CONTRACT_PATH (default: ./freeland_pairing_contract)
 /// Player delegate:  FREELAND_PLAYER_DELEGATE_PATH  (default: ./freeland_player_delegate)
 /// Error contract:   FREELAND_ERROR_CONTRACT_PATH   (optional — telemetry dropped if unset)
+/// Version contract: FREELAND_VERSION_CONTRACT_PATH (optional — version manifest ops no-op if unset)
 ///
 /// All must be versioned packages produced by `fdev build`, NOT raw .wasm files.
 /// Build:
-///   cd contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build
-///   cd contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build
-///   cd contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build
-///   cd contracts/error-contract   && CARGO_TARGET_DIR=../../target fdev build
-///   cd delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate
+///   cd contracts/chunk-contract      && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/lobby-contract      && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/pairing-contract    && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/error-contract      && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/version-manifest    && CARGO_TARGET_DIR=../../target fdev build
+///   cd delegates/player-delegate     && CARGO_TARGET_DIR=../../target fdev build --package-type delegate
 use std::{env, path::PathBuf};
 
 #[tokio::main]
@@ -54,6 +56,9 @@ async fn main() {
     let error_contract_path: Option<PathBuf> =
         env::var("FREELAND_ERROR_CONTRACT_PATH").ok().map(PathBuf::from);
 
+    let version_contract_path: Option<PathBuf> =
+        env::var("FREELAND_VERSION_CONTRACT_PATH").ok().map(PathBuf::from);
+
     freeland_proxy::run_listener(
         listen_addr,
         node_url,
@@ -62,6 +67,7 @@ async fn main() {
         pairing_contract_path,
         delegate_path,
         error_contract_path,
+        version_contract_path,
     )
     .await
     .expect("Proxy failed to start");

@@ -90,7 +90,8 @@ func publish_presence(player_id: String, chunk_coords: Vector2i) -> void:
 		"chunk_y": chunk_coords.y,
 		"ip": _get_local_ip(),
 		"enet_port": 0,
-		"timestamp": Time.get_unix_time_from_system()
+		"timestamp": Time.get_unix_time_from_system(),
+		"protocol_version": GameVersion.PROTOCOL_VERSION,
 	}
 	if _connected:
 		_send_lobby_put(entry)
@@ -148,10 +149,11 @@ func _process_lobby_state(lobby: Dictionary) -> void:
 		var remote_chunk := Vector2i(int(entry.get("chunk_x", 0)), int(entry.get("chunk_y", 0)))
 		var remote_ip: String = entry.get("ip", "")
 		var remote_port: int = int(entry.get("enet_port", 7777))
+		var proto_version: int = int(entry.get("protocol_version", 0))
 		for sub_id in _subscriptions:
 			var sub: Dictionary = _subscriptions[sub_id]
 			if _chebyshev(sub["center"] as Vector2i, remote_chunk) <= int(sub["radius"]):
-				(sub["callback"] as Callable).call(sid, remote_chunk, remote_ip, remote_port)
+				(sub["callback"] as Callable).call(sid, remote_chunk, remote_ip, remote_port, proto_version)
 
 ## Return this machine's first non-loopback IPv4 address.
 ## TODO (step 2): replace with STUN-discovered external IP for internet NAT traversal.

@@ -116,9 +116,18 @@ func update_my_chunk(chunk: Vector2i) -> void:
 			Callable(self, "_on_peer_discovered"))
 
 ## Called externally in tests or by presence service directly.
+## remote_protocol_version defaults to 0 for backward-compat with callers that
+## do not yet pass it (e.g. tests using LocalPresenceService).
 func _on_peer_discovered(remote_sid: String, remote_chunk: Vector2i,
-		remote_ip: String, remote_enet_port: int) -> void:
+		remote_ip: String, remote_enet_port: int,
+		remote_protocol_version: int = 0) -> void:
 	if _merging or _merged:
+		return
+	# Protocol version gate: refuse to pair with peers on a different version.
+	if remote_protocol_version != 0 and remote_protocol_version != GameVersion.PROTOCOL_VERSION:
+		push_warning("MergeCoordinator: skipping peer — protocol version mismatch (theirs=%d ours=%d)" % [
+			remote_protocol_version, GameVersion.PROTOCOL_VERSION
+		])
 		return
 	if not _bridge.should_form_bridge(_my_chunk, remote_chunk,
 			_pressure.pressure, _pressure.pressure):

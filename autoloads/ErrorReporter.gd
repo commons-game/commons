@@ -10,7 +10,6 @@ extends Node
 
 const CONSENT_PATH  := "user://telemetry_consent.cfg"
 const PENDING_PATH  := "user://pending_errors.json"
-const GAME_VERSION  := "dev"  ## replaced with commit hash at export
 
 signal consent_changed(opted_in: bool)
 
@@ -36,7 +35,7 @@ func report(error_type: String, file: String, line: int) -> void:
 		"file":          file,
 		"line":          line,
 		"phase":         phase,
-		"game_version":  GAME_VERSION,
+		"game_version":  GameVersion.GAME_VERSION,
 		"platform":      OS.get_name(),
 		"godot_version": Engine.get_version_info().get("string", "unknown"),
 		"ts":            Time.get_unix_time_from_system(),

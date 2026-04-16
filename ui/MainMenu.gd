@@ -19,6 +19,13 @@ var _status_dot:  ColorRect = null
 var _status_label: Label = null
 var _play_btn:    Button = null
 
+## Update banner — hidden until version check completes
+var _update_banner: HBoxContainer = null
+var _update_label: Label = null
+var _update_get_btn: Button = null
+var _update_dismiss_btn: Button = null
+var _update_url: String = ""
+
 ## WS probe for connection status
 var _probe_ws: WebSocketPeer = null
 var _probe_url: String = ""
@@ -35,6 +42,9 @@ func _ready() -> void:
 		return
 	_build_ui()
 	_start_probe()
+	# Non-blocking version check (skip in headless mode)
+	if DisplayServer.get_name() != "headless":
+		_check_for_update.call_deferred()
 	# Show consent prompt on first non-headless launch
 	if ErrorReporter.needs_consent_prompt():
 		var ConsentOverlayScript: GDScript = load("res://ui/ConsentOverlay.gd")
@@ -156,6 +166,9 @@ func _build_ui() -> void:
 	_play_btn.pressed.connect(_on_play_pressed)
 	vbox.add_child(_play_btn)
 
+	# Update banner — hidden until version check completes
+	_build_update_banner(vbox)
+
 # ---------------------------------------------------------------------------
 # Proxy connection probe
 # ---------------------------------------------------------------------------
@@ -225,3 +238,63 @@ func _save_server_url() -> void:
 	if fw:
 		fw.store_line(url)   # empty string = use default next launch
 		fw.close()
+
+# ---------------------------------------------------------------------------
+# Update banner
+# ---------------------------------------------------------------------------
+
+func _build_update_banner(parent: VBoxContainer) -> void:
+	_update_banner = HBoxContainer.new()
+	_update_banner.name = "UpdateBanner"
+	_update_banner.visible = false
+	parent.add_child(_update_banner)
+
+	_update_label = Label.new()
+	_update_label.name = "UpdateLabel"
+	_update_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_update_banner.add_child(_update_label)
+
+	_update_get_btn = Button.new()
+	_update_get_btn.name = "GetUpdateButton"
+	_update_get_btn.text = "Get update"
+	_update_get_btn.pressed.connect(func(): OS.shell_open(_update_url))
+	_update_banner.add_child(_update_get_btn)
+
+	_update_dismiss_btn = Button.new()
+	_update_dismiss_btn.name = "DismissButton"
+	_update_dismiss_btn.text = "×"
+	_update_dismiss_btn.pressed.connect(func(): _update_banner.visible = false)
+	_update_banner.add_child(_update_dismiss_btn)
+
+func _show_update_banner(message: String, url: String, dismissable: bool) -> void:
+	if _update_banner == null:
+		return
+	_update_url = url
+	_update_label.text = message
+	_update_get_btn.visible = not url.is_empty()
+	_update_dismiss_btn.visible = dismissable
+	_update_banner.visible = true
+
+func _check_for_update() -> void:
+	var backend := get_node_or_null("/root/Backend")
+	if backend == null or not backend.has_method("get_version_manifest"):
+		return
+	var manifest: Dictionary = await backend.get_version_manifest()
+	if manifest.is_empty():
+		return
+	var their_version: String = manifest.get("version", "")
+	var our_version: String = GameVersion.GAME_VERSION
+	var min_proto: int = manifest.get("min_protocol_version", 0)
+	var download_url: String = manifest.get("download_url", "")
+
+	# Safety check: only show banner for github.com URLs
+	if not download_url.begins_with("https://github.com/"):
+		return
+
+	var is_hard_update: bool = min_proto > GameVersion.PROTOCOL_VERSION
+	var is_soft_update: bool = (not their_version.is_empty()) and (their_version != our_version) and (not is_hard_update)
+
+	if is_hard_update:
+		_show_update_banner("Update required to join multiplayer games — v%s available" % their_version, download_url, false)
+	elif is_soft_update:
+		_show_update_banner("v%s available" % their_version, download_url, true)

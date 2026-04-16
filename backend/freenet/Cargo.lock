@@ -555,6 +555,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeland-version-manifest"
+version = "0.1.0"
+dependencies = [
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "freenet-macros"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

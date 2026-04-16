@@ -112,6 +112,10 @@ pub struct LobbyEntry {
     pub enet_port: u16,
     /// Unix timestamp (seconds). LWW key — higher timestamp wins.
     pub timestamp: f64,
+    /// Protocol version advertised by this peer. Clients refuse to pair with
+    /// peers on a different protocol version.
+    #[serde(default)]
+    pub protocol_version: u32,
 }
 
 /// Full lobby state: LWW-map of session_id → presence entry.
@@ -326,6 +330,10 @@ pub enum ProxyRequest {
         godot_version: String,
         ts: f64,
     },
+    /// Retrieve the current version manifest from Freenet.
+    GetVersionManifest,
+    /// Publish (put) a new version manifest to Freenet. Developer tool only.
+    PutVersionManifest { manifest_json: String },
 }
 
 /// Response from proxy to GDScript.
@@ -399,4 +407,10 @@ pub enum ProxyResponse {
     },
     /// Error report acknowledged.
     ReportErrorOk,
+    /// Version manifest returned.
+    VersionManifestOk { manifest_json: String },
+    /// Version manifest not yet published on the network.
+    VersionManifestNotFound,
+    /// Version manifest published successfully.
+    PutVersionManifestOk,
 }

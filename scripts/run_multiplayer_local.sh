@@ -9,7 +9,8 @@
 # Requires:
 #   - dev proxy:     cd backend/freenet && cargo build --bin freeland-dev-proxy
 #   - freenet proxy: cargo build --bin freeland-proxy  AND  fdev build in each contract dir
-#   - error contract: cd contracts/error-contract && CARGO_TARGET_DIR=../../target fdev build
+#   - error contract:   cd contracts/error-contract   && CARGO_TARGET_DIR=../../target fdev build
+#   - version contract: cd contracts/version-manifest && CARGO_TARGET_DIR=../../target fdev build
 #   - godot4 on PATH
 #
 # NOTE: `freenet local` binds its WS API on [::1]:7509 (IPv6 loopback), not 127.0.0.1.
@@ -66,6 +67,7 @@ elif [ "$1" = "--freenet" ]; then
     FREELAND_PAIRING_CONTRACT_PATH="$BACKEND/contracts/pairing-contract/build/freenet/freeland_pairing_contract" \
     FREELAND_PLAYER_DELEGATE_PATH="$BACKEND/delegates/player-delegate/build/freenet/freeland_player_delegate" \
     FREELAND_ERROR_CONTRACT_PATH="$BACKEND/contracts/error-contract/build/freenet/freeland_error_contract" \
+    FREELAND_VERSION_CONTRACT_PATH="$BACKEND/contracts/version-manifest/build/freenet/freeland_version_manifest" \
     "$PROXY_BIN" > /tmp/freeland_proxy.log 2>&1 &
     PROXY_PID=$!
     trap "kill $PROXY_PID $FREENET_PID 2>/dev/null; exit" INT TERM EXIT

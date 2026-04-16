@@ -35,6 +35,7 @@ pub async fn run_listener(
     pairing_contract_path: PathBuf,
     delegate_path: PathBuf,
     error_contract_path: Option<PathBuf>,
+    version_contract_path: Option<PathBuf>,
 ) -> anyhow::Result<SocketAddr> {
     let contract_bytes = Arc::new(std::fs::read(&contract_path).map_err(|e| {
         anyhow::anyhow!(
@@ -89,6 +90,18 @@ pub async fn run_listener(
         }
     };
 
+    let version_bytes: Option<Arc<Vec<u8>>> = match version_contract_path {
+        Some(path) => {
+            let b = std::fs::read(&path).map_err(|e| anyhow::anyhow!("Failed to read version contract from {}: {e}", path.display()))?;
+            info!(path = %path.display(), bytes = b.len(), "Loaded version manifest contract");
+            Some(Arc::new(b))
+        }
+        None => {
+            info!("Version contract not configured — version manifest ops will be no-ops");
+            None
+        }
+    };
+
     let listener = TcpListener::bind(listen_addr).await?;
     let bound = listener.local_addr()?;
     info!(addr = %bound, "Proxy listening");
@@ -102,8 +115,9 @@ pub async fn run_listener(
             let pb = pairing_bytes.clone();
             let db = delegate_bytes.clone();
             let eb = error_bytes.clone();
+            let vb = version_bytes.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle_client(stream, url, cb, lb, pb, db, eb).await {
+                if let Err(e) = handle_client(stream, url, cb, lb, pb, db, eb, vb).await {
                     error!(%peer, error = %e, "Client handler error");
                 }
             });
@@ -125,6 +139,7 @@ async fn handle_client(
     pairing_bytes: Arc<Vec<u8>>,
     delegate_bytes: Arc<Vec<u8>>,
     error_bytes: Option<Arc<Vec<u8>>>,
+    version_bytes: Option<Arc<Vec<u8>>>,
 ) -> anyhow::Result<()> {
     use futures::{SinkExt, StreamExt};
 
@@ -191,6 +206,7 @@ async fn handle_client(
             &pairing_bytes,
             &delegate_key,
             error_bytes.as_deref().map(|v| v.as_slice()),
+            version_bytes.as_deref().map(|v| v.as_slice()),
             request,
         )
         .await;
@@ -212,6 +228,7 @@ async fn dispatch(
     pairing_bytes: &[u8],
     delegate_key: &DelegateKey,
     error_bytes: Option<&[u8]>,
+    version_bytes: Option<&[u8]>,
     request: ProxyRequest,
 ) -> ProxyResponse {
     match request {
@@ -292,6 +309,18 @@ async fn dispatch(
                     )
                     .await
                 }
+            }
+        }
+        ProxyRequest::GetVersionManifest => {
+            match version_bytes {
+                None => ProxyResponse::VersionManifestNotFound,
+                Some(vb) => get_version_manifest(freenet, vb).await,
+            }
+        }
+        ProxyRequest::PutVersionManifest { manifest_json } => {
+            match version_bytes {
+                None => ProxyResponse::VersionManifestNotFound,
+                Some(vb) => put_version_manifest(freenet, vb, manifest_json).await,
             }
         }
     }
@@ -853,6 +882,101 @@ async fn report_error(
             warn!(op = "report_error", error = %e, "Freenet node error");
             // Same reasoning: don't surface telemetry errors to game client.
             ProxyResponse::ReportErrorOk
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Get version manifest
+// ---------------------------------------------------------------------------
+
+async fn get_version_manifest(
+    freenet: &mut WebApi,
+    version_bytes: &[u8],
+) -> ProxyResponse {
+    let params = Arc::new(Parameters::from(vec![]));
+    let container = match ContractContainer::try_from((version_bytes.to_vec(), params)) {
+        Ok(c) => c,
+        Err(e) => return ProxyResponse::Error { message: format!("version contract init: {e}") },
+    };
+    let contract_id: ContractInstanceId = container.id().clone();
+
+    let get = ClientRequest::ContractOp(ContractRequest::Get {
+        key: contract_id,
+        return_contract_code: false,
+        subscribe: false,
+        blocking_subscribe: false,
+    });
+
+    if let Err(e) = freenet.send(get).await {
+        return ProxyResponse::Error { message: format!("get_version_manifest: send failed: {e}") };
+    }
+
+    match freenet.recv().await {
+        Ok(HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. })) => {
+            match std::str::from_utf8(state.as_ref()) {
+                Ok(s) => ProxyResponse::VersionManifestOk { manifest_json: s.to_string() },
+                Err(_) => ProxyResponse::Error { message: "version manifest state not valid UTF-8".into() },
+            }
+        }
+        Ok(HostResponse::ContractResponse(ContractResponse::NotFound { .. })) => {
+            ProxyResponse::VersionManifestNotFound
+        }
+        Ok(other) => {
+            warn!(op = "get_version_manifest", response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: "get_version_manifest: unexpected node response".into() }
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("missing contract") {
+                ProxyResponse::VersionManifestNotFound
+            } else {
+                warn!(op = "get_version_manifest", error = %e, "Freenet node error");
+                ProxyResponse::Error { message: format!("get_version_manifest: {e}") }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Put version manifest
+// ---------------------------------------------------------------------------
+
+async fn put_version_manifest(
+    freenet: &mut WebApi,
+    version_bytes: &[u8],
+    manifest_json: String,
+) -> ProxyResponse {
+    let params = Arc::new(Parameters::from(vec![]));
+    let container = match ContractContainer::try_from((version_bytes.to_vec(), params)) {
+        Ok(c) => c,
+        Err(e) => return ProxyResponse::Error { message: format!("version contract init: {e}") },
+    };
+
+    let put = ClientRequest::ContractOp(ContractRequest::Put {
+        contract: container,
+        state: WrappedState::from(manifest_json.into_bytes()),
+        related_contracts: RelatedContracts::default(),
+        subscribe: false,
+        blocking_subscribe: false,
+    });
+
+    if let Err(e) = freenet.send(put).await {
+        return ProxyResponse::Error { message: format!("put_version_manifest: {e}") };
+    }
+
+    match freenet.recv().await {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. }))
+        | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
+            ProxyResponse::PutVersionManifestOk
+        }
+        Ok(other) => {
+            warn!(op = "put_version_manifest", response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: "put_version_manifest: unexpected node response".into() }
+        }
+        Err(e) => {
+            warn!(op = "put_version_manifest", error = %e, "Freenet node error");
+            ProxyResponse::Error { message: format!("put_version_manifest: {e}") }
         }
     }
 }

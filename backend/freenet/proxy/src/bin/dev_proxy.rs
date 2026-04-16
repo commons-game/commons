@@ -37,6 +37,8 @@ struct DevState {
     chunks: HashMap<(i32, i32), String>,
     /// Player data: "rep:<player_id>" or "equip:<player_id>" → data_json
     player_data: HashMap<String, String>,
+    /// Version manifest JSON (None until PutVersionManifest is called)
+    version_manifest: Option<String>,
 }
 
 type State = Arc<RwLock<DevState>>;
@@ -254,6 +256,22 @@ fn dispatch(state: &State, req: ProxyRequest) -> ProxyResponse {
                 },
                 None => ProxyResponse::PlayerLoadNotFound { player_id, kind },
             }
+        }
+
+        // --- Telemetry (no-op in dev proxy) ---
+        ProxyRequest::ReportError { .. } => ProxyResponse::ReportErrorOk,
+
+        // --- Version manifest (in-memory stub) ---
+        ProxyRequest::GetVersionManifest => {
+            let s = state.read().unwrap();
+            match &s.version_manifest {
+                Some(j) => ProxyResponse::VersionManifestOk { manifest_json: j.clone() },
+                None => ProxyResponse::VersionManifestNotFound,
+            }
+        }
+        ProxyRequest::PutVersionManifest { manifest_json } => {
+            state.write().unwrap().version_manifest = Some(manifest_json);
+            ProxyResponse::PutVersionManifestOk
         }
     }
 }

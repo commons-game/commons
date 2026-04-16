@@ -3,6 +3,7 @@ members = [
     "common",
     "contracts/chunk-contract",
     "contracts/error-contract",
+    "contracts/version-manifest",
     "contracts/lobby-contract",
     "contracts/pairing-contract",
     "delegates/player-delegate",

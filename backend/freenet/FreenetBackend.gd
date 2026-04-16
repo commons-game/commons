@@ -26,6 +26,7 @@ extends IBackend
 
 signal chunk_received(coords: Vector2i, data: PackedByteArray)
 signal player_data_received(kind: String, data: Dictionary)
+signal version_manifest_ready(manifest: Dictionary)
 
 const DEFAULT_PROXY_URL := "ws://127.0.0.1:7510"
 
@@ -144,6 +145,15 @@ func load_equipment() -> Dictionary:
 	_request_player_load("equipment")
 	return {}
 
+## Request the version manifest from the proxy. Non-blocking: fires and returns
+## immediately. The response is dispatched via _handle_response → version_manifest_ready.
+func request_version_manifest() -> void:
+	if not _connected:
+		version_manifest_ready.emit({})
+		return
+	var req := {"op": "GetVersionManifest"}
+	_ws.send_text(JSON.stringify(req))
+
 ## Send a telemetry report and await acknowledgement.
 ## Returns true on ReportErrorOk, false on error or no connection.
 func report_error(entry: Dictionary) -> bool:
@@ -244,6 +254,14 @@ func _handle_response(resp: Dictionary) -> void:
 			# No data stored yet — caller already returned {} from load_*.
 		"ReportErrorOk":
 			pass  # telemetry acknowledged; nothing further needed
+		"VersionManifestOk":
+			var parsed = JSON.parse_string(resp.get("manifest_json", "{}"))
+			var manifest: Dictionary = parsed if parsed is Dictionary else {}
+			version_manifest_ready.emit(manifest)
+		"VersionManifestNotFound":
+			version_manifest_ready.emit({})
+		"PutVersionManifestOk":
+			pass  # developer tool; no in-game handler needed
 		"Error":
 			push_error("FreenetBackend proxy error: %s" % resp.get("message", "(no message)"))
 		_:

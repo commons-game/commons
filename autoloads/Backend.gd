@@ -50,3 +50,14 @@ func report_error(entry: Dictionary) -> bool:
 	if _backend.has_method("report_error"):
 		return await _backend.report_error(entry)
 	return false
+
+## Fetch the version manifest from Freenet.
+## Returns a Dictionary on success, empty Dictionary if not found or not connected.
+## Only FreenetBackend supports this; LocalBackend returns {}.
+func get_version_manifest() -> Dictionary:
+	if not _backend.has_method("request_version_manifest"):
+		return {}
+	# Connect one-shot to the version_manifest_ready signal.
+	_backend.request_version_manifest()
+	var result = await (_backend as Object).version_manifest_ready
+	return result if result is Dictionary else {}
