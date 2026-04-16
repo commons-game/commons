@@ -10,6 +10,7 @@ var _to_free: Array = []
 func before_test() -> void:
 	_coord = MergeCoordinatorScript.new()
 	_coord.session_id = "aaa_local"   # lower than "bbb_remote" → I host
+	_coord.use_webrtc = false          # tests verify ENet path; WebRTC path tested separately
 	_to_free.append(_coord)
 
 func after_test() -> void:

@@ -184,8 +184,8 @@ func _try_complete_gathering() -> void:
 	var gathering_state := _conn.get_gathering_state()
 	var timed_out := _gather_timer >= GATHER_TIMEOUT
 
-	if gathering_state == WebRTCPeerConnection.ICE_GATHERING_COMPLETE or timed_out:
-		if timed_out and gathering_state != WebRTCPeerConnection.ICE_GATHERING_COMPLETE:
+	if gathering_state == WebRTCPeerConnection.GATHERING_STATE_COMPLETE or timed_out:
+		if timed_out and gathering_state != WebRTCPeerConnection.GATHERING_STATE_COMPLETE:
 			push_warning("WebRTCManager: ICE gather timeout — publishing with %d candidates" \
 				% _ice_candidates.size())
 
@@ -223,7 +223,7 @@ func _apply_remote_offer(offer: Dictionary) -> void:
 
 	# Apply offerer's ICE candidates
 	for encoded in ice_strings:
-		var parts := _decode_ice_candidate(encoded)
+		var parts = _decode_ice_candidate(encoded)
 		if parts != null:
 			_conn.add_ice_candidate(parts.mid, parts.index, parts.name)
 
@@ -244,7 +244,7 @@ func _apply_remote_answer(answer: Dictionary) -> void:
 
 	# Apply answerer's ICE candidates
 	for encoded in ice_strings:
-		var parts := _decode_ice_candidate(encoded)
+		var parts = _decode_ice_candidate(encoded)
 		if parts != null:
 			_conn.add_ice_candidate(parts.mid, parts.index, parts.name)
 

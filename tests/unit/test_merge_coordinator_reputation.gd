@@ -16,6 +16,7 @@ func before_test() -> void:
 	_coord = MergeCoordinatorScript.new()
 	_coord.session_id = "aaa_local"
 	_coord.dev_instant_merge = true
+	_coord.use_webrtc = false  # tests verify ENet path; WebRTC path tested separately
 	_store = ReputationStoreScript.new()
 	_router = MergeRouterScript.new()
 	_coord.reputation_store = _store
