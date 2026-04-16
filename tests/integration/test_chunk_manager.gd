@@ -19,8 +19,11 @@ func after_test() -> void:
 
 func test_chunks_loaded_in_radius_after_player_move() -> void:
 	## After update_player_position, all chunks within LOAD_RADIUS must be loaded.
+	## LOAD_RADIUS=4 → (2*4+1)²=81 chunks. MAX_LOADS_PER_FRAME=3 → ceil(80/3)=27 frames needed.
+	## We await 30 frames to drain the queue with a small safety margin.
 	_chunk_manager.update_player_position(Vector2i(0, 0))
-	await get_tree().process_frame
+	for _i in 30:
+		await get_tree().process_frame
 	var loaded := _chunk_manager.get_loaded_chunk_coords()
 	var radius := Constants.LOAD_RADIUS
 	for dy in range(-radius, radius + 1):

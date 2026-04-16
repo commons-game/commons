@@ -538,6 +538,5 @@ chunk is immune — you can stand in grass and watch the world shift around you.
 - Rocks spawn on stone at object-noise > 0.4 (more common than normal world).
 
 **Pre-existing test failures (unrelated to Shifting Lands):**
-- `test_chunk_manager.gd > test_chunks_loaded_in_radius_after_player_move` — timing-sensitive, flaky.
-- `test_gravestone_scatter.gd > test_scatter_places_at_least_one_gravestone` — density edge case.
-Both were failing before this feature was added.
+- `test_chunk_manager.gd > test_chunks_loaded_in_radius_after_player_move` — **FIXED**: test only awaited 1 frame; LOAD_RADIUS=4 requires ~27 frames to drain queue at MAX_LOADS_PER_FRAME=3. Fixed by awaiting 30 frames.
+- `test_gravestone_scatter.gd > test_scatter_places_at_least_one_gravestone` — density edge case, still open.
