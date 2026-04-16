@@ -1,7 +1,7 @@
 ## FreenetPresenceService — internet presence via the Freenet lobby contract.
 ##
 ## Drop-in replacement for UDPPresenceService. Same public API:
-##   publish_presence(player_id, chunk_coords, enet_port)
+##   publish_presence(player_id, chunk_coords)
 ##   subscribe_area(subscriber_id, center, radius, callback)
 ##   unsubscribe_area(subscriber_id)
 ##
@@ -82,14 +82,14 @@ func _process(delta: float) -> void:
 				_connect_ws()
 
 ## Publish this player's presence to the Freenet lobby.
-func publish_presence(player_id: String, chunk_coords: Vector2i, enet_port: int = 7777) -> void:
+func publish_presence(player_id: String, chunk_coords: Vector2i) -> void:
 	_local_player_id = player_id
 	var entry := {
 		"session_id": player_id,
 		"chunk_x": chunk_coords.x,
 		"chunk_y": chunk_coords.y,
 		"ip": _get_local_ip(),
-		"enet_port": enet_port,
+		"enet_port": 0,
 		"timestamp": Time.get_unix_time_from_system()
 	}
 	if _connected:

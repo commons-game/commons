@@ -1,6 +1,6 @@
-## Tests for NetworkManager — ENet host/join state machine.
-## Only the pure state machine is tested here — actual socket binding
-## requires a running process and is verified by launching two instances.
+## Tests for NetworkManager — WebRTC peer state machine.
+## Only the pure state machine is tested here — actual WebRTC connections
+## are verified by the WebRTC loopback integration test.
 extends GdUnitTestSuite
 
 const NetworkManagerScript := preload("res://autoloads/NetworkManager.gd")
@@ -41,6 +41,4 @@ func test_default_port_is_sensible() -> void:
 
 func test_state_constants_are_distinct() -> void:
 	var n = _make_manager()
-	assert_that(n.STATE_IDLE).is_not_equal(n.STATE_HOSTING)
-	assert_that(n.STATE_IDLE).is_not_equal(n.STATE_JOINING)
-	assert_that(n.STATE_HOSTING).is_not_equal(n.STATE_JOINING)
+	assert_that(n.STATE_IDLE).is_not_equal(n.STATE_ACTIVE)

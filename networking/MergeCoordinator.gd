@@ -12,9 +12,9 @@
 ## Pressure starts at 1.0 and broadcast_interval collapses to 1 s.
 ##
 ## World wiring:
-##   coordinator.presence_service = $UDPPresenceService
+##   coordinator.presence_service = $FreenetPresenceService
 ##   coordinator.session_id = session.session_id
-##   coordinator.connection_needed.connect(_on_connection_needed)
+##   coordinator.webrtc_pairing_needed.connect(_on_webrtc_pairing_needed)
 ##   coordinator.merge_ready.connect(func(): merge_rpc_bus.send_snapshot(...))
 ##   coordinator.split_occurred.connect(_on_split)
 extends Node
@@ -23,9 +23,7 @@ const MergePressureScript   := preload("res://networking/MergePressureSystem.gd"
 const BridgeFormationScript := preload("res://networking/BridgeFormation.gd")
 const SplitDetectorScript   := preload("res://networking/SplitDetector.gd")
 
-## Emitted when a bridge gate passes — World connects via NetworkManager (ENet/LAN).
-signal connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool)
-## Emitted when using WebRTC — World starts WebRTCManager offer/answer flow.
+## Emitted when a bridge gate passes — World starts WebRTCManager offer/answer flow.
 signal webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool)
 ## Emitted after ENet connects and it's time to exchange CRDT snapshots.
 signal merge_ready(remote_session_id: String)
@@ -37,14 +35,9 @@ signal pressure_changed(pressure: float)
 
 ## Set by World from SessionManager.session_id before _ready().
 var session_id: String = ""
-## When true, emit webrtc_pairing_needed instead of connection_needed.
-## Set false to fall back to ENet (LAN/localhost testing).
-var use_webrtc: bool = true
 ## Seconds between presence broadcasts (overridden to 1.0 in dev mode).
 var broadcast_interval: float = 30.0
-## ENet port to advertise in presence broadcasts.
-var enet_port: int = 7777
-## Assigned by World — UDPPresenceService (or LocalPresenceService in tests).
+## Assigned by World — FreenetPresenceService (or LocalPresenceService in tests).
 var presence_service: Object = null
 ## Phase 5: optional reputation gate. Both must be set for routing to apply.
 ## If either is null the check is skipped (backward-compat for pre-Phase-5 tests).
@@ -113,7 +106,7 @@ func _process(delta: float) -> void:
 	_broadcast_timer += delta
 	if _broadcast_timer >= broadcast_interval and presence_service != null:
 		_broadcast_timer = 0.0
-		presence_service.publish_presence(session_id, _my_chunk, enet_port)
+		presence_service.publish_presence(session_id, _my_chunk)
 
 ## Called by Player each chunk-change to keep coordinator position current.
 func update_my_chunk(chunk: Vector2i) -> void:
@@ -136,12 +129,9 @@ func _on_peer_discovered(remote_sid: String, remote_chunk: Vector2i,
 			return
 	_merging = true
 	_merging_timer = 0.0
-	var i_am_host: bool = session_id < remote_sid
-	if use_webrtc:
-		var pairing_key := _make_pairing_key(session_id, remote_sid)
-		webrtc_pairing_needed.emit(pairing_key, i_am_host)
-	else:
-		connection_needed.emit(remote_ip, remote_enet_port, i_am_host)
+	var i_am_offerer: bool = session_id < remote_sid
+	var pairing_key := _make_pairing_key(session_id, remote_sid)
+	webrtc_pairing_needed.emit(pairing_key, i_am_offerer)
 
 ## Called by World when the ENet peer_connected signal fires.
 func on_peer_connected(remote_sid: String, remote_chunk: Vector2i) -> void:

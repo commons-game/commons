@@ -1,8 +1,6 @@
 ## World — root scene. Manages quit persistence and multiplayer bootstrap.
 ##
 ## CLI args for local multiplayer simulation:
-##   --host [port]              Start as ENet host on given port (default 7777)
-##   --join <ip> [port]         Join a host at ip:port (default 127.0.0.1:7777)
 ##   --dev-instant-merge        Enable instant-merge dev mode (pressure=1, fast broadcast)
 ##   --dev-screenshot-cycle     Step through 24 day phases, screenshot each, quit
 ##   --dev-health-check         Run 30s, screenshot every 5s, quit (regression check)
@@ -16,10 +14,10 @@
 ##   F1    Toggle debug overlay (FPS, phase, chunk weight, vibe, tool, merge pressure)
 ##   F12   Save numbered screenshot to /tmp/freeland_screenshot_NNN.png
 ##
-## Phase 4 merge lifecycle (auto-discovery, no manual --host/--join needed):
+## Merge lifecycle:
 ##   FreenetPresenceService publishes presence to Freenet lobby contract →
 ##   MergeCoordinator discovers peers →
-##   connection_needed → NetworkManager.host/join → ENet peer_connected →
+##   webrtc_pairing_needed → WebRTCManager offer/answer → peer_connected →
 ##   MergeRPCBus hello exchange → on_peer_connected → merge_ready →
 ##   send_snapshot → merge_applied.
 extends Node2D
@@ -122,17 +120,7 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	var is_web := OS.get_name() == "Web"
 	if not is_web:
-		_parse_network_args(args)
 		_setup_merge_system(args)
-	# GameConfig set by MainMenu (takes priority over CLI args, only acts when idle)
-	if not is_web and NetworkManager.get_state() == NetworkManager.STATE_IDLE:
-		if GameConfig.mode == "host":
-			NetworkManager.host(GameConfig.port)
-			_session.start_session()
-			_spawn_remote_player(1)
-		elif GameConfig.mode == "join":
-			NetworkManager.join(GameConfig.host_ip, GameConfig.port)
-			_session.start_session()
 	_setup_action_bar()
 	_setup_performance_hud()
 	_setup_day_night_system()
@@ -166,33 +154,6 @@ func _ready() -> void:
 	if not is_web and "--force-day" in args:
 		DayClock._time_override = Constants.DAY_CYCLE_SECONDS * 0.25  # pin to midday
 
-func _parse_network_args(args: Array) -> void:
-	if args.is_empty():
-		return
-	var i := 0
-	while i < args.size():
-		match args[i]:
-			"--host":
-				var port := NetworkManager.DEFAULT_PORT
-				if i + 1 < args.size() and args[i + 1].is_valid_int():
-					i += 1
-					port = int(args[i])
-				NetworkManager.host(port)
-				_session.start_session()
-				_spawn_remote_player(1)  # host's own representation for clients
-			"--join":
-				var ip   := "127.0.0.1"
-				var port := NetworkManager.DEFAULT_PORT
-				if i + 1 < args.size() and not args[i + 1].begins_with("--"):
-					i += 1
-					ip = args[i]
-				if i + 1 < args.size() and args[i + 1].is_valid_int():
-					i += 1
-					port = int(args[i])
-				NetworkManager.join(ip, port)
-				_session.start_session()
-		i += 1
-
 func _setup_merge_system(args: Array) -> void:
 	# Reputation — load persisted state before wiring coordinator
 	_reputation_store = ReputationStoreScript.new()
@@ -207,7 +168,6 @@ func _setup_merge_system(args: Array) -> void:
 	_coordinator = MergeCoordinatorScript.new()
 	_coordinator.name = "MergeCoordinator"
 	_coordinator.session_id = _session.session_id
-	_coordinator.enet_port = NetworkManager.DEFAULT_PORT
 	_coordinator.presence_service = presence
 	_coordinator.reputation_store = _reputation_store
 	_coordinator.merge_router     = reputation_router
@@ -218,7 +178,6 @@ func _setup_merge_system(args: Array) -> void:
 	_rpc_bus.name = "MergeRPCBus"
 	_rpc_bus.chunk_manager = $ChunkManager
 
-	_coordinator.connection_needed.connect(_on_connection_needed)
 	_coordinator.webrtc_pairing_needed.connect(_on_webrtc_pairing_needed)
 	_coordinator.merge_ready.connect(_on_merge_ready)
 	_coordinator.split_occurred.connect(_on_split_occurred)
@@ -375,19 +334,6 @@ func _on_peer_disconnected(peer_id: int) -> void:
 # ---------------------------------------------------------------------------
 # Phase 4 merge signal handlers
 # ---------------------------------------------------------------------------
-
-func _on_connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool) -> void:
-	## ENet fallback (use_webrtc=false on coordinator — for LAN tests).
-	print("World: ENet connection needed — ip=%s port=%d host=%s" \
-		% [remote_ip, remote_enet_port, str(i_am_host)])
-	if NetworkManager.get_state() != NetworkManager.STATE_IDLE:
-		print("World: ignoring connection_needed — NetworkManager not idle (state=%d)" \
-			% NetworkManager.get_state())
-		return
-	if i_am_host:
-		NetworkManager.host(remote_enet_port)
-	else:
-		NetworkManager.join(remote_ip, remote_enet_port)
 
 func _on_webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool) -> void:
 	## WebRTC connection: start offer/answer flow through Freenet pairing contract.

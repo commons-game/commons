@@ -1,21 +1,19 @@
-## NetworkManager — ENet-based host/join for local and LAN multiplayer.
-## Used as an autoload so any scene can call NetworkManager.host() / .join().
+## NetworkManager — WebRTC multiplayer peer wrapper.
 ##
-## For local simulation: both instances run on 127.0.0.1 with the same port.
-## For LAN: use the host machine's LAN IP.
-## For internet (Phase 6+): swap ENet for WebRTCMultiplayerPeer.
+## ENet has been removed. The only transport is WebRTC, negotiated via the
+## Freenet pairing contract. World calls set_webrtc_peer() when WebRTCManager
+## establishes a connection; everything else (RPCs, MultiplayerSynchronizer)
+## continues to work unchanged through Godot's MultiplayerPeer interface.
 ##
 ## Signals:
 ##   peer_connected(peer_id: int)
 ##   peer_disconnected(peer_id: int)
 extends Node
 
-const DEFAULT_PORT := 7777
-const MAX_PEERS    := 8
+const DEFAULT_PORT := 7777  # kept for presence broadcast compat; not used for sockets
 
-const STATE_IDLE    := 0
-const STATE_HOSTING := 1
-const STATE_JOINING := 2
+const STATE_IDLE   := 0
+const STATE_ACTIVE := 1
 
 var _state: int = STATE_IDLE
 
@@ -26,29 +24,11 @@ func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 
-## Start an ENet server on the given port. Other players call join() to connect.
-func host(port: int = DEFAULT_PORT) -> Error:
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(port, MAX_PEERS)
-	if err != OK:
-		push_error("NetworkManager: failed to host on port %d — error %d" % [port, err])
-		return err
-	multiplayer.multiplayer_peer = peer
-	_state = STATE_HOSTING
-	print("NetworkManager: hosting on port %d (peer_id=%d)" % [port, multiplayer.get_unique_id()])
-	return OK
-
-## Connect to a host as a client.
-func join(ip: String = "127.0.0.1", port: int = DEFAULT_PORT) -> Error:
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_client(ip, port)
-	if err != OK:
-		push_error("NetworkManager: failed to join %s:%d — error %d" % [ip, port, err])
-		return err
-	multiplayer.multiplayer_peer = peer
-	_state = STATE_JOINING
-	print("NetworkManager: joining %s:%d" % [ip, port])
-	return OK
+## Called by World when WebRTCManager establishes a connection.
+func set_webrtc_peer(mp: WebRTCMultiplayerPeer) -> void:
+	multiplayer.multiplayer_peer = mp
+	_state = STATE_ACTIVE
+	print("NetworkManager: WebRTC peer active")
 
 ## Disconnect from any current session cleanly.
 func disconnect_all() -> void:
@@ -60,24 +40,15 @@ func disconnect_all() -> void:
 func get_state() -> int:
 	return _state
 
-## Called by World when WebRTCManager establishes a connection.
-## Registers the WebRTC peer so NetworkManager state is consistent with
-## is_connected_to_session() and the STATE_IDLE guard in _on_connection_needed.
-func set_webrtc_peer(mp: WebRTCMultiplayerPeer) -> void:
-	multiplayer.multiplayer_peer = mp
-	_state = STATE_HOSTING  # both sides use HOSTING to mean "active session"
-	print("NetworkManager: WebRTC peer set")
-
 func is_hosting() -> bool:
-	return _state == STATE_HOSTING
+	return _state == STATE_ACTIVE
 
-## True once we have an active multiplayer peer (hosting or joined).
+## True once we have an active WebRTC multiplayer peer.
 func is_connected_to_session() -> bool:
 	return _state != STATE_IDLE and multiplayer.multiplayer_peer != null
 
 func _on_peer_connected(id: int) -> void:
-	if _state == STATE_JOINING:
-		_state = STATE_HOSTING  # reuse HOSTING to mean "active session"
+	_state = STATE_ACTIVE
 	print("NetworkManager: peer connected — id=%d" % id)
 	peer_connected.emit(id)
 
