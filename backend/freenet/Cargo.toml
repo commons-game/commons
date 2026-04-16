@@ -7,5 +7,6 @@ members = [
     "contracts/pairing-contract",
     "delegates/player-delegate",
     "proxy",
+    "report",
 ]
 resolver = "2"
