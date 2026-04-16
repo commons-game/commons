@@ -123,3 +123,47 @@ func test_peer_disconnected_clears_merged_state() -> void:
 	assert_bool(_coord.is_merged()).is_true()
 	_coord.on_peer_disconnected()
 	assert_bool(_coord.is_merged()).is_false()
+
+# --- Reconnect robustness ---
+
+func test_merging_flag_resets_after_timeout() -> void:
+	## If ENet never connects after connection_needed, _merging must reset
+	## after MERGING_TIMEOUT so the coordinator can retry the next broadcast.
+	_coord.dev_instant_merge = true
+	## Trigger _merging = true by discovering a peer
+	_coord._on_peer_discovered("bbb_remote", Vector2i(1, 0), "192.168.1.2", 7777)
+	assert_bool(_coord._merging).is_true()
+	## Tick past timeout
+	_coord.tick(_coord.MERGING_TIMEOUT + 0.1)
+	assert_bool(_coord._merging).is_false()
+
+func test_merging_flag_not_reset_before_timeout() -> void:
+	## _merging must stay true until the timeout elapses — not cleared prematurely.
+	_coord.dev_instant_merge = true
+	_coord._on_peer_discovered("bbb_remote", Vector2i(1, 0), "192.168.1.2", 7777)
+	assert_bool(_coord._merging).is_true()
+	## Tick to just before timeout
+	_coord.tick(_coord.MERGING_TIMEOUT - 0.5)
+	assert_bool(_coord._merging).is_true()
+
+func test_reconnect_possible_after_timeout() -> void:
+	## After timeout resets _merging, a new peer discovery must re-arm the bridge.
+	_coord.dev_instant_merge = true
+	_coord._on_peer_discovered("bbb_remote", Vector2i(1, 0), "192.168.1.2", 7777)
+	_coord.tick(_coord.MERGING_TIMEOUT + 0.1)
+	## Now _merging is false — a second discovery should re-emit connection_needed
+	var emitted: Array = [0]
+	_coord.connection_needed.connect(func(_i, _p, _h): emitted[0] += 1)
+	_coord._on_peer_discovered("bbb_remote", Vector2i(1, 0), "192.168.1.2", 7777)
+	assert_int(emitted[0]).is_equal(1)
+
+func test_successful_connect_clears_merging_timer() -> void:
+	## on_peer_connected must clear _merging so the timeout branch never fires late.
+	_coord.dev_instant_merge = true
+	_coord._on_peer_discovered("bbb_remote", Vector2i(1, 0), "192.168.1.2", 7777)
+	_coord.on_peer_connected("bbb_remote", Vector2i(1, 0))
+	assert_bool(_coord._merging).is_false()
+	assert_bool(_coord.is_merged()).is_true()
+	## Ticking past what would have been the timeout must not clear merged state
+	_coord.tick(_coord.MERGING_TIMEOUT + 1.0)
+	assert_bool(_coord.is_merged()).is_true()

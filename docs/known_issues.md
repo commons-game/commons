@@ -174,6 +174,24 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 ### xpra periodic gray screen flash
 **Status:** Not xpra — was the chunk fade bug above. `--encoding=rgb --video=no` left in xpra config as it doesn't hurt.
 
+## Multiplayer / Networking
+
+### MergeCoordinator _merging stuck forever on ENet failure (FIXED)
+**Status:** Fixed.
+**Root cause:** If ENet peer creation failed after `connection_needed` emitted (e.g. port in use, firewall block), `_merging = true` was never cleared. The coordinator would never retry discovery.
+**Fix:** Added `MERGING_TIMEOUT = 15.0` in `MergeCoordinator.gd`. `_process()` ticks `_merging_timer` when `_merging` is true and resets `_merging = false` after timeout.
+**Tests:** `test_merging_flag_resets_after_timeout`, `test_merging_flag_not_reset_before_timeout`, `test_reconnect_possible_after_timeout`.
+
+### World._on_connection_needed double-host on reconnect (FIXED)
+**Status:** Fixed.
+**Root cause:** `_on_connection_needed` called `NetworkManager.host()`/`.join()` unconditionally. If `connection_needed` fired again while ENet was already in STATE_HOSTING or STATE_JOINING (e.g. during a reconnect cycle), it would try to create a second ENet server on the same port, causing a bind error.
+**Fix:** Added `if NetworkManager.get_state() != NetworkManager.STATE_IDLE: return` guard at the top of `World._on_connection_needed`.
+
+### test_gravestone_scatter pre-existing failure
+**Status:** Open.
+**Symptom:** This test fails in CI/test runs. Not investigated yet.
+**Action:** Investigate before next test audit pass.
+
 ### Godot editor on headless server via xpra
 **Setup:**
 - Godot 4.3 installed at `~/bin/godot4`

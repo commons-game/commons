@@ -54,8 +54,12 @@ var _my_chunk: Vector2i = Vector2i.ZERO
 var _remote_chunk: Vector2i = Vector2i.ZERO
 var _remote_session_id: String = ""
 
-var _merging: bool = false   # connection in-flight
-var _merged: bool = false    # live merged session
+## Seconds before an in-flight connection attempt is abandoned and retried.
+const MERGING_TIMEOUT := 15.0
+
+var _merging: bool = false         # connection in-flight
+var _merging_timer: float = 0.0    # elapsed since _merging = true
+var _merged: bool = false          # live merged session
 var _broadcast_timer: float = 0.0
 
 ## Collapse pressure to 1.0 and use fast broadcast for dev/testing.
@@ -88,15 +92,23 @@ func _process(delta: float) -> void:
 			_do_split()
 		return
 
-	if not _merging:
-		_pressure.peer_count = 1
-		_pressure.tick(delta)
-		pressure_changed.emit(_pressure.pressure)
+	if _merging:
+		_merging_timer += delta
+		if _merging_timer >= MERGING_TIMEOUT:
+			push_warning("MergeCoordinator: connection attempt timed out after %.1fs — resetting" \
+				% MERGING_TIMEOUT)
+			_merging = false
+			_merging_timer = 0.0
+		return
 
-		_broadcast_timer += delta
-		if _broadcast_timer >= broadcast_interval and presence_service != null:
-			_broadcast_timer = 0.0
-			presence_service.publish_presence(session_id, _my_chunk, enet_port)
+	_pressure.peer_count = 1
+	_pressure.tick(delta)
+	pressure_changed.emit(_pressure.pressure)
+
+	_broadcast_timer += delta
+	if _broadcast_timer >= broadcast_interval and presence_service != null:
+		_broadcast_timer = 0.0
+		presence_service.publish_presence(session_id, _my_chunk, enet_port)
 
 ## Called by Player each chunk-change to keep coordinator position current.
 func update_my_chunk(chunk: Vector2i) -> void:
@@ -118,6 +130,7 @@ func _on_peer_discovered(remote_sid: String, remote_chunk: Vector2i,
 		if not merge_router.can_merge(session_id, remote_sid, reputation_store):
 			return
 	_merging = true
+	_merging_timer = 0.0
 	var i_am_host: bool = session_id < remote_sid
 	connection_needed.emit(remote_ip, remote_enet_port, i_am_host)
 

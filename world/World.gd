@@ -365,6 +365,12 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _on_connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool) -> void:
 	print("World: merge connection needed — ip=%s port=%d host=%s" \
 		% [remote_ip, remote_enet_port, str(i_am_host)])
+	# Guard: if we're already hosting or joining from a previous attempt,
+	# ignore this signal to prevent double-host on reconnect.
+	if NetworkManager.get_state() != NetworkManager.STATE_IDLE:
+		print("World: ignoring connection_needed — NetworkManager not idle (state=%d)" \
+			% NetworkManager.get_state())
+		return
 	if i_am_host:
 		NetworkManager.host(remote_enet_port)
 	else:
