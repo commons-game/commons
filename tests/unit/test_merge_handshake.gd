@@ -23,7 +23,7 @@ func test_proposal_contains_session_id() -> void:
 
 func test_proposal_contains_crdt_snapshot() -> void:
 	var hs = _make_handshake()
-	var snapshot := {"tile_0_0": {"tile_id": "grass", "ts": 100}}
+	var snapshot := {"tile_0_0": {"tile_id": "grass", "timestamp": 100.0}}
 	var proposal: Dictionary = hs.propose_merge("session_A", snapshot, []) as Dictionary
 	assert_that(proposal["crdt"]).is_equal(snapshot)
 
@@ -36,8 +36,8 @@ func test_proposal_contains_peer_list() -> void:
 
 func test_accept_merge_includes_local_keys() -> void:
 	var hs = _make_handshake()
-	var local  := {"key_a": {"tile_id": "rock", "ts": 200}}
-	var remote := {"key_b": {"tile_id": "sand", "ts": 100}}
+	var local  := {"key_a": {"tile_id": "rock", "timestamp": 200.0}}
+	var remote := {"key_b": {"tile_id": "sand", "timestamp": 100.0}}
 	var proposal: Dictionary = hs.propose_merge("session_B", remote, []) as Dictionary
 	var merged: Dictionary = hs.accept_merge(proposal, local) as Dictionary
 	assert_bool(merged.has("key_a")).is_true()
@@ -45,16 +45,16 @@ func test_accept_merge_includes_local_keys() -> void:
 
 func test_accept_merge_lww_remote_wins_higher_timestamp() -> void:
 	var hs = _make_handshake()
-	var local  := {"key_a": {"tile_id": "old",  "ts": 100}}
-	var remote := {"key_a": {"tile_id": "new",  "ts": 200}}
+	var local  := {"key_a": {"tile_id": "old",  "timestamp": 100.0}}
+	var remote := {"key_a": {"tile_id": "new",  "timestamp": 200.0}}
 	var proposal: Dictionary = hs.propose_merge("session_B", remote, []) as Dictionary
 	var merged: Dictionary = hs.accept_merge(proposal, local) as Dictionary
 	assert_that(merged["key_a"]["tile_id"]).is_equal("new")
 
 func test_accept_merge_lww_local_wins_higher_timestamp() -> void:
 	var hs = _make_handshake()
-	var local  := {"key_a": {"tile_id": "newer", "ts": 300}}
-	var remote := {"key_a": {"tile_id": "older", "ts": 150}}
+	var local  := {"key_a": {"tile_id": "newer", "timestamp": 300.0}}
+	var remote := {"key_a": {"tile_id": "older", "timestamp": 150.0}}
 	var proposal: Dictionary = hs.propose_merge("session_B", remote, []) as Dictionary
 	var merged: Dictionary = hs.accept_merge(proposal, local) as Dictionary
 	assert_that(merged["key_a"]["tile_id"]).is_equal("newer")
@@ -62,12 +62,12 @@ func test_accept_merge_lww_local_wins_higher_timestamp() -> void:
 func test_accept_merge_commutative() -> void:
 	var hs = _make_handshake()
 	var crdt_a := {
-		"key_a": {"tile_id": "fire", "ts": 100},
-		"key_b": {"tile_id": "ice",  "ts": 50}
+		"key_a": {"tile_id": "fire", "timestamp": 100.0},
+		"key_b": {"tile_id": "ice",  "timestamp": 50.0}
 	}
 	var crdt_b := {
-		"key_a": {"tile_id": "water", "ts": 80},
-		"key_b": {"tile_id": "ice",   "ts": 50}
+		"key_a": {"tile_id": "water", "timestamp": 80.0},
+		"key_b": {"tile_id": "ice",   "timestamp": 50.0}
 	}
 	var proposal_b: Dictionary = hs.propose_merge("session_B", crdt_b, []) as Dictionary
 	var proposal_a: Dictionary = hs.propose_merge("session_A", crdt_a, []) as Dictionary
