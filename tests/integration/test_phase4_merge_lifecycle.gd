@@ -56,8 +56,14 @@ func test_full_merge_and_split_lifecycle() -> void:
 	assert_that(bridge_chunks.size()).is_equal(4)  # intermediates between 0 and 5
 
 	# --- Merge handshake: exchange and merge CRDT stores ---
-	var crdt_a := {"tile_0_0": {"tile_id": "fire_flower", "ts": 100}}
-	var crdt_b := {"tile_5_0": {"tile_id": "ice_crystal",  "ts": 200}}
+	var crdt_a := {
+		"tile_0_0": {"tile_id": 0, "atlas_x": 0, "atlas_y": 1, "alt_tile": 0,
+		             "timestamp": 100.0, "author_id": "session_a"}
+	}
+	var crdt_b := {
+		"tile_5_0": {"tile_id": 0, "atlas_x": 2, "atlas_y": 0, "alt_tile": 0,
+		             "timestamp": 200.0, "author_id": "session_b"}
+	}
 	var handshake = MergeHandshakeScript.new()
 
 	var proposal_b: Dictionary = handshake.propose_merge(
@@ -139,10 +145,12 @@ func test_presence_out_of_range_does_not_trigger_bridge_evaluation() -> void:
 	assert_that(triggered.size()).is_equal(0)
 
 func test_lww_merge_conflict_resolved_correctly() -> void:
-	# Conflict: both sessions modified the same tile; remote is newer
+	# Conflict: both sessions modified the same tile; remote is newer — remote must win.
 	var handshake = MergeHandshakeScript.new()
-	var local  := {"chunk_0_0": {"tile_id": "stale_grass",  "ts": 100}}
-	var remote := {"chunk_0_0": {"tile_id": "fresh_stone",  "ts": 999}}
+	var local  := {"chunk_0_0": {"tile_id": 0, "atlas_x": 0, "atlas_y": 0, "alt_tile": 0,
+	                              "timestamp": 100.0, "author_id": "stale_author"}}
+	var remote := {"chunk_0_0": {"tile_id": 0, "atlas_x": 2, "atlas_y": 0, "alt_tile": 0,
+	                              "timestamp": 999.0, "author_id": "fresh_author"}}
 	var proposal: Dictionary = handshake.propose_merge("session_b", remote, []) as Dictionary
 	var merged: Dictionary = handshake.accept_merge(proposal, local) as Dictionary
-	assert_that(merged["chunk_0_0"]["tile_id"]).is_equal("fresh_stone")
+	assert_that(merged["chunk_0_0"]["author_id"]).is_equal("fresh_author")

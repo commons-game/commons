@@ -22,8 +22,22 @@ func test_split_marks_as_split() -> void:
 	_sys._on_split_occurred("test-remote-session")
 	assert_bool(_sys.is_split()).is_true()
 
-func test_no_drift_within_delay() -> void:
+func test_no_drift_immediately_after_split() -> void:
+	## elapsed ≈ 0 — well within DRIFT_START_DELAY
 	_sys._on_split_occurred("test-remote-session")
+	var all_stable := true
+	for i in 50:
+		if _sys.is_chunk_shifted(Vector2i(i, i)):
+			all_stable = false
+			break
+	assert_bool(all_stable).is_true()
+
+func test_no_drift_within_delay_window() -> void:
+	## elapsed = 4.0s — still within DRIFT_START_DELAY = 5.0s
+	## This test proves the constant matters: if DRIFT_START_DELAY were 0.0,
+	## this test would fail (drift would be possible).
+	_sys._on_split_occurred("test-remote-session")
+	_sys._split_time = Time.get_unix_time_from_system() - 4.0
 	var all_stable := true
 	for i in 50:
 		if _sys.is_chunk_shifted(Vector2i(i, i)):

@@ -14,7 +14,9 @@ const SessionManagerScript   := preload("res://networking/SessionManager.gd")
 const RegionAuthorityScript  := preload("res://networking/RegionAuthority.gd")
 
 # Simple tile store that records the last write per (coords, layer) key.
-# Simulates LWW: later timestamp wins, matching CRDT semantics.
+# NOTE: This store does not implement LWW — the TileMutationBus interface does not pass
+# timestamps to tile_store.set_tile(). LWW conflict resolution is tested in
+# test_crdt_tile_store.gd via CRDTTileStore.merge().
 class SimTileStore:
 	# key: "x,y,layer" -> {tile_id, author, timestamp}
 	var tiles: Dictionary = {}
@@ -117,6 +119,24 @@ func test_apply_remote_idempotent() -> void:
 
 	# Store should reflect a single placement (last write idempotent)
 	assert_that(store_b.get_tile(Vector2i(5, 5), 0)).is_equal("wood")
+
+func test_concurrent_conflict_lww_is_covered_by_crdt_tile_store_tests() -> void:
+	## SimTileStore doesn't track timestamps — it cannot test LWW conflict resolution.
+	## LWW semantics are tested directly in test_crdt_tile_store.gd::test_merge_commutativity
+	## and test_merge_associativity.
+	## This test verifies that concurrent mutations at the SAME coord don't crash
+	## and that the final state is one of the two valid values.
+	var a: Array = _make_peer("peer_a")
+	var b: Array = _make_peer("peer_b")
+	var bus_a = a[0]
+	var bus_b = b[0]; var store_b = b[1]
+
+	bus_a.request_place_tile(Vector2i(7, 7), 0, "grass")
+	bus_b.request_place_tile(Vector2i(7, 7), 0, "stone")
+	_sync(bus_a, bus_b)
+
+	var result: String = store_b.get_tile(Vector2i(7, 7), 0)
+	assert_bool(result == "stone" or result == "grass").is_true()
 
 # --- SessionManager + MergePressureSystem integration ---
 

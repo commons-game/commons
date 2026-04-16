@@ -1,7 +1,9 @@
 ## MergeHandshake — propose/accept CRDT exchange for session merging.
 ##
 ## Sessions exchange snapshots of their CRDT tile store as plain Dictionaries.
-## Each key maps to a record: { "tile_id": String, "ts": float }.
+## Each key maps to a record matching CRDTTileStore's format:
+##   { "tile_id": int, "atlas_x": int, "atlas_y": int, "alt_tile": int,
+##     "timestamp": float, "author_id": String }
 ## accept_merge() performs LWW: higher timestamp wins per key.
 ##
 ## Usage:
@@ -28,8 +30,8 @@ func accept_merge(proposal: Dictionary, local_crdt: Dictionary) -> Dictionary:
 		if not merged.has(key):
 			merged[key] = remote_crdt[key].duplicate()
 		else:
-			var local_ts: float = float(merged[key].get("ts", 0))
-			var remote_ts: float = float(remote_crdt[key].get("ts", 0))
+			var local_ts: float = float(merged[key].get("timestamp", 0))
+			var remote_ts: float = float(remote_crdt[key].get("timestamp", 0))
 			if remote_ts > local_ts:
 				merged[key] = remote_crdt[key].duplicate()
 	return merged
