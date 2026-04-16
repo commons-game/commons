@@ -37,13 +37,7 @@ cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
 # 5. In Backend.gd: use_freenet = true
 # 6. FreenetPresenceService is now the default presence backend in World.gd
 ```
-**Integration smoke test:**
-```bash
-FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
-FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
-FREELAND_LOBBY_CONTRACT_PATH=./freeland_lobby_contract \
-  cargo test --features integration -p freeland-proxy -- --nocapture
-```
+**Integration smoke test:** (see "No proxy integration smoke test" entry for full instructions with correct paths)
 **Known fdev bug:** `fdev build` panics with "Could not find workspace root" unless `CARGO_TARGET_DIR` is set. Workaround: `CARGO_TARGET_DIR=$(pwd)/../../target fdev build`.
 **Node binds IPv6 by default:** Must pass `--ws-api-address 0.0.0.0` for IPv4 clients. The proxy URL needs `?encodingProtocol=native` suffix.
 
@@ -58,14 +52,25 @@ FREELAND_LOBBY_CONTRACT_PATH=./freeland_lobby_contract \
 **If the proxy fails after a node update:** Run `scripts/update_freenet_backend.sh` (planned) to re-verify the round-trip and update the pinned version.
 
 ### No proxy integration smoke test
-**Status:** Done — `backend/freenet/proxy/tests/round_trip.rs`.
+**Status:** Done — `backend/freenet/proxy/tests/round_trip.rs`. Chunk + lobby + pairing all covered.
 **Detail:** Test is gated behind `--features integration` so normal `cargo test` stays green.
-**Run it:**
+**Run it (use fdev-built packages, not raw .wasm):**
 ```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+BASE=/path/to/freeland/backend/freenet
+# Build contract packages first (once, or after code changes):
+(cd $BASE/contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build)
+(cd $BASE/contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build)
+(cd $BASE/contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build)
+# Run tests:
 FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
-FREELAND_CONTRACT_PATH=./freeland_chunk_contract \
-  cargo test --features integration -p freeland-proxy -- round_trip --nocapture
+FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
+FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
+FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
+  cargo test --features integration -p freeland-proxy -- --nocapture
 ```
+**IMPORTANT:** Always use `fdev build` output (in `build/freenet/`), never raw `.wasm` from `target/wasm32-unknown-unknown/`. The fdev package includes version metadata; raw WASM gives `unsupported incremental API version` error.
+**Also note:** `fdev` must have `~/.cargo/bin` in PATH (`cargo` not on default system PATH).
 
 ### fdev upstream bug: CARGO_TARGET_DIR must be set manually
 **Status:** Workaround in place, upstream bug to file.
