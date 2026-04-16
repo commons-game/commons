@@ -18,7 +18,7 @@ use freeland_common::{
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -298,10 +298,14 @@ async fn put_chunk(
         | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::PutOk { chunk_x, chunk_y }
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "put_chunk", chunk_x, chunk_y, response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: format!("put_chunk({chunk_x},{chunk_y}): unexpected node response") }
+        }
+        Err(e) => {
+            warn!(op = "put_chunk", chunk_x, chunk_y, error = %e, "Freenet node error");
+            ProxyResponse::Error { message: format!("put_chunk({chunk_x},{chunk_y}): {e}") }
+        }
     }
 }
 
@@ -351,10 +355,20 @@ async fn get_chunk(
         Ok(HostResponse::ContractResponse(ContractResponse::NotFound { .. })) => {
             ProxyResponse::GetNotFound { chunk_x, chunk_y }
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "get_chunk", chunk_x, chunk_y, response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: format!("get_chunk({chunk_x},{chunk_y}): unexpected node response") }
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("missing contract") {
+                debug!(op = "get_chunk", chunk_x, chunk_y, "contract not yet created");
+                ProxyResponse::GetNotFound { chunk_x, chunk_y }
+            } else {
+                warn!(op = "get_chunk", chunk_x, chunk_y, error = %e, "Freenet node error");
+                ProxyResponse::Error { message: format!("get_chunk({chunk_x},{chunk_y}): {e}") }
+            }
+        }
     }
 }
 
@@ -428,10 +442,14 @@ async fn lobby_put(
         | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::LobbyPutOk
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "lobby_put", response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: "lobby_put: unexpected node response".into() }
+        }
+        Err(e) => {
+            warn!(op = "lobby_put", error = %e, "Freenet node error");
+            ProxyResponse::Error { message: format!("lobby_put: {e}") }
+        }
     }
 }
 
@@ -479,10 +497,20 @@ async fn lobby_get(
         Ok(HostResponse::ContractResponse(ContractResponse::NotFound { .. })) => {
             ProxyResponse::LobbyGetNotFound
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "lobby_get", response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: "lobby_get: unexpected node response".into() }
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("missing contract") {
+                debug!(op = "lobby_get", "lobby contract not yet created");
+                ProxyResponse::LobbyGetNotFound
+            } else {
+                warn!(op = "lobby_get", error = %e, "Freenet node error");
+                ProxyResponse::Error { message: format!("lobby_get: {e}") }
+            }
+        }
     }
 }
 
@@ -549,10 +577,14 @@ async fn pairing_publish(
         | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::PairingPublishOk { pairing_key }
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected pairing publish response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "pairing_publish", %pairing_key, response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: format!("pairing_publish({pairing_key}): unexpected node response") }
+        }
+        Err(e) => {
+            warn!(op = "pairing_publish", %pairing_key, error = %e, "Freenet node error");
+            ProxyResponse::Error { message: format!("pairing_publish({pairing_key}): {e}") }
+        }
     }
 }
 
@@ -599,10 +631,20 @@ async fn pairing_get(
         Ok(HostResponse::ContractResponse(ContractResponse::NotFound { .. })) => {
             ProxyResponse::PairingGetNotFound { pairing_key }
         }
-        Ok(other) => ProxyResponse::Error {
-            message: format!("Unexpected pairing get response: {other:?}"),
-        },
-        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+        Ok(other) => {
+            warn!(op = "pairing_get", %pairing_key, response = ?other, "Unexpected Freenet response");
+            ProxyResponse::Error { message: format!("pairing_get({pairing_key}): unexpected node response") }
+        }
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("missing contract") {
+                debug!(op = "pairing_get", %pairing_key, "pairing contract not yet created");
+                ProxyResponse::PairingGetNotFound { pairing_key }
+            } else {
+                warn!(op = "pairing_get", %pairing_key, error = %e, "Freenet node error");
+                ProxyResponse::Error { message: format!("pairing_get({pairing_key}): {e}") }
+            }
+        }
     }
 }
 
@@ -643,13 +685,15 @@ async fn player_delegate_call(
     let values = match freenet.recv().await {
         Ok(HostResponse::DelegateResponse { values, .. }) => values,
         Ok(other) => {
+            warn!(op = "player_delegate_call", %player_id, %kind, response = ?other, "Unexpected Freenet response");
             return ProxyResponse::Error {
-                message: format!("Unexpected delegate response: {other:?}"),
+                message: format!("player_{kind}({player_id}): unexpected node response"),
             }
         }
         Err(e) => {
+            warn!(op = "player_delegate_call", %player_id, %kind, error = %e, "Freenet node error");
             return ProxyResponse::Error {
-                message: format!("Delegate node error: {e}"),
+                message: format!("player_{kind}({player_id}): {e}"),
             }
         }
     };
