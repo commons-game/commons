@@ -53,8 +53,9 @@ func _register_builtins() -> void:
 	register(_make("leather_shoes",  "armor", "Leather Shoes",  1, "shoes"))
 
 	# --- Materials (stackable) ---
-	register(_make("wood",  "material", "Wood",  32))
-	register(_make("stone", "material", "Stone", 32))
+	register(_make("wood",          "material", "Wood",         32))
+	register(_make("stone",         "material", "Stone",        32))
+	register(_make("ether_crystal", "material", "Ether Crystal", 16))
 
 	# --- Food ---
 	register(_make("berry", "food", "Berry", 32))

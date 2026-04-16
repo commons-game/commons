@@ -162,6 +162,14 @@ func _on_player_died() -> void:
 	tween.tween_property(overlay, "color", Color(0, 0, 0, 1), 0.6)
 	await tween.finished
 
+	# Show "YOU DIED" text at full black.
+	var died_label := Label.new()
+	died_label.text = "YOU DIED"
+	died_label.add_theme_font_size_override("font_size", 48)
+	died_label.add_theme_color_override("font_color", Color(0.8, 0.1, 0.1))
+	died_label.position = Vector2(1280 / 2 - 120, 720 / 2 - 30)
+	overlay_layer.add_child(died_label)
+
 	# Wait a moment at full black.
 	await get_tree().create_timer(0.4).timeout
 
@@ -400,13 +408,23 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 	var tile: Dictionary = chunk.crdt.get_tile(1, local)
 	if tile.is_empty():
 		return
-	# Atlas (3,1) = loot_pickup → bone_armor for now
-	if tile.get("atlas_x", -1) == 3 and tile.get("atlas_y", -1) == 1:
+	var ax: int = tile.get("atlas_x", -1)
+	var ay: int = tile.get("atlas_y", -1)
+	if ax == 3 and ay == 1:
+		# loot_pickup tile — basic materials
 		chunk_manager.remove_tile(tile_pos, 1, "pickup")
 		_pickup_flash_timer = PICKUP_FLASH_DURATION
-		if equipment != null:
-			equipment.call("add_to_bag", "bone_armor", "armor")
-			print("Player: picked up bone_armor")
+		if inventory != null:
+			inventory.add_to_bag({"id": "wood",  "category": "material", "count": 2}, 32)
+			inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 32)
+			print("Player: picked up loot (2 wood, 2 stone)")
+	elif ax == 3 and ay == 2:
+		# ether_crystal — shifting lands unique reward
+		chunk_manager.remove_tile(tile_pos, 1, "pickup")
+		_pickup_flash_timer = PICKUP_FLASH_DURATION
+		if inventory != null:
+			inventory.add_to_bag({"id": "ether_crystal", "category": "material", "count": 1}, 16)
+			print("Player: picked up ether_crystal")
 
 ## Active SpeechBubble nodes above this player (for stacking).
 var _speech_bubbles: Array = []
