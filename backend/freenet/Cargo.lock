@@ -398,6 +398,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "freeland-pairing-contract"
+version = "0.1.0"
+dependencies = [
+ "freeland-common",
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "freeland-proxy"
 version = "0.1.0"
 dependencies = [

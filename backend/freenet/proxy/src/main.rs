@@ -3,13 +3,15 @@
 /// Listens on ws://127.0.0.1:7510  (configurable via FREELAND_PROXY_ADDR)
 /// Connects to   ws://localhost:7509/v1/contract/command?encodingProtocol=native  (configurable via FREENET_NODE_URL)
 ///
-/// Chunk contract:  FREELAND_CONTRACT_PATH       (default: ./freeland_chunk_contract)
-/// Lobby contract:  FREELAND_LOBBY_CONTRACT_PATH (default: ./freeland_lobby_contract)
+/// Chunk contract:   FREELAND_CONTRACT_PATH        (default: ./freeland_chunk_contract)
+/// Lobby contract:   FREELAND_LOBBY_CONTRACT_PATH  (default: ./freeland_lobby_contract)
+/// Pairing contract: FREELAND_PAIRING_CONTRACT_PATH (default: ./freeland_pairing_contract)
 ///
-/// Both must be versioned packages produced by `fdev build`, NOT raw .wasm files.
+/// All must be versioned packages produced by `fdev build`, NOT raw .wasm files.
 /// Build:
-///   cd contracts/chunk-contract && CARGO_TARGET_DIR=../../target fdev build
-///   cd contracts/lobby-contract && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build
+///   cd contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build
 use std::{env, path::PathBuf};
 
 #[tokio::main]
@@ -37,7 +39,11 @@ async fn main() {
         env::var("FREELAND_LOBBY_CONTRACT_PATH").unwrap_or("freeland_lobby_contract".into()),
     );
 
-    freeland_proxy::run_listener(listen_addr, node_url, contract_path, lobby_contract_path)
+    let pairing_contract_path = PathBuf::from(
+        env::var("FREELAND_PAIRING_CONTRACT_PATH").unwrap_or("freeland_pairing_contract".into()),
+    );
+
+    freeland_proxy::run_listener(listen_addr, node_url, contract_path, lobby_contract_path, pairing_contract_path)
         .await
         .expect("Proxy failed to start");
 

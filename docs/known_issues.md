@@ -199,6 +199,14 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 **Root cause:** `_on_connection_needed` called `NetworkManager.host()`/`.join()` unconditionally. If `connection_needed` fired again while ENet was already in STATE_HOSTING or STATE_JOINING (e.g. during a reconnect cycle), it would try to create a second ENet server on the same port, causing a bind error.
 **Fix:** Added `if NetworkManager.get_state() != NetworkManager.STATE_IDLE: return` guard at the top of `World._on_connection_needed`.
 
+### WebRTC symmetric NAT connections will fail (~20% of cases)
+**Status:** Known limitation — deferred (step 2.5).
+**Detail:** WebRTCManager uses STUN only. Symmetric NAT (common on corporate/mobile networks) requires a TURN relay server, which we haven't added. For home broadband (~80% of cases) STUN works. Add a TURN server (self-hosted coturn or Metered free tier) when needed.
+
+### WebRTC TURN not implemented
+**Status:** Deferred.
+**Detail:** See above. TURN server support would be added by passing additional `{"urls": ["turn:..."], "username": ..., "credential": ...}` entries to the `iceServers` array in `WebRTCManager.STUN_SERVERS`.
+
 ### Freenet lobby contract requires fdev build before proxy starts
 **Status:** Expected — same as chunk contract.
 **Detail:** `freeland_lobby_contract` package must be built before running the proxy:
@@ -208,6 +216,16 @@ CARGO_TARGET_DIR=../../target fdev build
 cp build/freenet/freeland_lobby_contract /path/to/proxy/working/dir/
 ```
 Then set `FREELAND_LOBBY_CONTRACT_PATH` or place the file alongside `freeland_chunk_contract`.
+
+### Pairing contract requires fdev build before proxy starts
+**Status:** Expected — same as chunk and lobby contracts.
+**Detail:**
+```bash
+cd backend/freenet/contracts/pairing-contract
+CARGO_TARGET_DIR=../../target fdev build
+cp build/freenet/freeland_pairing_contract /path/to/proxy/working/dir/
+```
+Set `FREELAND_PAIRING_CONTRACT_PATH` or place alongside the other contract artifacts.
 
 ### FreenetPresenceService uses LAN IP, not external IP
 **Status:** Known limitation — deferred to step 2 (WebRTC).

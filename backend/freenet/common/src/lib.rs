@@ -151,6 +151,80 @@ pub type LobbySummary = HashMap<String, f64>;
 pub type LobbyDelta = HashMap<String, LobbyEntry>;
 
 // ---------------------------------------------------------------------------
+// Pairing types — WebRTC signaling for NAT traversal
+// ---------------------------------------------------------------------------
+
+/// Pairing contract TTL: 5 minutes.
+pub const PAIRING_TTL_SECS: f64 = 300.0;
+
+/// Parameters for a pairing contract instance.
+/// Key = hash(WASM || PairingParameters { pairing_key: "{min_sid}:{max_sid}" })
+/// Both sides compute the same key deterministically from their session IDs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PairingParameters {
+    pub pairing_key: String,
+}
+
+/// One side's contribution to the pairing handshake.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PairingSide {
+    /// SDP offer or answer.
+    pub sdp: String,
+    /// ICE candidates, each encoded as "mid:index:sdp".
+    pub ice_candidates: Vec<String>,
+    /// Unix timestamp — LWW key if this is re-published.
+    pub timestamp: f64,
+}
+
+/// Full pairing state: the WebRTC signaling exchange between two players.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct PairingState {
+    pub pairing_key: String,
+    /// Written by the offerer (lower session ID alphabetically).
+    pub offer: Option<PairingSide>,
+    /// Written by the answerer after reading the offer.
+    pub answer: Option<PairingSide>,
+    /// Original creation time for TTL eviction.
+    pub created_at: f64,
+}
+
+impl PairingState {
+    /// LWW merge: keep the side with the higher timestamp; keep earlier created_at.
+    pub fn merge(&mut self, other: &PairingState) {
+        let merge_side = |mine: &mut Option<PairingSide>, theirs: &Option<PairingSide>| {
+            match (mine.as_ref(), theirs.as_ref()) {
+                (None, Some(t)) => *mine = Some(t.clone()),
+                (Some(m), Some(t)) if t.timestamp > m.timestamp => *mine = Some(t.clone()),
+                _ => {}
+            }
+        };
+        merge_side(&mut self.offer, &other.offer);
+        merge_side(&mut self.answer, &other.answer);
+        // Keep the earlier creation time (the original publish)
+        if other.created_at > 0.0
+            && (self.created_at == 0.0 || other.created_at < self.created_at)
+        {
+            self.created_at = other.created_at;
+        }
+        if self.pairing_key.is_empty() {
+            self.pairing_key = other.pairing_key.clone();
+        }
+    }
+
+    pub fn is_stale(&self, now: f64) -> bool {
+        self.created_at > 0.0 && now - self.created_at > PAIRING_TTL_SECS
+    }
+}
+
+/// Summary: compact representation of what each side has published.
+/// Used for efficient delta sync across the Freenet network.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct PairingSummary {
+    pub offer_ts: Option<f64>,
+    pub answer_ts: Option<f64>,
+}
+
+// ---------------------------------------------------------------------------
 // JSON proxy protocol (GDScript ↔ proxy ↔ Freenet node)
 // ---------------------------------------------------------------------------
 
@@ -181,6 +255,24 @@ pub enum ProxyRequest {
     },
     /// Retrieve the full lobby state (all known players' presence entries).
     LobbyGet,
+    /// Publish the offerer's SDP + ICE candidates to the pairing contract.
+    PairingPublishOffer {
+        pairing_key: String,
+        sdp: String,
+        ice_candidates: Vec<String>,
+        timestamp: f64,
+    },
+    /// Publish the answerer's SDP + ICE candidates to the pairing contract.
+    PairingPublishAnswer {
+        pairing_key: String,
+        sdp: String,
+        ice_candidates: Vec<String>,
+        timestamp: f64,
+    },
+    /// Retrieve the current pairing state (both sides' SDP + ICE if present).
+    PairingGet {
+        pairing_key: String,
+    },
 }
 
 /// Response from proxy to GDScript.
@@ -215,6 +307,20 @@ pub enum ProxyResponse {
     },
     /// Lobby presence entry published.
     LobbyPutOk,
+    /// Pairing side published (offer or answer).
+    PairingPublishOk {
+        pairing_key: String,
+    },
+    /// Pairing state returned (may have only offer, or both offer+answer).
+    PairingGetOk {
+        pairing_key: String,
+        /// JSON-encoded PairingState.
+        state_json: String,
+    },
+    /// Pairing contract not yet published — no one has written an offer yet.
+    PairingGetNotFound {
+        pairing_key: String,
+    },
     /// Full lobby state returned.
     LobbyGetOk {
         /// JSON-encoded LobbyState.

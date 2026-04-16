@@ -23,8 +23,10 @@ const MergePressureScript   := preload("res://networking/MergePressureSystem.gd"
 const BridgeFormationScript := preload("res://networking/BridgeFormation.gd")
 const SplitDetectorScript   := preload("res://networking/SplitDetector.gd")
 
-## Emitted when a bridge gate passes — World connects via NetworkManager.
+## Emitted when a bridge gate passes — World connects via NetworkManager (ENet/LAN).
 signal connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool)
+## Emitted when using WebRTC — World starts WebRTCManager offer/answer flow.
+signal webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool)
 ## Emitted after ENet connects and it's time to exchange CRDT snapshots.
 signal merge_ready(remote_session_id: String)
 ## Emitted after SplitDetector threshold is crossed.
@@ -35,6 +37,9 @@ signal pressure_changed(pressure: float)
 
 ## Set by World from SessionManager.session_id before _ready().
 var session_id: String = ""
+## When true, emit webrtc_pairing_needed instead of connection_needed.
+## Set false to fall back to ENet (LAN/localhost testing).
+var use_webrtc: bool = true
 ## Seconds between presence broadcasts (overridden to 1.0 in dev mode).
 var broadcast_interval: float = 30.0
 ## ENet port to advertise in presence broadcasts.
@@ -132,7 +137,11 @@ func _on_peer_discovered(remote_sid: String, remote_chunk: Vector2i,
 	_merging = true
 	_merging_timer = 0.0
 	var i_am_host: bool = session_id < remote_sid
-	connection_needed.emit(remote_ip, remote_enet_port, i_am_host)
+	if use_webrtc:
+		var pairing_key := _make_pairing_key(session_id, remote_sid)
+		webrtc_pairing_needed.emit(pairing_key, i_am_host)
+	else:
+		connection_needed.emit(remote_ip, remote_enet_port, i_am_host)
 
 ## Called by World when the ENet peer_connected signal fires.
 func on_peer_connected(remote_sid: String, remote_chunk: Vector2i) -> void:
@@ -183,3 +192,9 @@ func _do_split() -> void:
 	_split.on_dissolve(_pressure)
 	_pressure.peer_count = 1
 	split_occurred.emit(_remote_session_id)
+
+## Deterministic pairing key: same result regardless of which side computes it.
+func _make_pairing_key(sid_a: String, sid_b: String) -> String:
+	if sid_a < sid_b:
+		return sid_a + ":" + sid_b
+	return sid_b + ":" + sid_a

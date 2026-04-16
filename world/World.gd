@@ -32,7 +32,9 @@ const ShrineManagerScript         := preload("res://mods/ShrineManager.gd")
 const MergeCoordinatorScript         := preload("res://networking/MergeCoordinator.gd")
 const UDPPresenceServiceScript       := preload("res://networking/UDPPresenceService.gd")
 const FreenetPresenceServiceScript   := preload("res://networking/FreenetPresenceService.gd")
-const MergeRPCBusScript           := preload("res://networking/MergeRPCBus.gd")
+const FreenetSignalingScript         := preload("res://networking/FreenetSignaling.gd")
+const WebRTCManagerScript            := preload("res://networking/WebRTCManager.gd")
+const MergeRPCBusScript              := preload("res://networking/MergeRPCBus.gd")
 const ReputationStoreScript       := preload("res://reputation/ReputationStore.gd")
 const MergeRouterScript           := preload("res://reputation/MergeRouter.gd")
 const VibeBusScript               := preload("res://world/VibeBus.gd")
@@ -65,6 +67,8 @@ var _debug_visible: bool = false
 var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
+var _signaling: Node = null       ## FreenetSignaling — pairing contract I/O
+var _webrtc_manager: Node = null  ## WebRTCManager — current active pairing
 var _shifting_lands: Node = null
 var _shifting_hud: Node = null
 var _reputation_store: ReputationStoreScript = null
@@ -215,16 +219,22 @@ func _setup_merge_system(args: Array) -> void:
 	_rpc_bus.chunk_manager = $ChunkManager
 
 	_coordinator.connection_needed.connect(_on_connection_needed)
+	_coordinator.webrtc_pairing_needed.connect(_on_webrtc_pairing_needed)
 	_coordinator.merge_ready.connect(_on_merge_ready)
 	_coordinator.split_occurred.connect(_on_split_occurred)
 	_coordinator.pressure_changed.connect(_on_pressure_changed)
 	_rpc_bus.hello_received.connect(_on_hello_received)
 	_rpc_bus.merge_applied.connect(_on_merge_applied)
 
+	# Freenet signaling for WebRTC pairing contract exchange
+	_signaling = FreenetSignalingScript.new()
+	_signaling.name = "FreenetSignaling"
+
 	# Add to tree after all properties are set (triggers _ready() on each node)
 	add_child(presence)
 	add_child(_coordinator)
 	add_child(_rpc_bus)
+	add_child(_signaling)
 
 	_shifting_lands = ShiftingLandsSystemScript.new()
 	_shifting_lands.name = "ShiftingLandsSystem"
@@ -367,10 +377,9 @@ func _on_peer_disconnected(peer_id: int) -> void:
 # ---------------------------------------------------------------------------
 
 func _on_connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bool) -> void:
-	print("World: merge connection needed — ip=%s port=%d host=%s" \
+	## ENet fallback (use_webrtc=false on coordinator — for LAN tests).
+	print("World: ENet connection needed — ip=%s port=%d host=%s" \
 		% [remote_ip, remote_enet_port, str(i_am_host)])
-	# Guard: if we're already hosting or joining from a previous attempt,
-	# ignore this signal to prevent double-host on reconnect.
 	if NetworkManager.get_state() != NetworkManager.STATE_IDLE:
 		print("World: ignoring connection_needed — NetworkManager not idle (state=%d)" \
 			% NetworkManager.get_state())
@@ -379,6 +388,43 @@ func _on_connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: 
 		NetworkManager.host(remote_enet_port)
 	else:
 		NetworkManager.join(remote_ip, remote_enet_port)
+
+func _on_webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool) -> void:
+	## WebRTC connection: start offer/answer flow through Freenet pairing contract.
+	if _webrtc_manager != null and not _webrtc_manager.is_queued_for_deletion():
+		print("World: ignoring webrtc_pairing_needed — already have active WebRTCManager")
+		return
+	print("World: WebRTC pairing needed — key=%s offerer=%s" % [pairing_key, str(i_am_offerer)])
+	_webrtc_manager = WebRTCManagerScript.new()
+	_webrtc_manager.name = "WebRTCManager"
+	_webrtc_manager.signaling = _signaling
+	_webrtc_manager.peer_established.connect(_on_webrtc_peer_established)
+	_webrtc_manager.connection_failed.connect(_on_webrtc_connection_failed)
+	add_child(_webrtc_manager)
+	# Wire pairing_received → WebRTCManager so it gets signaling updates
+	_signaling.pairing_received.connect(_webrtc_manager.on_pairing_received)
+	if i_am_offerer:
+		_webrtc_manager.start_as_offerer(pairing_key)
+	else:
+		_webrtc_manager.start_as_answerer(pairing_key)
+
+func _on_webrtc_peer_established(mp: WebRTCMultiplayerPeer, _i_am_host: bool) -> void:
+	print("World: WebRTC peer established — setting multiplayer peer")
+	NetworkManager.set_webrtc_peer(mp)
+	# Disconnect the signaling wire — this pairing is done
+	if _signaling.pairing_received.is_connected(_webrtc_manager.on_pairing_received):
+		_signaling.pairing_received.disconnect(_webrtc_manager.on_pairing_received)
+
+func _on_webrtc_connection_failed() -> void:
+	push_warning("World: WebRTC connection failed — resetting for retry")
+	if _webrtc_manager != null:
+		if _signaling != null and _signaling.pairing_received.is_connected(_webrtc_manager.on_pairing_received):
+			_signaling.pairing_received.disconnect(_webrtc_manager.on_pairing_received)
+		_webrtc_manager.queue_free()
+		_webrtc_manager = null
+	# Let coordinator retry on next broadcast cycle
+	if _coordinator != null:
+		_coordinator._merging = false
 
 func _on_hello_received(remote_sid: String, remote_chunk: Vector2i) -> void:
 	if _coordinator != null:

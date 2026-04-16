@@ -9,6 +9,7 @@ use freenet_stdlib::{
 };
 use freeland_common::{
     ChunkParameters, ChunkState, LobbyEntry, LobbyParameters, LobbyState,
+    PairingParameters, PairingState, PairingSide,
     ProxyRequest, ProxyResponse,
 };
 use tokio::net::{TcpListener, TcpStream};
@@ -26,6 +27,7 @@ pub async fn run_listener(
     node_url: String,
     contract_path: PathBuf,
     lobby_contract_path: PathBuf,
+    pairing_contract_path: PathBuf,
 ) -> anyhow::Result<SocketAddr> {
     let contract_bytes = Arc::new(std::fs::read(&contract_path).map_err(|e| {
         anyhow::anyhow!(
@@ -47,6 +49,16 @@ pub async fn run_listener(
     })?);
     info!(path = %lobby_contract_path.display(), bytes = lobby_bytes.len(), "Loaded lobby contract");
 
+    let pairing_bytes = Arc::new(std::fs::read(&pairing_contract_path).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to read pairing contract from {}: {e}\n\
+             Build it with: cd contracts/pairing-contract && \
+             CARGO_TARGET_DIR=../../target fdev build",
+            pairing_contract_path.display()
+        )
+    })?);
+    info!(path = %pairing_contract_path.display(), bytes = pairing_bytes.len(), "Loaded pairing contract");
+
     let listener = TcpListener::bind(listen_addr).await?;
     let bound = listener.local_addr()?;
     info!(addr = %bound, "Proxy listening");
@@ -57,8 +69,9 @@ pub async fn run_listener(
             let url = node_url.clone();
             let cb = contract_bytes.clone();
             let lb = lobby_bytes.clone();
+            let pb = pairing_bytes.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle_client(stream, url, cb, lb).await {
+                if let Err(e) = handle_client(stream, url, cb, lb, pb).await {
                     error!(%peer, error = %e, "Client handler error");
                 }
             });
@@ -77,6 +90,7 @@ async fn handle_client(
     node_url: String,
     contract_bytes: Arc<Vec<u8>>,
     lobby_bytes: Arc<Vec<u8>>,
+    pairing_bytes: Arc<Vec<u8>>,
 ) -> anyhow::Result<()> {
     use futures::{SinkExt, StreamExt};
 
@@ -112,7 +126,7 @@ async fn handle_client(
             }
         };
 
-        let response = dispatch(&mut freenet, &contract_bytes, &lobby_bytes, request).await;
+        let response = dispatch(&mut freenet, &contract_bytes, &lobby_bytes, &pairing_bytes, request).await;
         ws.send(Message::Text(serde_json::to_string(&response)?.into()))
             .await?;
     }
@@ -128,6 +142,7 @@ async fn dispatch(
     freenet: &mut WebApi,
     contract_bytes: &[u8],
     lobby_bytes: &[u8],
+    pairing_bytes: &[u8],
     request: ProxyRequest,
 ) -> ProxyResponse {
     match request {
@@ -147,6 +162,15 @@ async fn dispatch(
         }
         ProxyRequest::LobbyGet => {
             lobby_get(freenet, lobby_bytes).await
+        }
+        ProxyRequest::PairingPublishOffer { pairing_key, sdp, ice_candidates, timestamp } => {
+            pairing_publish(freenet, pairing_bytes, pairing_key, sdp, ice_candidates, timestamp, true).await
+        }
+        ProxyRequest::PairingPublishAnswer { pairing_key, sdp, ice_candidates, timestamp } => {
+            pairing_publish(freenet, pairing_bytes, pairing_key, sdp, ice_candidates, timestamp, false).await
+        }
+        ProxyRequest::PairingGet { pairing_key } => {
+            pairing_get(freenet, pairing_bytes, pairing_key).await
         }
     }
 }
@@ -259,6 +283,13 @@ fn make_params(chunk_x: i32, chunk_y: i32) -> Result<Arc<Parameters<'static>>, S
         .map_err(|e| format!("Params serialization: {e}"))
 }
 
+fn make_pairing_params(pairing_key: &str) -> Result<Arc<Parameters<'static>>, String> {
+    let pp = PairingParameters { pairing_key: pairing_key.to_string() };
+    serde_json::to_vec(&pp)
+        .map(|b| Arc::new(Parameters::from(b)))
+        .map_err(|e| format!("Pairing params serialization: {e}"))
+}
+
 fn make_lobby_params() -> Result<Arc<Parameters<'static>>, String> {
     let lp = LobbyParameters::default();
     serde_json::to_vec(&lp)
@@ -363,6 +394,125 @@ async fn lobby_get(
         }
         Ok(other) => ProxyResponse::Error {
             message: format!("Unexpected response: {other:?}"),
+        },
+        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pairing publish (offer or answer)
+// ---------------------------------------------------------------------------
+
+/// Publish one side's SDP + ICE to the pairing contract.
+/// `is_offer=true` writes the offer field; `false` writes the answer field.
+async fn pairing_publish(
+    freenet: &mut WebApi,
+    pairing_bytes: &[u8],
+    pairing_key: String,
+    sdp: String,
+    ice_candidates: Vec<String>,
+    timestamp: f64,
+    is_offer: bool,
+) -> ProxyResponse {
+    let params = match make_pairing_params(&pairing_key) {
+        Ok(p) => p,
+        Err(e) => return ProxyResponse::Error { message: e },
+    };
+    let container = match ContractContainer::try_from((pairing_bytes.to_vec(), params)) {
+        Ok(c) => c,
+        Err(e) => return ProxyResponse::Error { message: format!("Pairing contract init: {e}") },
+    };
+
+    let side = PairingSide { sdp, ice_candidates, timestamp };
+    let state = if is_offer {
+        PairingState {
+            pairing_key: pairing_key.clone(),
+            offer: Some(side),
+            answer: None,
+            created_at: timestamp,
+        }
+    } else {
+        PairingState {
+            pairing_key: pairing_key.clone(),
+            offer: None,
+            answer: Some(side),
+            created_at: 0.0,
+        }
+    };
+
+    let state_bytes = match serde_json::to_vec(&state) {
+        Ok(b) => b,
+        Err(e) => return ProxyResponse::Error { message: format!("Serialize pairing state: {e}") },
+    };
+
+    let put = ClientRequest::ContractOp(ContractRequest::Put {
+        contract: container,
+        state: WrappedState::from(state_bytes),
+        related_contracts: RelatedContracts::default(),
+        subscribe: false,
+        blocking_subscribe: false,
+    });
+
+    if let Err(e) = freenet.send(put).await {
+        return ProxyResponse::Error { message: format!("Send failed: {e}") };
+    }
+
+    match freenet.recv().await {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. })) => {
+            ProxyResponse::PairingPublishOk { pairing_key }
+        }
+        Ok(other) => ProxyResponse::Error {
+            message: format!("Unexpected pairing publish response: {other:?}"),
+        },
+        Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pairing get
+// ---------------------------------------------------------------------------
+
+async fn pairing_get(
+    freenet: &mut WebApi,
+    pairing_bytes: &[u8],
+    pairing_key: String,
+) -> ProxyResponse {
+    let params = match make_pairing_params(&pairing_key) {
+        Ok(p) => p,
+        Err(e) => return ProxyResponse::Error { message: e },
+    };
+    let container = match ContractContainer::try_from((pairing_bytes.to_vec(), params)) {
+        Ok(c) => c,
+        Err(e) => return ProxyResponse::Error { message: format!("Pairing contract init: {e}") },
+    };
+    let contract_id: ContractInstanceId = container.id().clone();
+
+    let get = ClientRequest::ContractOp(ContractRequest::Get {
+        key: contract_id,
+        return_contract_code: false,
+        subscribe: false,
+        blocking_subscribe: false,
+    });
+
+    if let Err(e) = freenet.send(get).await {
+        return ProxyResponse::Error { message: format!("Send failed: {e}") };
+    }
+
+    match freenet.recv().await {
+        Ok(HostResponse::ContractResponse(ContractResponse::GetResponse { state, .. })) => {
+            let state_json = match std::str::from_utf8(state.as_ref()) {
+                Ok(s) => s.to_string(),
+                Err(_) => return ProxyResponse::Error {
+                    message: "Pairing state is not valid UTF-8".into(),
+                },
+            };
+            ProxyResponse::PairingGetOk { pairing_key, state_json }
+        }
+        Ok(HostResponse::ContractResponse(ContractResponse::NotFound { .. })) => {
+            ProxyResponse::PairingGetNotFound { pairing_key }
+        }
+        Ok(other) => ProxyResponse::Error {
+            message: format!("Unexpected pairing get response: {other:?}"),
         },
         Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
     }

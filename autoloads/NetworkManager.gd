@@ -60,6 +60,14 @@ func disconnect_all() -> void:
 func get_state() -> int:
 	return _state
 
+## Called by World when WebRTCManager establishes a connection.
+## Registers the WebRTC peer so NetworkManager state is consistent with
+## is_connected_to_session() and the STATE_IDLE guard in _on_connection_needed.
+func set_webrtc_peer(mp: WebRTCMultiplayerPeer) -> void:
+	multiplayer.multiplayer_peer = mp
+	_state = STATE_HOSTING  # both sides use HOSTING to mean "active session"
+	print("NetworkManager: WebRTC peer set")
+
 func is_hosting() -> bool:
 	return _state == STATE_HOSTING
 
