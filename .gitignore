@@ -27,6 +27,16 @@ desktop.ini
 # Build output (if exporting)
 export/
 
+# Game binary (built by Godot export)
+*.x86_64
+*.exe
+*.app
+
+# Rust / Freenet backend build artifacts
+backend/freenet/target/
+backend/freenet/contracts/*/build/
+backend/freenet/delegates/*/build/
+
 # User data (generated at runtime, not tracked)
 # user:// maps to ~/.local/share/godot/app_userdata/Freeland/ on Linux
 # Not in the project directory, so no gitignore needed for user:// data

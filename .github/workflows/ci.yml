@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  rust:
+    name: Rust backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/freenet
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/freenet/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/freenet/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Check (all workspace members)
+        run: cargo check --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+  godot-parse:
+    name: Godot script parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot 4
+        run: |
+          wget -q "https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip" -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo mv /tmp/godot/Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot4
+          sudo chmod +x /usr/local/bin/godot4
+
+      - name: Parse check (headless)
+        run: godot4 --headless --path . --quit-after 1 -- --no-managed-backend 2>&1 | tee /tmp/godot_parse.log
+        # Fail if any ERROR lines appear
+      - name: Check for parse errors
+        run: |
+          if grep -q "^ERROR" /tmp/godot_parse.log; then
+            echo "Parse errors detected:"
+            grep "^ERROR" /tmp/godot_parse.log
+            exit 1
+          fi
+          echo "No parse errors."
