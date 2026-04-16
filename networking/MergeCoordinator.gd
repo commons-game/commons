@@ -28,7 +28,8 @@ signal connection_needed(remote_ip: String, remote_enet_port: int, i_am_host: bo
 ## Emitted after ENet connects and it's time to exchange CRDT snapshots.
 signal merge_ready(remote_session_id: String)
 ## Emitted after SplitDetector threshold is crossed.
-signal split_occurred
+## Carries the remote session ID so handlers don't need to reach back into the coordinator.
+signal split_occurred(remote_session_id: String)
 ## Emitted every tick so HUD can display the pressure bar.
 signal pressure_changed(pressure: float)
 
@@ -168,4 +169,4 @@ func _do_split() -> void:
 	_merging = false
 	_split.on_dissolve(_pressure)
 	_pressure.peer_count = 1
-	split_occurred.emit()
+	split_occurred.emit(_remote_session_id)

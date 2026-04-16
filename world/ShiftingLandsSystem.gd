@@ -6,6 +6,8 @@
 ##   _coordinator.merge_ready.connect(_shifting_lands._on_merge_ready)
 ##   chunk_manager.shifting_lands = _shifting_lands
 ##
+## split_occurred carries the remote_session_id — no separate seed-setting step needed.
+##
 ## Quantum observer rule: only chunks NOT currently loaded can drift.
 ## ChunkManager passes the current loaded set via is_chunk_shifted(coords).
 extends Node
@@ -43,10 +45,11 @@ func is_chunk_shifted(coords: Vector2i) -> bool:
 	_drifted[coords] = drifted
 	return drifted
 
-## Called when players diverge. Partner seed must be set separately.
-func _on_split_occurred() -> void:
+## Called when players diverge. Sets the shift seed from the partner's session ID.
+func _on_split_occurred(remote_session_id: String) -> void:
 	_split = true
 	_split_time = Time.get_unix_time_from_system()
+	_shift_seed = remote_session_id.hash()
 	_drifted.clear()
 	print("ShiftingLands: split — drift begins in %.1fs" % DRIFT_START_DELAY)
 
@@ -58,11 +61,6 @@ func _on_merge_ready(_remote_session_id: String) -> void:
 	_split = false
 	_drifted.clear()
 	print("ShiftingLands: merge — drift cleared, CRDT reconciliation in progress")
-
-## Set the seed to derive shifted terrain from.
-## World calls this when it knows the remote session ID.
-func set_partner_seed(remote_session_id: String) -> void:
-	_shift_seed = remote_session_id.hash()
 
 ## Returns a list of drifted chunk coords (for debug/HUD use).
 func get_drifted_coords() -> Array:

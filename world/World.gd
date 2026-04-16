@@ -387,11 +387,9 @@ func _setup_shifting_lands_hud() -> void:
 	_shifting_hud.name = "ShiftingLandsHUD"
 	add_child(_shifting_hud)
 
-func _on_split_visual() -> void:
+func _on_split_visual(_remote_session_id: String) -> void:
 	if _shifting_hud != null:
 		_shifting_hud.activate()
-	if _shifting_lands != null and _coordinator != null:
-		_shifting_lands.set_partner_seed(_coordinator.get_remote_session_id())
 	print("ShiftingLands: reality is diverging...")
 
 func _on_merge_visual(_remote_session_id: String) -> void:
@@ -400,7 +398,7 @@ func _on_merge_visual(_remote_session_id: String) -> void:
 	print("ShiftingLands: realities converging...")
 	_merge_label.text = "[Merged — R: report]"
 
-func _on_split_occurred() -> void:
+func _on_split_occurred(_remote_session_id: String) -> void:
 	print("World: split occurred")
 	_merge_label.text = ""
 	NetworkManager.disconnect_all()

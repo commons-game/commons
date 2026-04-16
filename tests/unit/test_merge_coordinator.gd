@@ -101,7 +101,7 @@ func test_split_resets_pressure_and_emits_signal() -> void:
 	_coord.dev_instant_merge = true
 	_coord.on_peer_connected("bbb_remote", Vector2i(1, 0))
 	var split_fired: Array = [false]
-	_coord.split_occurred.connect(func(): split_fired[0] = true)
+	_coord.split_occurred.connect(func(_sid): split_fired[0] = true)
 	# Move remote chunk far away (> SPLIT_DISTANCE = 25)
 	_coord.update_remote_chunk(Vector2i(50, 0))
 	_coord.tick(0.1)  # triggers split check
@@ -112,7 +112,7 @@ func test_no_split_when_close() -> void:
 	_coord.dev_instant_merge = true
 	_coord.on_peer_connected("bbb_remote", Vector2i(1, 0))
 	var split_fired: Array = [false]
-	_coord.split_occurred.connect(func(): split_fired[0] = true)
+	_coord.split_occurred.connect(func(_sid): split_fired[0] = true)
 	_coord.update_remote_chunk(Vector2i(3, 0))
 	_coord.tick(0.1)
 	assert_bool(split_fired[0]).is_false()
