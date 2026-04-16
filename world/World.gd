@@ -2,6 +2,8 @@
 ##
 ## CLI args for local multiplayer simulation:
 ##   --dev-instant-merge        Enable instant-merge dev mode (pressure=1, fast broadcast)
+##   --proxy-url=ws://host:port Override the Freenet proxy WebSocket URL
+##                              (default: ws://127.0.0.1:7510)
 ##   --dev-screenshot-cycle     Step through 24 day phases, screenshot each, quit
 ##   --dev-health-check         Run 30s, screenshot every 5s, quit (regression check)
 ##   --dev-frame-log            Log CanvasModulate + chunk weight every frame (visual bug hunting)
@@ -161,10 +163,14 @@ func _setup_merge_system(args: Array) -> void:
 	_reputation_store.from_dict(Backend.load_reputation())
 	var reputation_router := MergeRouterScript.new()
 
-	# FreenetPresenceService for internet discovery; falls back to UDP on LAN.
-	# Requires the proxy running: cd backend/freenet && ./target/release/freeland-proxy
+	# Resolve proxy URL: --proxy-url=ws://... arg overrides saved config overrides default.
+	var proxy_url := _resolve_proxy_url(args)
+	print("World: proxy_url=%s" % proxy_url)
+
+	# FreenetPresenceService for internet discovery.
 	var presence := FreenetPresenceServiceScript.new()
 	presence.name = "FreenetPresenceService"
+	presence.proxy_url = proxy_url
 
 	_coordinator = MergeCoordinatorScript.new()
 	_coordinator.name = "MergeCoordinator"
@@ -189,6 +195,7 @@ func _setup_merge_system(args: Array) -> void:
 	# Freenet signaling for WebRTC pairing contract exchange
 	_signaling = FreenetSignalingScript.new()
 	_signaling.name = "FreenetSignaling"
+	_signaling.proxy_url = proxy_url
 
 	# Add to tree after all properties are set (triggers _ready() on each node)
 	add_child(presence)
@@ -467,6 +474,27 @@ func _setup_hud() -> void:
 
 ## Add WASD keys to the built-in ui_left/right/up/down actions at runtime.
 ## Avoids editing project.godot; safe to call multiple times (has_action guards).
+## Resolve the proxy WebSocket URL from (in priority order):
+##   1. --proxy-url=ws://... CLI arg
+##   2. user://server_config.cfg  (saved by MainMenu)
+##   3. built-in default ws://127.0.0.1:7510
+func _resolve_proxy_url(args: Array) -> String:
+	const DEFAULT := "ws://127.0.0.1:7510"
+	const CONFIG_PATH := "user://server_config.cfg"
+	# 1. CLI arg takes top priority (dev overrides)
+	for arg in args:
+		if arg.begins_with("--proxy-url="):
+			return arg.substr("--proxy-url=".length())
+	# 2. Saved config (written by MainMenu when user changes server)
+	if FileAccess.file_exists(CONFIG_PATH):
+		var f := FileAccess.open(CONFIG_PATH, FileAccess.READ)
+		if f:
+			var stored := f.get_line().strip_edges()
+			f.close()
+			if not stored.is_empty():
+				return stored
+	return DEFAULT
+
 func _register_wasd() -> void:
 	var map := {
 		"ui_left":  KEY_A,
