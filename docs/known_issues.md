@@ -57,7 +57,7 @@ cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
 ```
 **Integration smoke test:** (see "No proxy integration smoke test" entry for full instructions with correct paths)
 **Known fdev bug:** `fdev build` panics with "Could not find workspace root" unless `CARGO_TARGET_DIR` is set. Workaround: `CARGO_TARGET_DIR=$(pwd)/../../target fdev build`.
-**Node binds IPv6 by default:** Must pass `--ws-api-address 0.0.0.0` for IPv4 clients. The proxy URL needs `?encodingProtocol=native` suffix.
+**Node binds IPv6 by default:** `freenet local` binds on `[::1]:7509` (IPv6 loopback). `localhost` resolves to `127.0.0.1` on most Linux systems, causing "Connection refused". Use `FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native` — or start freenet with `--ws-api-address 0.0.0.0`. The `run_multiplayer_local.sh --freenet` script already uses the `[::1]` URL.
 
 ### FreenetBackend.gd requires `use_freenet = true` in Backend.gd
 **Status:** Manual toggle until we decide when to auto-enable.
@@ -82,7 +82,7 @@ BASE=/path/to/freeland/backend/freenet
 (cd $BASE/contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build)
 (cd $BASE/delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
 # Run tests:
-FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
+FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native \
 FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
 FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
 FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
@@ -98,10 +98,15 @@ FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/free
 **Workaround:** `CARGO_TARGET_DIR=$(pwd)/../../target fdev build` (from the contract directory).
 **Action:** File upstream issue on freenet/freenet-core.
 
+### Freenet node returns UpdateResponse instead of PutResponse for existing contracts (FIXED)
+**Status:** Fixed in `freeland-proxy`.
+**Detail:** Freenet 0.2.45 returns `ContractResponse::UpdateResponse` when a PUT is applied to an already-existing contract rather than `PutResponse`. The proxy now accepts both as success in all PUT handlers (chunk, lobby, pairing).
+
 ### Reputation and equipment now on Freenet via player delegate
 **Status:** Implemented — `freeland-player-delegate` crate added in `delegates/player-delegate/`.
 **Detail:** `FreenetBackend.gd` now routes reputation/equipment through the proxy using `PlayerSave`/`PlayerLoad` ops, which call the player delegate on the Freenet node. Data is stored in the node's encrypted secret store under keys `rep:local_player` and `equip:local_player`. Caching is in-memory; `player_data_received(kind, data)` signal fires when a background load completes.
-**Build delegate:** `cd delegates/player-delegate && CARGO_TARGET_DIR=../../target fdev build --package-type delegate`
+**Build delegate:** `cd delegates/player-delegate && CARGO_TARGET_DIR=../../target PATH="$HOME/.cargo/bin:$PATH" fdev build --package-type delegate`
+**Note:** `freenet-stdlib` must have `features = ["contract"]` in the delegate's `Cargo.toml` — the `#[delegate]` macro generates code that calls `bytes_written()` and `into_raw()` which are gated behind `#[cfg(feature = "contract")]` in stdlib. This is a freenet-macros 0.2.0 / freenet-stdlib 0.6.0 quirk.
 **Env var:** `FREELAND_PLAYER_DELEGATE_PATH` — path to the fdev-built delegate package (default: `./freeland_player_delegate`).
 **Integration tests:** Pass `FREELAND_PLAYER_DELEGATE_PATH` when running with `LIVE=1`.
 
@@ -116,7 +121,7 @@ FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/free
 export PATH="$HOME/.cargo/bin:$PATH"
 BASE=/path/to/freeland/backend/freenet
 (cd $BASE/delegates/player-delegate && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
-FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
+FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native \
 FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
 FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
 FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \

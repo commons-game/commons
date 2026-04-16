@@ -134,9 +134,10 @@ async fn handle_client(
         }))
         .await?;
 
-    // Registration may or may not produce a response — consume one response to drain.
+    // Registration may return Ok or a DelegateResponse (both mean success).
     match freenet.recv().await {
         Ok(HostResponse::Ok) => info!("Player delegate registered"),
+        Ok(HostResponse::DelegateResponse { .. }) => info!("Player delegate registered (got DelegateResponse)"),
         Ok(other) => warn!("Unexpected response to RegisterDelegate: {other:?}"),
         Err(e) => warn!("Error waiting for delegate registration: {e}"),
     }
@@ -293,7 +294,8 @@ async fn put_chunk(
     }
 
     match freenet.recv().await {
-        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. })) => {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. }))
+        | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::PutOk { chunk_x, chunk_y }
         }
         Ok(other) => ProxyResponse::Error {
@@ -422,7 +424,8 @@ async fn lobby_put(
     }
 
     match freenet.recv().await {
-        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. })) => {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. }))
+        | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::LobbyPutOk
         }
         Ok(other) => ProxyResponse::Error {
@@ -542,7 +545,8 @@ async fn pairing_publish(
     }
 
     match freenet.recv().await {
-        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. })) => {
+        Ok(HostResponse::ContractResponse(ContractResponse::PutResponse { .. }))
+        | Ok(HostResponse::ContractResponse(ContractResponse::UpdateResponse { .. })) => {
             ProxyResponse::PairingPublishOk { pairing_key }
         }
         Ok(other) => ProxyResponse::Error {
