@@ -193,6 +193,12 @@ func _do_split() -> void:
 	_pressure.peer_count = 1
 	split_occurred.emit(_remote_session_id)
 
+## Called by World when a WebRTC attempt fails — resets so the next presence
+## broadcast can retry pairing.
+func reset_for_retry() -> void:
+	_merging = false
+	_merging_timer = 0.0
+
 ## Deterministic pairing key: same result regardless of which side computes it.
 func _make_pairing_key(sid_a: String, sid_b: String) -> String:
 	if sid_a < sid_b:

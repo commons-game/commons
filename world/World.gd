@@ -424,7 +424,7 @@ func _on_webrtc_connection_failed() -> void:
 		_webrtc_manager = null
 	# Let coordinator retry on next broadcast cycle
 	if _coordinator != null:
-		_coordinator._merging = false
+		_coordinator.reset_for_retry()
 
 func _on_hello_received(remote_sid: String, remote_chunk: Vector2i) -> void:
 	if _coordinator != null:
