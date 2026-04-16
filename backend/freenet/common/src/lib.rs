@@ -1,8 +1,11 @@
-/// Shared types between the chunk contract, proxy, and GDScript client.
+/// Shared types between the chunk contract, lobby contract, proxy, and GDScript client.
 ///
 /// Chunk state is a LWW-map: each tile key maps to the entry with the
 /// highest timestamp. Merge is commutative by construction (higher timestamp
 /// always wins; ties broken deterministically by author_id lexicographic order).
+///
+/// Lobby state is a LWW-map: each session_id maps to the most-recent presence
+/// entry. Used for internet player discovery via Freenet contracts.
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -74,6 +77,80 @@ pub type ChunkSummary = HashMap<u32, f64>;
 pub type ChunkDelta = HashMap<u32, TileEntry>;
 
 // ---------------------------------------------------------------------------
+// Lobby types — player presence for internet P2P discovery
+// ---------------------------------------------------------------------------
+
+/// Well-known lobby ID for the global Freeland lobby contract.
+/// All players use this ID → same contract instance → they can find each other.
+pub const GLOBAL_LOBBY_ID: &str = "freeland-global-v1";
+
+/// Seconds after which a presence entry is considered stale and evicted.
+pub const LOBBY_TTL_SECS: f64 = 300.0; // 5 minutes
+
+/// Parameters for the lobby contract instance.
+/// Using a fixed GLOBAL_LOBBY_ID gives one global contract everyone shares.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LobbyParameters {
+    pub lobby_id: String,
+}
+
+impl Default for LobbyParameters {
+    fn default() -> Self {
+        Self { lobby_id: GLOBAL_LOBBY_ID.to_string() }
+    }
+}
+
+/// One player's presence entry in the lobby.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LobbyEntry {
+    pub session_id: String,
+    pub chunk_x: i32,
+    pub chunk_y: i32,
+    /// Player's IP address for direct ENet/WebRTC connection.
+    /// LAN IP for now; a future STUN pass will replace this with external IP.
+    pub ip: String,
+    pub enet_port: u16,
+    /// Unix timestamp (seconds). LWW key — higher timestamp wins.
+    pub timestamp: f64,
+}
+
+/// Full lobby state: LWW-map of session_id → presence entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct LobbyState {
+    pub entries: HashMap<String, LobbyEntry>,
+}
+
+impl LobbyState {
+    /// LWW merge: keep the entry with the higher timestamp per session_id.
+    pub fn merge(&mut self, other: &LobbyState) {
+        for (sid, other_entry) in &other.entries {
+            match self.entries.get(sid) {
+                None => {
+                    self.entries.insert(sid.clone(), other_entry.clone());
+                }
+                Some(existing) => {
+                    if other_entry.timestamp > existing.timestamp {
+                        self.entries.insert(sid.clone(), other_entry.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    /// Remove entries older than LOBBY_TTL_SECS.
+    /// Called in update_state to keep the contract from growing unbounded.
+    pub fn evict_stale(&mut self, now: f64) {
+        self.entries.retain(|_, e| now - e.timestamp < LOBBY_TTL_SECS);
+    }
+}
+
+/// Summary sent to peers: session_id → timestamp.
+pub type LobbySummary = HashMap<String, f64>;
+
+/// Delta: only the entries newer than what a peer reported.
+pub type LobbyDelta = HashMap<String, LobbyEntry>;
+
+// ---------------------------------------------------------------------------
 // JSON proxy protocol (GDScript ↔ proxy ↔ Freenet node)
 // ---------------------------------------------------------------------------
 
@@ -98,6 +175,12 @@ pub enum ProxyRequest {
         chunk_x: i32,
         chunk_y: i32,
     },
+    /// Publish (upsert) a single presence entry into the global lobby contract.
+    LobbyPut {
+        entry: LobbyEntry,
+    },
+    /// Retrieve the full lobby state (all known players' presence entries).
+    LobbyGet,
 }
 
 /// Response from proxy to GDScript.
@@ -130,4 +213,13 @@ pub enum ProxyResponse {
     Error {
         message: String,
     },
+    /// Lobby presence entry published.
+    LobbyPutOk,
+    /// Full lobby state returned.
+    LobbyGetOk {
+        /// JSON-encoded LobbyState.
+        state_json: String,
+    },
+    /// Lobby contract not found (no players have published yet).
+    LobbyGetNotFound,
 }
