@@ -82,14 +82,14 @@ fi
 
 echo ""
 echo "Starting game instance A..."
-godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge --proxy-url="$PROXY_URL" \
+godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge --proxy-url="$PROXY_URL" --no-managed-backend \
     > /tmp/freeland_A.log 2>&1 &
 PID_A=$!
 
 sleep 0.3
 
 echo "Starting game instance B..."
-godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge --proxy-url="$PROXY_URL" \
+godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge --proxy-url="$PROXY_URL" --no-managed-backend \
     > /tmp/freeland_B.log 2>&1 &
 PID_B=$!
 

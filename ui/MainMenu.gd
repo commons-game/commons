@@ -41,7 +41,12 @@ func _ready() -> void:
 		get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
 		return
 	_build_ui()
-	_start_probe()
+	# Connect ProcessManager signals before deciding whether to probe
+	ProcessManager.backend_ready.connect(_on_backend_ready)
+	ProcessManager.backend_failed.connect(_on_backend_failed)
+	ProcessManager.status_changed.connect(_on_backend_status)
+	if ProcessManager.is_ready:
+		_on_backend_ready()
 	# Non-blocking version check (skip in headless mode)
 	if DisplayServer.get_name() != "headless":
 		_check_for_update.call_deferred()
@@ -159,10 +164,11 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# Play button
+	# Play button — disabled until ProcessManager confirms backend is ready
 	_play_btn = Button.new()
 	_play_btn.name = "PlayButton"
 	_play_btn.text = "Play"
+	_play_btn.disabled = true
 	_play_btn.pressed.connect(_on_play_pressed)
 	vbox.add_child(_play_btn)
 
@@ -195,6 +201,26 @@ func _set_status(reachable: bool) -> void:
 	else:
 		_status_dot.color  = Color(0.85, 0.2, 0.2)   # red
 		_status_label.text = "  Server: unreachable"
+
+# ---------------------------------------------------------------------------
+# ProcessManager signal handlers
+# ---------------------------------------------------------------------------
+
+func _on_backend_ready() -> void:
+	if _play_btn != null:
+		_play_btn.disabled = false
+	_start_probe()
+
+func _on_backend_failed(reason: String) -> void:
+	_set_status(false)
+	if _status_label != null:
+		_status_label.text = "  " + reason
+
+func _on_backend_status(message: String) -> void:
+	if _status_label != null:
+		_status_label.text = "  " + message
+	if _status_dot != null:
+		_status_dot.color = Color(0.9, 0.7, 0.1)  # yellow = starting
 
 # ---------------------------------------------------------------------------
 # Helpers
