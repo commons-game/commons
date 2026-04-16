@@ -14,6 +14,24 @@
 **Status:** Known Godot 4 type hierarchy issue.
 **Detail:** `CanvasLayer` extends `Node`, not `CanvasItem`. Methods like `is_visible_in_tree()`, `hide()`, `show()` from `CanvasItem` are NOT available on `CanvasLayer`. Use the `visible` property directly. If you need show()/hide() convenience methods, they DO work on CanvasLayer in Godot 4 (CanvasLayer implements them separately), but `is_visible_in_tree()` does not exist.
 
+## WebRTC
+
+### WebRTC GDExtension must be registered in .godot/extension_list.cfg for headless
+**Status:** Fixed — extension_list.cfg committed.
+**Detail:** Godot 4's `WebRTCPeerConnection` is a stub that needs the `godot-webrtc-native` GDExtension. In the Godot editor this is auto-registered, but headless mode reads `.godot/extension_list.cfg`. Without it, you get "No default WebRTC extension configured" and all virtual method calls error silently. Solution: `addons/webrtc/webrtc.gdextension` installed, `.godot/extension_list.cfg` committed pointing to it.
+
+### WebRTCPeerConnection constant names (Godot 4.3)
+**Status:** Fixed in WebRTCManager.gd.
+**Detail:** In Godot 4.3 the ICE gathering state constants are `GATHERING_STATE_NEW`, `GATHERING_STATE_GATHERING`, `GATHERING_STATE_COMPLETE` — NOT `ICE_GATHERING_NEW` / `ICE_GATHERING_COMPLETE` (those don't exist and cause parse errors). The docs for newer Godot show the old names.
+
+### GDScript lambdas capture booleans by value, not by reference
+**Status:** Known limitation — use Dictionary as shared state container.
+**Detail:** `bool offerer_done = false; signal.connect(func(): offerer_done = true)` — the lambda modifies a local copy. The outer variable stays false forever. Fix: `var st = {"done": false}; signal.connect(func(): st["done"] = true)`. Dictionaries are reference types and are captured correctly.
+
+### WebRTC loopback connects in ~1s
+**Status:** Verified. test_webrtc_loopback.gd passes.
+**Detail:** Full offer→ICE gather→publish→answer→ICE gather→publish→DTLS handshake on loopback completes in ~1 second in headless mode. The non-trickle ICE approach (gather all first, publish once) works correctly.
+
 ## Freenet Backend (Phase 6 spike — open items)
 
 ### End-to-end spike complete (chunk + lobby)
