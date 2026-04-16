@@ -649,3 +649,15 @@ chunk is immune — you can stand in grass and watch the world shift around you.
 **Pre-existing test failures (unrelated to Shifting Lands):**
 - `test_chunk_manager.gd > test_chunks_loaded_in_radius_after_player_move` — **FIXED**: test only awaited 1 frame; LOAD_RADIUS=4 requires ~27 frames to drain queue at MAX_LOADS_PER_FRAME=3. Fixed by awaiting 30 frames.
 - `test_gravestone_scatter.gd > test_scatter_places_at_least_one_gravestone` — density edge case, still open.
+
+## Multiplayer — Dev Proxy
+
+### freeland-dev-proxy: in-memory proxy for local multiplayer without Freenet
+**Status:** Built and tested.
+**Detail:** `backend/freenet/proxy/src/bin/dev_proxy.rs` — handles all WebSocket ops (LobbyPut/Get, PairingPublishOffer/Answer/Get, chunk Put/Get/Delete, PlayerSave/Load) with state in a shared in-memory HashMap. No Freenet node or contract builds required.
+**Build:** `cd backend/freenet && ~/.cargo/bin/cargo build --bin freeland-dev-proxy`
+**Run:** `./backend/freenet/target/debug/freeland-dev-proxy [addr:port]` (default: 127.0.0.1:7510)
+**Two-player local test:** `./scripts/run_multiplayer_local.sh`
+**Integration tests:** `res://tests/integration/test_dev_proxy.gd` — pairing round-trip + two-player discovery. Run with gdUnit4.
+**State is not persisted** — state is lost when the proxy exits. For persistence, use the real `freeland-proxy` with a Freenet node.
+**Port conflict:** If port 7510 is in use, pass a custom address: `./freeland-dev-proxy 127.0.0.1:7511`. The integration test uses port 7511 to avoid colliding with a dev instance on 7510.

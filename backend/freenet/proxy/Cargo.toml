@@ -7,6 +7,10 @@ edition = "2021"
 name = "freeland-proxy"
 path = "src/main.rs"
 
+[[bin]]
+name = "freeland-dev-proxy"
+path = "src/bin/dev_proxy.rs"
+
 [lib]
 name = "freeland_proxy"
 path = "src/lib.rs"
