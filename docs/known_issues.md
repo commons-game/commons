@@ -246,6 +246,20 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 **Root cause:** `_on_connection_needed` called `NetworkManager.host()`/`.join()` unconditionally. If `connection_needed` fired again while ENet was already in STATE_HOSTING or STATE_JOINING (e.g. during a reconnect cycle), it would try to create a second ENet server on the same port, causing a bind error.
 **Fix:** Added `if NetworkManager.get_state() != NetworkManager.STATE_IDLE: return` guard at the top of `World._on_connection_needed`.
 
+### SceneMultiplayer misses peer_connected on answerer side if multiplayer_peer set late (FIXED)
+**Status:** Fixed.
+**Root cause:** WebRTCMultiplayerPeer fires `peer_connected(1)` internally when the data channel opens, which happens BEFORE `peer_established` is emitted. World previously set `multiplayer.multiplayer_peer = mp` in `_on_webrtc_peer_established` — too late. SceneMultiplayer never subscribed to the signal, so `connected_peers` was empty on the answerer, and all incoming RPCs were dropped with `"!connected_peers.has(sender)"`.
+**Fix:** `World._on_webrtc_pairing_needed` now calls `NetworkManager.set_webrtc_peer(_webrtc_manager.get_multiplayer_peer())` immediately after `start_as_offerer/answerer()`, before the connection is established. SceneMultiplayer is subscribed before the data channel opens and catches `peer_connected` naturally.
+
+### WebRTC CRDT snapshot too large for one RPC message (FIXED)
+**Status:** Fixed.
+**Root cause:** `MergeRPCBus.send_snapshot()` JSON-encoded the full tile store and sent it in one `rpc()` call. With 10+ loaded chunks (~256 tiles each) the payload exceeds WebRTC data channel limits (~65535 bytes), causing "Message size exceeds limit".
+**Fix:** Snapshot is now DEFLATE-compressed and split into ≤50000-byte chunks (using `_receive_snapshot_chunk` RPC + reassembly buffer). Typical savings >80%.
+
+### GDScript max() / ceil() / min() return Variant, not typed int/float
+**Status:** Known GDScript limitation — use typed variants.
+**Detail:** `max(a, b)` returns `Variant` even when both args are `int`, causing `INFERRED_DECLARATION` warning (treated as error in this project). Use `maxi(a, b)` for int, `maxf(a, b)` for float. Similarly `ceili()` / `ceilf()`, `mini()` / `minf()`.
+
 ### WebRTC symmetric NAT connections will fail (~20% of cases)
 **Status:** Known limitation — deferred (step 2.5).
 **Detail:** WebRTCManager uses STUN only. Symmetric NAT (common on corporate/mobile networks) requires a TURN relay server, which we haven't added. For home broadband (~80% of cases) STUN works. Add a TURN server (self-hosted coturn or Metered free tier) when needed.
@@ -657,7 +671,7 @@ chunk is immune — you can stand in grass and watch the world shift around you.
 **Detail:** `backend/freenet/proxy/src/bin/dev_proxy.rs` — handles all WebSocket ops (LobbyPut/Get, PairingPublishOffer/Answer/Get, chunk Put/Get/Delete, PlayerSave/Load) with state in a shared in-memory HashMap. No Freenet node or contract builds required.
 **Build:** `cd backend/freenet && ~/.cargo/bin/cargo build --bin freeland-dev-proxy`
 **Run:** `./backend/freenet/target/debug/freeland-dev-proxy [addr:port]` (default: 127.0.0.1:7510)
-**Two-player local test:** `./scripts/run_multiplayer_local.sh`
+**Two-player local test:** `./scripts/run_multiplayer_local.sh` (uses `--headless` — game instances must run headless for stdout to be captured in log files)
 **Integration tests:** `res://tests/integration/test_dev_proxy.gd` — pairing round-trip + two-player discovery. Run with gdUnit4.
 **State is not persisted** — state is lost when the proxy exits. For persistence, use the real `freeland-proxy` with a Freenet node.
 **Port conflict:** If port 7510 is in use, pass a custom address: `./freeland-dev-proxy 127.0.0.1:7511`. The integration test uses port 7511 to avoid colliding with a dev instance on 7510.

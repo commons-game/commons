@@ -66,7 +66,7 @@ var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
 var _signaling: Node = null       ## FreenetSignaling — pairing contract I/O
-var _webrtc_manager: Node = null  ## WebRTCManager — current active pairing
+var _webrtc_manager: WebRTCManagerScript = null  ## WebRTCManager — current active pairing
 var _shifting_lands: Node = null
 var _shifting_hud: Node = null
 var _reputation_store: ReputationStoreScript = null
@@ -93,6 +93,7 @@ func _ready() -> void:
 			return
 
 	_session   = SessionManagerScript.new()
+	_session.start_session()
 	_authority = RegionAuthorityScript.new()
 
 	# Wire NetworkManager signals → SessionManager / RegionAuthority
@@ -317,7 +318,7 @@ func _on_peer_connected(peer_id: int) -> void:
 		var own_id := multiplayer.get_unique_id()
 		$Player.set_multiplayer_authority(own_id)
 		print("World: set Player authority → %d" % own_id)
-	# Phase 4: exchange hello for CRDT merge handshake
+	# Phase 4: exchange hello for CRDT merge handshake.
 	if _rpc_bus != null and _coordinator != null:
 		_rpc_bus.send_hello(_session.session_id, _coordinator.get_my_chunk())
 
@@ -353,10 +354,15 @@ func _on_webrtc_pairing_needed(pairing_key: String, i_am_offerer: bool) -> void:
 		_webrtc_manager.start_as_offerer(pairing_key)
 	else:
 		_webrtc_manager.start_as_answerer(pairing_key)
+	# Set the multiplayer peer NOW (before the data channel opens) so SceneMultiplayer
+	# is subscribed to the WebRTCMultiplayerPeer's peer_connected signal. If we wait
+	# until peer_established the signal has already fired and connected_peers is never
+	# populated on the answerer side, causing all incoming RPCs to be dropped with
+	# "!connected_peers.has(sender)".
+	NetworkManager.set_webrtc_peer(_webrtc_manager.get_multiplayer_peer())
 
-func _on_webrtc_peer_established(mp: WebRTCMultiplayerPeer, _i_am_host: bool) -> void:
-	print("World: WebRTC peer established — setting multiplayer peer")
-	NetworkManager.set_webrtc_peer(mp)
+func _on_webrtc_peer_established(_mp: WebRTCMultiplayerPeer, _i_am_host: bool) -> void:
+	print("World: WebRTC peer established")
 	# Disconnect the signaling wire — this pairing is done
 	if _signaling.pairing_received.is_connected(_webrtc_manager.on_pairing_received):
 		_signaling.pairing_received.disconnect(_webrtc_manager.on_pairing_received)

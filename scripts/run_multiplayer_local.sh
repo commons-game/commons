@@ -33,14 +33,14 @@ sleep 0.5   # let the proxy bind
 
 echo ""
 echo "Starting game instance A (player-A)..."
-godot4 --path "$PROJECT_ROOT" -- --dev-instant-merge \
+godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge \
     > /tmp/freeland_A.log 2>&1 &
 PID_A=$!
 
 sleep 0.3
 
 echo "Starting game instance B (player-B)..."
-godot4 --path "$PROJECT_ROOT" -- --dev-instant-merge \
+godot4 --headless --path "$PROJECT_ROOT" -- --dev-instant-merge \
     > /tmp/freeland_B.log 2>&1 &
 PID_B=$!
 

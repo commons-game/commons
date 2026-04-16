@@ -19,10 +19,16 @@ signal hello_received(remote_session_id: String, remote_chunk: Vector2i)
 ## Emitted on both sides when the full CRDT exchange is complete.
 signal merge_applied
 
+## Maximum bytes per RPC message (WebRTC data channel limit ~65535; leave headroom).
+const MAX_MSG_BYTES := 50000
+
 ## Set by World.
 var chunk_manager: Object = null
 
 var _handshake: MergeHandshakeScript
+
+## Reassembly buffer: sender_id → {chunks: {index: PackedByteArray}, total: int}
+var _snapshot_buf: Dictionary = {}
 
 func _ready() -> void:
 	_handshake = MergeHandshakeScript.new()
@@ -47,19 +53,38 @@ func _receive_hello(payload: Dictionary) -> void:
 # CRDT snapshot exchange
 # ---------------------------------------------------------------------------
 
-## Serialize and broadcast our full CRDT snapshot to all peers.
+## Serialize, compress, and broadcast our CRDT snapshot to all peers.
+## Large snapshots are split into ≤MAX_MSG_BYTES chunks.
 func send_snapshot() -> void:
 	if not _can_rpc() or chunk_manager == null:
 		return
 	var records: Array = chunk_manager.get_crdt_snapshot()
-	var packed := serialize_snapshot(records)
-	rpc("_receive_snapshot", packed)
+	var json_str := JSON.stringify(records)
+	var compressed := json_str.to_utf8_buffer().compress(FileAccess.COMPRESSION_DEFLATE)
+	var total := compressed.size()
+	var num_chunks := maxi(1, ceili(float(total) / MAX_MSG_BYTES))
+	for i in range(num_chunks):
+		var start := i * MAX_MSG_BYTES
+		var slice: PackedByteArray = compressed.slice(start, min(start + MAX_MSG_BYTES, total))
+		rpc("_receive_snapshot_chunk", i, num_chunks, slice)
 
 @rpc("any_peer", "reliable")
-func _receive_snapshot(packed: String) -> void:
+func _receive_snapshot_chunk(index: int, total_chunks: int, data: PackedByteArray) -> void:
 	if chunk_manager == null:
 		return
-	var remote_records: Array = deserialize_snapshot(packed)
+	var sender := multiplayer.get_remote_sender_id()
+	if not _snapshot_buf.has(sender):
+		_snapshot_buf[sender] = {"chunks": {}, "total": total_chunks}
+	_snapshot_buf[sender]["chunks"][index] = data
+	if _snapshot_buf[sender]["chunks"].size() < total_chunks:
+		return  # still waiting for more chunks
+	# All chunks received — reassemble and merge
+	var full := PackedByteArray()
+	for i in range(total_chunks):
+		full.append_array(_snapshot_buf[sender]["chunks"][i])
+	_snapshot_buf.erase(sender)
+	var json_str := full.decompress_dynamic(-1, FileAccess.COMPRESSION_DEFLATE).get_string_from_utf8()
+	var remote_records: Array = deserialize_snapshot(json_str)
 	var local_records: Array = chunk_manager.get_crdt_snapshot()
 	var merged: Array = merge_snapshots(local_records, remote_records)
 	chunk_manager.apply_crdt_snapshot(merged)

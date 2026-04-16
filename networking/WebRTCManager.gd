@@ -35,6 +35,13 @@ const CONNECT_TIMEOUT := 30.0   ## give up after this many seconds total
 ## Set by World before starting.
 var signaling: Node = null
 
+## Returns the WebRTCMultiplayerPeer immediately after start_as_offerer/answerer.
+## World should set multiplayer.multiplayer_peer = mgr.get_multiplayer_peer() right
+## away so SceneMultiplayer is subscribed before the data channel opens and fires
+## peer_connected. Setting it only after peer_established misses the signal.
+func get_multiplayer_peer() -> WebRTCMultiplayerPeer:
+	return _mp
+
 ## State machine
 enum State { IDLE, GATHERING, POLLING_OFFER, PUBLISHING_OFFER,
              POLLING_ANSWER, PUBLISHING_ANSWER, CONNECTING, DONE, FAILED }
