@@ -11,6 +11,7 @@
 ///
 /// Contract is ephemeral: entries older than PAIRING_TTL_SECS are evicted.
 use freenet_stdlib::prelude::*;
+#[allow(unused_imports)] // PAIRING_TTL_SECS used in #[cfg(test)] only
 use freeland_common::{PairingState, PairingSummary, PAIRING_TTL_SECS};
 
 struct PairingContract;
