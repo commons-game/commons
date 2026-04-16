@@ -76,15 +76,17 @@ cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 BASE=/path/to/freeland/backend/freenet
-# Build contract packages first (once, or after code changes):
+# Build contract + delegate packages first (once, or after code changes):
 (cd $BASE/contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build)
 (cd $BASE/contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build)
 (cd $BASE/contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build)
+(cd $BASE/delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
 # Run tests:
 FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
 FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
 FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
 FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
+FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/freeland_player_delegate \
   cargo test --features integration -p freeland-proxy -- --nocapture
 ```
 **IMPORTANT:** Always use `fdev build` output (in `build/freenet/`), never raw `.wasm` from `target/wasm32-unknown-unknown/`. The fdev package includes version metadata; raw WASM gives `unsupported incremental API version` error.
@@ -96,9 +98,31 @@ FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/fr
 **Workaround:** `CARGO_TARGET_DIR=$(pwd)/../../target fdev build` (from the contract directory).
 **Action:** File upstream issue on freenet/freenet-core.
 
-### Reputation and equipment not on Freenet
-**Status:** Deferred — Freenet delegates not implemented yet.
-**Detail:** `save_reputation`, `load_reputation`, `save_equipment`, `load_equipment` fall back to local files in `FreenetBackend`. These need a Freenet delegate (private per-user storage) for true decentralization.
+### Reputation and equipment now on Freenet via player delegate
+**Status:** Implemented — `freeland-player-delegate` crate added in `delegates/player-delegate/`.
+**Detail:** `FreenetBackend.gd` now routes reputation/equipment through the proxy using `PlayerSave`/`PlayerLoad` ops, which call the player delegate on the Freenet node. Data is stored in the node's encrypted secret store under keys `rep:local_player` and `equip:local_player`. Caching is in-memory; `player_data_received(kind, data)` signal fires when a background load completes.
+**Build delegate:** `cd delegates/player-delegate && CARGO_TARGET_DIR=../../target fdev build --package-type delegate`
+**Env var:** `FREELAND_PLAYER_DELEGATE_PATH` — path to the fdev-built delegate package (default: `./freeland_player_delegate`).
+**Integration tests:** Pass `FREELAND_PLAYER_DELEGATE_PATH` when running with `LIVE=1`.
+
+### `#[delegate]` macro generates dead_code warnings (expected)
+**Status:** Known, harmless.
+**Detail:** The `#[delegate]` macro (like `#[contract]`) consumes the impl and struct to generate WASM entry points. Rust's analysis on the non-WASM target sees the struct and helper function as unused. Both warnings are expected and can be suppressed with `#[allow(dead_code)]` if desired, but are left as-is for symmetry with the contracts. The `unexpected_cfg` warning about `freenet-main-delegate` is also from the macro and is harmless.
+
+### No proxy integration smoke test for player delegate
+**Status:** Integration test structure updated — round_trip.rs accepts `FREELAND_PLAYER_DELEGATE_PATH`. No dedicated player save/load test yet (delegate requires a built WASM package to exercise).
+**Run it:**
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+BASE=/path/to/freeland/backend/freenet
+(cd $BASE/delegates/player-delegate && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
+FREENET_NODE_URL=ws://localhost:7509/v1/contract/command?encodingProtocol=native \
+FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
+FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
+FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
+FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/freeland_player_delegate \
+  cargo test --features integration -p freeland-proxy -- --nocapture
+```
 
 ## Performance
 

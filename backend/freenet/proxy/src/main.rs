@@ -6,12 +6,14 @@
 /// Chunk contract:   FREELAND_CONTRACT_PATH        (default: ./freeland_chunk_contract)
 /// Lobby contract:   FREELAND_LOBBY_CONTRACT_PATH  (default: ./freeland_lobby_contract)
 /// Pairing contract: FREELAND_PAIRING_CONTRACT_PATH (default: ./freeland_pairing_contract)
+/// Player delegate:  FREELAND_PLAYER_DELEGATE_PATH  (default: ./freeland_player_delegate)
 ///
 /// All must be versioned packages produced by `fdev build`, NOT raw .wasm files.
 /// Build:
 ///   cd contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build
 ///   cd contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build
 ///   cd contracts/pairing-contract && CARGO_TARGET_DIR=../../target fdev build
+///   cd delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate
 use std::{env, path::PathBuf};
 
 #[tokio::main]
@@ -43,9 +45,20 @@ async fn main() {
         env::var("FREELAND_PAIRING_CONTRACT_PATH").unwrap_or("freeland_pairing_contract".into()),
     );
 
-    freeland_proxy::run_listener(listen_addr, node_url, contract_path, lobby_contract_path, pairing_contract_path)
-        .await
-        .expect("Proxy failed to start");
+    let delegate_path = PathBuf::from(
+        env::var("FREELAND_PLAYER_DELEGATE_PATH").unwrap_or("freeland_player_delegate".into()),
+    );
+
+    freeland_proxy::run_listener(
+        listen_addr,
+        node_url,
+        contract_path,
+        lobby_contract_path,
+        pairing_contract_path,
+        delegate_path,
+    )
+    .await
+    .expect("Proxy failed to start");
 
     // Park the main task — the listener runs on a spawned task.
     std::future::pending::<()>().await;

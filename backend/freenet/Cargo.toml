@@ -4,6 +4,7 @@ members = [
     "contracts/chunk-contract",
     "contracts/lobby-contract",
     "contracts/pairing-contract",
+    "delegates/player-delegate",
     "proxy",
 ]
 resolver = "2"

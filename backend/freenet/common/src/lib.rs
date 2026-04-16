@@ -225,6 +225,32 @@ pub struct PairingSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Player delegate types — reputation and equipment storage
+// ---------------------------------------------------------------------------
+
+/// Request to the player delegate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PlayerDelegateRequest {
+    SaveReputation { player_id: String, data_json: String },
+    LoadReputation { player_id: String },
+    SaveEquipment { player_id: String, data_json: String },
+    LoadEquipment { player_id: String },
+    /// Export all secrets for migration when the delegate is upgraded.
+    ExportSecrets,
+}
+
+/// Response from the player delegate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum PlayerDelegateResponse {
+    SaveOk,
+    LoadOk { data_json: String },
+    LoadNotFound,
+    /// (secret_key_str, value_json)
+    ExportedSecrets { items: Vec<(String, String)> },
+    Error { message: String },
+}
+
+// ---------------------------------------------------------------------------
 // JSON proxy protocol (GDScript ↔ proxy ↔ Freenet node)
 // ---------------------------------------------------------------------------
 
@@ -272,6 +298,19 @@ pub enum ProxyRequest {
     /// Retrieve the current pairing state (both sides' SDP + ICE if present).
     PairingGet {
         pairing_key: String,
+    },
+    /// Save player data (reputation or equipment) via the player delegate.
+    PlayerSave {
+        player_id: String,
+        /// "reputation" or "equipment"
+        kind: String,
+        data_json: String,
+    },
+    /// Load player data from the player delegate.
+    PlayerLoad {
+        player_id: String,
+        /// "reputation" or "equipment"
+        kind: String,
     },
 }
 
@@ -328,4 +367,20 @@ pub enum ProxyResponse {
     },
     /// Lobby contract not found (no players have published yet).
     LobbyGetNotFound,
+    /// Player data saved successfully.
+    PlayerSaveOk {
+        player_id: String,
+        kind: String,
+    },
+    /// Player data loaded successfully.
+    PlayerLoadOk {
+        player_id: String,
+        kind: String,
+        data_json: String,
+    },
+    /// No player data found in the delegate (first time, or cleared).
+    PlayerLoadNotFound {
+        player_id: String,
+        kind: String,
+    },
 }

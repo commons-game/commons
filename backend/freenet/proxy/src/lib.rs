@@ -2,14 +2,18 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use freenet_stdlib::{
-    client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse, WebApi},
+    client_api::{
+        ClientRequest, ContractRequest, ContractResponse, DelegateRequest, HostResponse, WebApi,
+    },
     prelude::{
-        ContractContainer, ContractInstanceId, Parameters, RelatedContracts, WrappedState,
+        ApplicationMessage, ContractContainer, ContractInstanceId, DelegateContainer, DelegateKey,
+        InboundDelegateMsg, OutboundDelegateMsg, Parameters, RelatedContracts, WrappedState,
     },
 };
 use freeland_common::{
     ChunkParameters, ChunkState, LobbyEntry, LobbyParameters, LobbyState,
     PairingParameters, PairingState, PairingSide,
+    PlayerDelegateRequest, PlayerDelegateResponse,
     ProxyRequest, ProxyResponse,
 };
 use tokio::net::{TcpListener, TcpStream};
@@ -28,6 +32,7 @@ pub async fn run_listener(
     contract_path: PathBuf,
     lobby_contract_path: PathBuf,
     pairing_contract_path: PathBuf,
+    delegate_path: PathBuf,
 ) -> anyhow::Result<SocketAddr> {
     let contract_bytes = Arc::new(std::fs::read(&contract_path).map_err(|e| {
         anyhow::anyhow!(
@@ -59,6 +64,17 @@ pub async fn run_listener(
     })?);
     info!(path = %pairing_contract_path.display(), bytes = pairing_bytes.len(), "Loaded pairing contract");
 
+    // Read delegate bytes at startup so every client connection can load them.
+    let delegate_bytes = Arc::new(std::fs::read(&delegate_path).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to read player delegate from {}: {e}\n\
+             Build it with: cd delegates/player-delegate && \
+             CARGO_TARGET_DIR=../../target fdev build --package-type delegate",
+            delegate_path.display()
+        )
+    })?);
+    info!(path = %delegate_path.display(), bytes = delegate_bytes.len(), "Loaded player delegate");
+
     let listener = TcpListener::bind(listen_addr).await?;
     let bound = listener.local_addr()?;
     info!(addr = %bound, "Proxy listening");
@@ -70,8 +86,9 @@ pub async fn run_listener(
             let cb = contract_bytes.clone();
             let lb = lobby_bytes.clone();
             let pb = pairing_bytes.clone();
+            let db = delegate_bytes.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle_client(stream, url, cb, lb, pb).await {
+                if let Err(e) = handle_client(stream, url, cb, lb, pb, db).await {
                     error!(%peer, error = %e, "Client handler error");
                 }
             });
@@ -91,6 +108,7 @@ async fn handle_client(
     contract_bytes: Arc<Vec<u8>>,
     lobby_bytes: Arc<Vec<u8>>,
     pairing_bytes: Arc<Vec<u8>>,
+    delegate_bytes: Arc<Vec<u8>>,
 ) -> anyhow::Result<()> {
     use futures::{SinkExt, StreamExt};
 
@@ -99,6 +117,29 @@ async fn handle_client(
     let (node_ws, _) = connect_async(&node_url).await?;
     let mut freenet = WebApi::start(node_ws);
     info!(url = %node_url, "Connected to Freenet node");
+
+    // Load and register the player delegate.
+    let delegate_container = DelegateContainer::try_from((
+        delegate_bytes.to_vec(),
+        Arc::new(Parameters::from(vec![])),
+    ))
+    .map_err(|e| anyhow::anyhow!("Failed to init player delegate: {e}"))?;
+    let delegate_key = delegate_container.key().clone();
+
+    freenet
+        .send(ClientRequest::DelegateOp(DelegateRequest::RegisterDelegate {
+            delegate: delegate_container,
+            cipher: DelegateRequest::DEFAULT_CIPHER,
+            nonce: DelegateRequest::DEFAULT_NONCE,
+        }))
+        .await?;
+
+    // Registration may or may not produce a response — consume one response to drain.
+    match freenet.recv().await {
+        Ok(HostResponse::Ok) => info!("Player delegate registered"),
+        Ok(other) => warn!("Unexpected response to RegisterDelegate: {other:?}"),
+        Err(e) => warn!("Error waiting for delegate registration: {e}"),
+    }
 
     while let Some(msg) = ws.next().await {
         let msg = match msg {
@@ -126,7 +167,15 @@ async fn handle_client(
             }
         };
 
-        let response = dispatch(&mut freenet, &contract_bytes, &lobby_bytes, &pairing_bytes, request).await;
+        let response = dispatch(
+            &mut freenet,
+            &contract_bytes,
+            &lobby_bytes,
+            &pairing_bytes,
+            &delegate_key,
+            request,
+        )
+        .await;
         ws.send(Message::Text(serde_json::to_string(&response)?.into()))
             .await?;
     }
@@ -143,6 +192,7 @@ async fn dispatch(
     contract_bytes: &[u8],
     lobby_bytes: &[u8],
     pairing_bytes: &[u8],
+    delegate_key: &DelegateKey,
     request: ProxyRequest,
 ) -> ProxyResponse {
     match request {
@@ -171,6 +221,40 @@ async fn dispatch(
         }
         ProxyRequest::PairingGet { pairing_key } => {
             pairing_get(freenet, pairing_bytes, pairing_key).await
+        }
+        ProxyRequest::PlayerSave { player_id, kind, data_json } => {
+            let req = match kind.as_str() {
+                "reputation" => PlayerDelegateRequest::SaveReputation {
+                    player_id: player_id.clone(),
+                    data_json,
+                },
+                "equipment" => PlayerDelegateRequest::SaveEquipment {
+                    player_id: player_id.clone(),
+                    data_json,
+                },
+                other => {
+                    return ProxyResponse::Error {
+                        message: format!("Unknown player data kind: {other}"),
+                    }
+                }
+            };
+            player_delegate_call(freenet, delegate_key, req, &player_id, &kind).await
+        }
+        ProxyRequest::PlayerLoad { player_id, kind } => {
+            let req = match kind.as_str() {
+                "reputation" => PlayerDelegateRequest::LoadReputation {
+                    player_id: player_id.clone(),
+                },
+                "equipment" => PlayerDelegateRequest::LoadEquipment {
+                    player_id: player_id.clone(),
+                },
+                other => {
+                    return ProxyResponse::Error {
+                        message: format!("Unknown player data kind: {other}"),
+                    }
+                }
+            };
+            player_delegate_call(freenet, delegate_key, req, &player_id, &kind).await
         }
     }
 }
@@ -515,5 +599,101 @@ async fn pairing_get(
             message: format!("Unexpected pairing get response: {other:?}"),
         },
         Err(e) => ProxyResponse::Error { message: format!("Node error: {e}") },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Player delegate call
+// ---------------------------------------------------------------------------
+
+/// Send a `PlayerDelegateRequest` to the registered player delegate and await
+/// the `PlayerDelegateResponse`, translating it to a `ProxyResponse`.
+async fn player_delegate_call(
+    freenet: &mut WebApi,
+    delegate_key: &DelegateKey,
+    request: PlayerDelegateRequest,
+    player_id: &str,
+    kind: &str,
+) -> ProxyResponse {
+    let payload = match serde_json::to_vec(&request) {
+        Ok(b) => b,
+        Err(e) => {
+            return ProxyResponse::Error {
+                message: format!("Serialize delegate request: {e}"),
+            }
+        }
+    };
+
+    let op = ClientRequest::DelegateOp(DelegateRequest::ApplicationMessages {
+        key: delegate_key.clone(),
+        params: Parameters::from(vec![]),
+        inbound: vec![InboundDelegateMsg::ApplicationMessage(ApplicationMessage::new(payload))],
+    });
+
+    if let Err(e) = freenet.send(op).await {
+        return ProxyResponse::Error {
+            message: format!("Delegate send failed: {e}"),
+        };
+    }
+
+    let values = match freenet.recv().await {
+        Ok(HostResponse::DelegateResponse { values, .. }) => values,
+        Ok(other) => {
+            return ProxyResponse::Error {
+                message: format!("Unexpected delegate response: {other:?}"),
+            }
+        }
+        Err(e) => {
+            return ProxyResponse::Error {
+                message: format!("Delegate node error: {e}"),
+            }
+        }
+    };
+
+    // Find the ApplicationMessage in the outbound values.
+    let app_msg = values.into_iter().find_map(|v| {
+        if let OutboundDelegateMsg::ApplicationMessage(m) = v {
+            Some(m)
+        } else {
+            None
+        }
+    });
+
+    let app_msg = match app_msg {
+        Some(m) => m,
+        None => {
+            return ProxyResponse::Error {
+                message: "Delegate returned no ApplicationMessage".into(),
+            }
+        }
+    };
+
+    let delegate_response: PlayerDelegateResponse = match serde_json::from_slice(&app_msg.payload) {
+        Ok(r) => r,
+        Err(e) => {
+            return ProxyResponse::Error {
+                message: format!("Deserialize delegate response: {e}"),
+            }
+        }
+    };
+
+    match delegate_response {
+        PlayerDelegateResponse::SaveOk => ProxyResponse::PlayerSaveOk {
+            player_id: player_id.to_string(),
+            kind: kind.to_string(),
+        },
+        PlayerDelegateResponse::LoadOk { data_json } => ProxyResponse::PlayerLoadOk {
+            player_id: player_id.to_string(),
+            kind: kind.to_string(),
+            data_json,
+        },
+        PlayerDelegateResponse::LoadNotFound => ProxyResponse::PlayerLoadNotFound {
+            player_id: player_id.to_string(),
+            kind: kind.to_string(),
+        },
+        PlayerDelegateResponse::Error { message } => ProxyResponse::Error { message },
+        PlayerDelegateResponse::ExportedSecrets { .. } => ProxyResponse::Error {
+            message: "Unexpected ExportedSecrets response to Save/Load request".into(),
+        },
     }
 }

@@ -1,14 +1,15 @@
 /// Integration smoke tests: Put/Get a chunk and lobby presence through the proxy → Freenet node.
 ///
 /// Requires:
-///   FREENET_NODE_URL              — ws://...:7509/v1/contract/command?encodingProtocol=native
-///   FREELAND_CONTRACT_PATH        — path to the fdev-built chunk contract package
-///   FREELAND_LOBBY_CONTRACT_PATH  — path to the fdev-built lobby contract package
+///   FREENET_NODE_URL               — ws://...:7509/v1/contract/command?encodingProtocol=native
+///   FREELAND_CONTRACT_PATH         — path to the fdev-built chunk contract package
+///   FREELAND_LOBBY_CONTRACT_PATH   — path to the fdev-built lobby contract package
 ///   FREELAND_PAIRING_CONTRACT_PATH — path to the fdev-built pairing contract package
+///   FREELAND_PLAYER_DELEGATE_PATH  — path to the fdev-built player delegate package
 ///
 /// Run with:
 ///   FREENET_NODE_URL=... FREELAND_CONTRACT_PATH=... FREELAND_LOBBY_CONTRACT_PATH=... \
-///   FREELAND_PAIRING_CONTRACT_PATH=... \
+///   FREELAND_PAIRING_CONTRACT_PATH=... FREELAND_PLAYER_DELEGATE_PATH=... \
 ///     cargo test --features integration -p freeland-proxy -- --nocapture
 ///
 /// The tests are gated behind `cfg(feature = "integration")` so they never run in
@@ -62,6 +63,20 @@ mod integration {
         p
     }
 
+    fn player_delegate_path() -> PathBuf {
+        let p = PathBuf::from(
+            std::env::var("FREELAND_PLAYER_DELEGATE_PATH")
+                .expect("FREELAND_PLAYER_DELEGATE_PATH must point to the fdev-built player delegate package"),
+        );
+        assert!(
+            p.exists(),
+            "Player delegate not found at {}: run `cd delegates/player-delegate && \
+             CARGO_TARGET_DIR=../../target fdev build --package-type delegate` first",
+            p.display()
+        );
+        p
+    }
+
     fn node_url() -> String {
         std::env::var("FREENET_NODE_URL").expect(
             "FREENET_NODE_URL must be set to a running Freenet node, e.g. \
@@ -76,6 +91,7 @@ mod integration {
             chunk_contract_path(),
             lobby_contract_path(),
             pairing_contract_path(),
+            player_delegate_path(),
         )
         .await
         .expect("Proxy failed to start");

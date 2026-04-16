@@ -35,6 +35,7 @@ if [[ "${LIVE:-}" == "1" ]]; then
     : "${FREELAND_CONTRACT_PATH:?FREELAND_CONTRACT_PATH must be set}"
     : "${FREELAND_LOBBY_CONTRACT_PATH:?FREELAND_LOBBY_CONTRACT_PATH must be set}"
     : "${FREELAND_PAIRING_CONTRACT_PATH:?FREELAND_PAIRING_CONTRACT_PATH must be set}"
+    : "${FREELAND_PLAYER_DELEGATE_PATH:?FREELAND_PLAYER_DELEGATE_PATH must be set}"
     cargo test --features integration -p freeland-proxy -- --nocapture
 fi
 

@@ -8,18 +8,24 @@
 ## Each store_chunk is a Freenet Put/Update; retrieve_chunk does a local-cache
 ## lookup, triggering a background Get if the chunk isn't cached yet.
 ##
-## Reputation and equipment fall back to local files (Freenet delegate not yet implemented).
+## Reputation and equipment are stored in the player delegate (Freenet private
+## storage keyed by "rep:local_player" and "equip:local_player").  Reads return
+## from an in-memory cache and fire a background delegate load on first access.
+## When the load completes, player_data_received is emitted so callers can
+## refresh their state.
 ##
 ## Usage (Backend.gd):
 ##   var _backend := FreenetBackend.new()
 ##   _backend.initialize()
 ##   # In _process: _backend.poll()
 ##
-## Emits chunk_received(coords, data) when a background Get completes.
+## Emits chunk_received(coords, data) when a background chunk Get completes.
+## Emits player_data_received(kind, data) when a delegate load completes.
 class_name FreenetBackend
 extends IBackend
 
 signal chunk_received(coords: Vector2i, data: PackedByteArray)
+signal player_data_received(kind: String, data: Dictionary)
 
 const DEFAULT_PROXY_URL := "ws://127.0.0.1:7510"
 
@@ -34,13 +40,15 @@ var _pending_gets: Dictionary = {}  # Vector2i → true
 
 var _connected := false
 
-## Fallback local backend for reputation/equipment.
-var _local: LocalBackend
+## In-memory cache for player data loaded from the delegate.
+var _rep_cache: Dictionary = {}    # "local_player" → Dictionary
+var _equip_cache: Dictionary = {}  # "local_player" → Dictionary
+
+## Tracks whether a background load is already in-flight.
+var _pending_player_loads: Dictionary = {}  # kind ("reputation"|"equipment") → true
 
 func initialize(proxy_url: String = DEFAULT_PROXY_URL) -> void:
 	_proxy_url = proxy_url
-	_local = LocalBackend.new()
-	_local.initialize()
 	var err := _ws.connect_to_url(_proxy_url)
 	if err != OK:
 		push_error("FreenetBackend: failed to initiate WebSocket to %s (err %d)" % [_proxy_url, err])
@@ -97,18 +105,41 @@ func delete_chunk(chunk_coords: Vector2i) -> void:
 	}
 	_ws.send_text(JSON.stringify(req))
 
-# Reputation and equipment: local files until Freenet delegate is implemented.
 func save_reputation(data: Dictionary) -> void:
-	_local.save_reputation(data)
+	_rep_cache["local_player"] = data
+	if not _connected:
+		return
+	var req := {
+		"op": "PlayerSave",
+		"player_id": "local_player",
+		"kind": "reputation",
+		"data_json": JSON.stringify(data),
+	}
+	_ws.send_text(JSON.stringify(req))
 
 func load_reputation() -> Dictionary:
-	return _local.load_reputation()
+	if _rep_cache.has("local_player"):
+		return _rep_cache["local_player"]
+	_request_player_load("reputation")
+	return {}
 
 func save_equipment(data: Dictionary) -> void:
-	_local.save_equipment(data)
+	_equip_cache["local_player"] = data
+	if not _connected:
+		return
+	var req := {
+		"op": "PlayerSave",
+		"player_id": "local_player",
+		"kind": "equipment",
+		"data_json": JSON.stringify(data),
+	}
+	_ws.send_text(JSON.stringify(req))
 
 func load_equipment() -> Dictionary:
-	return _local.load_equipment()
+	if _equip_cache.has("local_player"):
+		return _equip_cache["local_player"]
+	_request_player_load("equipment")
+	return {}
 
 # ---------------------------------------------------------------------------
 # Private
@@ -124,6 +155,19 @@ func _request_get(coords: Vector2i) -> void:
 		"op": "Get",
 		"chunk_x": coords.x,
 		"chunk_y": coords.y,
+	}
+	_ws.send_text(JSON.stringify(req))
+
+func _request_player_load(kind: String) -> void:
+	if _pending_player_loads.has(kind):
+		return  # already in-flight
+	if not _connected:
+		return  # will retry on next load_* call once connected
+	_pending_player_loads[kind] = true
+	var req := {
+		"op": "PlayerLoad",
+		"player_id": "local_player",
+		"kind": kind,
 	}
 	_ws.send_text(JSON.stringify(req))
 
@@ -154,6 +198,24 @@ func _handle_response(resp: Dictionary) -> void:
 			# No action — caller already fell through to procedural generation.
 		"DeleteOk":
 			pass
+		"PlayerSaveOk":
+			pass  # in-memory cache already updated; no further action needed
+		"PlayerLoadOk":
+			var kind: String = resp.get("kind", "")
+			var data_json: String = resp.get("data_json", "{}")
+			var parsed = JSON.parse_string(data_json)
+			var data: Dictionary = parsed if parsed is Dictionary else {}
+			_pending_player_loads.erase(kind)
+			match kind:
+				"reputation":
+					_rep_cache["local_player"] = data
+				"equipment":
+					_equip_cache["local_player"] = data
+			player_data_received.emit(kind, data)
+		"PlayerLoadNotFound":
+			var kind: String = resp.get("kind", "")
+			_pending_player_loads.erase(kind)
+			# No data stored yet — caller already returned {} from load_*.
 		"Error":
 			push_error("FreenetBackend proxy error: %s" % resp.get("message", "(no message)"))
 		_:

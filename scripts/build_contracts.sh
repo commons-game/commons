@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build all Freenet contract packages using fdev.
+# Build all Freenet contract and delegate packages using fdev.
 #
 # Usage:
 #   scripts/build_contracts.sh
@@ -8,6 +8,7 @@
 #   backend/freenet/contracts/chunk-contract/build/freenet/freeland_chunk_contract
 #   backend/freenet/contracts/lobby-contract/build/freenet/freeland_lobby_contract
 #   backend/freenet/contracts/pairing-contract/build/freenet/freeland_pairing_contract
+#   backend/freenet/delegates/player-delegate/build/freenet/freeland_player_delegate
 #
 # NOTE: Always use these fdev-built packages, never the raw
 # target/wasm32-unknown-unknown/*.wasm files. The raw WASM files are missing
@@ -30,11 +31,18 @@ if ! command -v "$FDEV" &>/dev/null; then
 fi
 
 CONTRACTS=(chunk-contract lobby-contract pairing-contract)
+DELEGATES=(player-delegate)
 
 for contract in "${CONTRACTS[@]}"; do
     dir="$FREENET_DIR/contracts/$contract"
-    echo "=== Building $contract ==="
+    echo "=== Building contract $contract ==="
     (cd "$dir" && CARGO_TARGET_DIR="$FREENET_DIR/target" "$FDEV" build)
+done
+
+for delegate in "${DELEGATES[@]}"; do
+    dir="$FREENET_DIR/delegates/$delegate"
+    echo "=== Building delegate $delegate ==="
+    (cd "$dir" && CARGO_TARGET_DIR="$FREENET_DIR/target" "$FDEV" build --package-type delegate)
 done
 
 echo ""
@@ -43,5 +51,13 @@ for contract in "${CONTRACTS[@]}"; do
     name="${contract//-/_}"          # chunk-contract → chunk_contract
     name="${name/freeland_/}"        # strip any existing prefix
     pkg="$FREENET_DIR/contracts/$contract/build/freenet/freeland_${name//-/_}"
+    echo "  $pkg"
+done
+
+echo ""
+echo "Delegate packages written to:"
+for delegate in "${DELEGATES[@]}"; do
+    name="${delegate//-/_}"          # player-delegate → player_delegate
+    pkg="$FREENET_DIR/delegates/$delegate/build/freenet/freeland_${name}"
     echo "  $pkg"
 done
