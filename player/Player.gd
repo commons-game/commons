@@ -279,6 +279,7 @@ func _physics_process(_delta: float) -> void:
 			remote.set("appearance_head_id",       appearance.head_id)
 			remote.set("appearance_feet_id",       appearance.feet_id)
 			remote.set("player_display_name",      PlayerIdentity.display_name)
+			remote.set("player_id_short",          PlayerIdentity.id.left(4))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _dead:

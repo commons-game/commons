@@ -32,6 +32,9 @@ var appearance_feet_id:       String = ""
 
 ## Synced display name — shown as a name tag above the player sprite.
 var player_display_name: String = ""
+## First 4 chars of the player's UUID — appended to the nameplate when another
+## player in the session shares the same display name.
+var player_id_short: String = ""
 
 var _appearance = null  # CharacterAppearance
 var _renderer   = null  # CharacterRenderer
@@ -61,6 +64,7 @@ func _enter_tree() -> void:
 		".:appearance_head_id",
 		".:appearance_feet_id",
 		".:player_display_name",
+		".:player_id_short",
 	]:
 		config.add_property(NodePath(prop))
 		config.property_set_spawn(NodePath(prop), true)
@@ -105,13 +109,30 @@ func _draw() -> void:
 func _draw_name_tag() -> void:
 	if player_display_name.is_empty():
 		return
+	var label := _resolve_display_label()
 	var font := ThemeDB.fallback_font
 	# Shadow/outline for readability
-	draw_string(font, Vector2(-20, -20), player_display_name,
+	draw_string(font, Vector2(-20, -20), label,
 		HORIZONTAL_ALIGNMENT_CENTER, 40, 9, Color(0.0, 0.0, 0.0, 0.7))
 	# White text
-	draw_string(font, Vector2(-21, -21), player_display_name,
+	draw_string(font, Vector2(-21, -21), label,
 		HORIZONTAL_ALIGNMENT_CENTER, 40, 9, Color(1.0, 1.0, 1.0, 0.95))
+
+## Returns the display name with a short ID suffix appended when another
+## RemotePlayer in the same scene shares the same display name.
+func _resolve_display_label() -> String:
+	var parent := get_parent()
+	if parent == null:
+		return player_display_name
+	for sibling in parent.get_children():
+		if sibling == self:
+			continue
+		if not sibling.name.begins_with("RemotePlayer_"):
+			continue
+		if sibling.get("player_display_name") == player_display_name:
+			var suffix := player_id_short if not player_id_short.is_empty() else "????"
+			return "%s·%s" % [player_display_name, suffix]
+	return player_display_name
 
 ## Derive a visually distinct hue from peer_id using golden-ratio spacing.
 static func _color_for_peer(peer_id: int) -> Color:
