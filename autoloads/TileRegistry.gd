@@ -20,6 +20,7 @@ func _ready() -> void:
 	register("water",   0, Vector2i(3, 0), 0)
 	register("tree",    0, Vector2i(0, 1), 0)
 	register("rock",    0, Vector2i(1, 1), 0)
+	register("ether_crystal", 0, Vector2i(3, 2), 0)
 
 func register(tile_name: String, tile_id: int, atlas: Vector2i, alt: int = 0) -> void:
 	_entries[tile_name] = {"tile_id": tile_id, "atlas": atlas, "alt": alt}

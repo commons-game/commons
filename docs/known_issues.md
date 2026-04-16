@@ -504,3 +504,40 @@ a.active_buff_ids.append("undead_resilience")
 # Skip menu (solo, dev)
 ~/bin/godot4 --path /home/adam/development/freeland -- --skip-menu
 ```
+
+## Shifting Lands
+
+### Mechanic implemented — no known issues
+**Status:** Implemented in commit "feat: Shifting Lands — alien biome drift on player split".
+**What it does:** When two players split (disconnect), unloaded chunks stochastically drift to an
+alien biome: water/stone dominant, ether crystals as unique reward (atlas 3,2). Observed chunks
+stay stable (quantum observer rule). On merge, CRDT reconciliation restores shared truth.
+Visual: pulsing purple border during split state (ShiftingLandsHUD, layer 18).
+
+**Quantum observer rule:** Only chunks NOT currently loaded can drift. `ShiftingLandsSystem.is_chunk_shifted()`
+is called from `ChunkManager._load_chunk()` for freshly-generated (not on-disk) chunks only. A loaded
+chunk is immune — you can stand in grass and watch the world shift around you.
+
+**How to trigger a split manually for testing:**
+```bash
+# Run two instances — they will auto-discover via UDP and merge:
+~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --dev-instant-merge
+# Second instance in another terminal:
+~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --dev-instant-merge
+# Walk them apart to trigger split, then watch unloaded chunks shift.
+# --dev-instant-merge collapses merge pressure to 1.0 so discovery is near-instant.
+```
+
+**Drift parameters** (in `ShiftingLandsSystem.gd`):
+- `DRIFT_START_DELAY = 5.0` — seconds after split before any drift begins (grace period).
+- `DRIFT_RATE = 0.12` — probability per second of drifting once delay passes. Caps at 95%.
+
+**Alien biome layout** (inverted from normal):
+- Water dominates (t < 0.1), stone common (t < 0.5), dirt sparse (t < 0.7), grass rare (else).
+- Ether crystals spawn on stone at object-noise > 0.84 (very rare).
+- Rocks spawn on stone at object-noise > 0.4 (more common than normal world).
+
+**Pre-existing test failures (unrelated to Shifting Lands):**
+- `test_chunk_manager.gd > test_chunks_loaded_in_radius_after_player_move` — timing-sensitive, flaky.
+- `test_gravestone_scatter.gd > test_scatter_places_at_least_one_gravestone` — density edge case.
+Both were failing before this feature was added.

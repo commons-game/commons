@@ -48,6 +48,8 @@ const CampfireSystemScript        := preload("res://world/CampfireSystem.gd")
 const ChatInputScript             := preload("res://ui/ChatInput.gd")
 const ChatHistoryPanelScript      := preload("res://ui/ChatHistoryPanel.gd")
 const ChatRPCScript               := preload("res://multiplayer/ChatRPC.gd")
+const ShiftingLandsSystemScript   := preload("res://world/ShiftingLandsSystem.gd")
+const ShiftingLandsHUDScript      := preload("res://ui/ShiftingLandsHUD.gd")
 
 var _session: Object
 var _authority: Object
@@ -61,6 +63,8 @@ var _debug_visible: bool = false
 var _mod_editor: ModEditorScript         # in-game mod authoring overlay
 var _coordinator: Node = null
 var _rpc_bus: Node = null
+var _shifting_lands: Node = null
+var _shifting_hud: Node = null
 var _reputation_store: ReputationStoreScript = null
 var _vibe_bus: Node = null
 var _canvas_modulate: CanvasModulate = null
@@ -130,6 +134,7 @@ func _ready() -> void:
 	_setup_equipment_ui()
 	_setup_crafting_ui()
 	_setup_campfire_system()
+	_setup_shifting_lands_hud()
 	_setup_chat_system()
 	_assert_layer_order()
 	if not is_web and "--dev-screenshot-cycle" in args:
@@ -216,6 +221,15 @@ func _setup_merge_system(args: Array) -> void:
 	add_child(presence)
 	add_child(_coordinator)
 	add_child(_rpc_bus)
+
+	_shifting_lands = ShiftingLandsSystemScript.new()
+	_shifting_lands.name = "ShiftingLandsSystem"
+	_coordinator.split_occurred.connect(_shifting_lands._on_split_occurred)
+	_coordinator.merge_ready.connect(_shifting_lands._on_merge_ready)
+	_coordinator.split_occurred.connect(_on_split_visual)
+	_coordinator.merge_ready.connect(_on_merge_visual)
+	add_child(_shifting_lands)
+	$ChunkManager.shifting_lands = _shifting_lands
 
 	# Give Player a reference so it can call update_my_chunk on chunk change
 	$Player.coordinator = _coordinator
@@ -367,6 +381,23 @@ func _on_merge_ready(_remote_session_id: String) -> void:
 
 func _on_merge_applied() -> void:
 	print("World: merge_applied")
+
+func _setup_shifting_lands_hud() -> void:
+	_shifting_hud = ShiftingLandsHUDScript.new()
+	_shifting_hud.name = "ShiftingLandsHUD"
+	add_child(_shifting_hud)
+
+func _on_split_visual() -> void:
+	if _shifting_hud != null:
+		_shifting_hud.activate()
+	if _shifting_lands != null and _coordinator != null:
+		_shifting_lands.set_partner_seed(_coordinator.get_remote_session_id())
+	print("ShiftingLands: reality is diverging...")
+
+func _on_merge_visual(_remote_session_id: String) -> void:
+	if _shifting_hud != null:
+		_shifting_hud.deactivate()
+	print("ShiftingLands: realities converging...")
 	_merge_label.text = "[Merged — R: report]"
 
 func _on_split_occurred() -> void:

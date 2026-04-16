@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 
 const ChatInputScript        := preload("res://ui/ChatInput.gd")
 const ChatHistoryPanelScript := preload("res://ui/ChatHistoryPanel.gd")
+const ShiftingLandsHUDScript := preload("res://ui/ShiftingLandsHUD.gd")
 const SpeechBubbleScript     := preload("res://ui/SpeechBubble.gd")
 const CraftingUIScript       := preload("res://ui/CraftingUI.gd")
 const ActionBarHUDScript     := preload("res://ui/ActionBarHUD.gd")
@@ -27,3 +28,6 @@ func test_action_bar_hud_compiles() -> void:
 
 func test_main_menu_compiles() -> void:
 	assert_object(MainMenuScript).is_not_null()
+
+func test_shifting_lands_hud_compiles() -> void:
+	assert_object(ShiftingLandsHUDScript).is_not_null()

@@ -53,3 +53,40 @@ static func generate_chunk(coords: Vector2i, world_seed: int) -> Dictionary:
 				    "tile_id": 0, "atlas_x": 2, "atlas_y": 2, "alt_tile": 0,
 				    "timestamp": 0.0, "author_id": ""}
 	return entries
+
+## Generate an alien "shifting lands" chunk using an alternate seed.
+## Inverted biome: water/stone dominant, ether crystals as rare unique reward.
+static func generate_shifted_chunk(coords: Vector2i, world_seed: int, shift_seed: int) -> Dictionary:
+	var noise_terrain := FastNoiseLite.new()
+	noise_terrain.seed = (world_seed ^ shift_seed) ^ (coords.x * 73856093) ^ (coords.y * 19349663)
+	noise_terrain.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise_terrain.frequency = 0.10
+
+	var noise_objects := FastNoiseLite.new()
+	noise_objects.seed = (world_seed ^ shift_seed) ^ (coords.x * 83492791) ^ (coords.y * 17026789)
+	noise_objects.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise_objects.frequency = 0.18
+
+	var entries := {}
+	for ly in range(Constants.CHUNK_SIZE):
+		for lx in range(Constants.CHUNK_SIZE):
+			var wx := coords.x * Constants.CHUNK_SIZE + lx
+			var wy := coords.y * Constants.CHUNK_SIZE + ly
+			var t := noise_terrain.get_noise_2d(wx, wy)
+			## Inverted biome: water dominates, stone common, grass rare
+			var atlas_x := 3 if t < 0.1 else (2 if t < 0.5 else (1 if t < 0.7 else 0))
+			var key := CoordUtils.make_crdt_key(0, lx, ly)
+			entries[key] = {"tile_id": 0, "atlas_x": atlas_x, "atlas_y": 0,
+			                "alt_tile": 0, "timestamp": 0.0, "author_id": ""}
+			var o := noise_objects.get_noise_2d(wx, wy)
+			if atlas_x == 2 and o > 0.84:
+				## Ether crystal — unique Shifting Lands reward
+				entries[CoordUtils.make_crdt_key(1, lx, ly)] = {
+				    "tile_id": 0, "atlas_x": 3, "atlas_y": 2, "alt_tile": 0,
+				    "timestamp": 0.0, "author_id": ""}
+			elif atlas_x == 2 and o > 0.4:
+				## Rock (more common in shifting lands)
+				entries[CoordUtils.make_crdt_key(1, lx, ly)] = {
+				    "tile_id": 0, "atlas_x": 1, "atlas_y": 1, "alt_tile": 0,
+				    "timestamp": 0.0, "author_id": ""}
+	return entries

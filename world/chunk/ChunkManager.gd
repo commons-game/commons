@@ -11,6 +11,9 @@ var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
 var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
 var _load_queue: Array = []    # pending load  Vector2i coords — drained MAX_LOADS_PER_FRAME/frame
 var _unload_queue: Array = []  # pending unload Vector2i coords — drained MAX_UNLOADS_PER_FRAME/frame
+## Reference to ShiftingLandsSystem. Set by World after _setup_merge_system().
+## When set and a split is active, freshly-generated chunks may use shifted terrain.
+var shifting_lands: Node = null
 const MAX_LOADS_PER_FRAME   := 3
 const MAX_UNLOADS_PER_FRAME := 3
 
@@ -38,6 +41,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(1, 1),  # rock
 		Vector2i(2, 1),  # gravestone
 		Vector2i(3, 1),  # loot_pickup
+		Vector2i(3, 2),  # ether_crystal
 	]
 	for coords in needed:
 		if not source.has_tile(coords):
@@ -57,7 +61,8 @@ func _validate_tileset() -> void:
 	if source.texture_region_size.x <= 0:
 		push_error("TileSetAtlasSource.texture_region_size is zero — tiles will silently not render")
 	for coords in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0),
-	               Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]:
+	               Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1),
+	               Vector2i(3, 2)]:
 		if not source.has_tile(coords):
 			push_error("Atlas tile %s not registered — set_cell() calls for it will silently fail" % coords)
 
@@ -206,8 +211,14 @@ func _load_chunk(coords: Vector2i) -> void:
 	var t1 := Time.get_ticks_usec()
 	var raw := Backend.retrieve_chunk(coords)
 	var from_disk := not raw.is_empty()
-	var entries := _deserialize_entries(raw) if from_disk \
-	               else ProceduralGenerator.generate_chunk(coords, Constants.WORLD_SEED)
+	var entries: Dictionary
+	if from_disk:
+		entries = _deserialize_entries(raw)
+	elif shifting_lands != null and shifting_lands.is_chunk_shifted(coords):
+		entries = ProceduralGenerator.generate_shifted_chunk(
+			coords, Constants.WORLD_SEED, shifting_lands.get_shift_seed())
+	else:
+		entries = ProceduralGenerator.generate_chunk(coords, Constants.WORLD_SEED)
 	if not from_disk:
 		_check_generation_sanity(coords, entries)
 	var t2 := Time.get_ticks_usec()
