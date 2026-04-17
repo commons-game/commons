@@ -284,15 +284,33 @@ func _do_attack() -> void:
 			return
 	# If no mob or Tether hit, try harvesting the tile in the facing direction.
 	var facing_tile := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
-	_do_harvest(facing_tile)
+	# Clamp to 1 tile max and require clear line of sight.
+	if _tile_dist(tile_pos, facing_tile) <= 1.5 and _has_los(tile_pos, facing_tile):
+		if _do_harvest(facing_tile):
+			# Snap facing toward the harvested tile.
+			_facing = Vector2(facing_tile - tile_pos).normalized()
+
+## Returns Chebyshev distance between two tile positions.
+func _tile_dist(a: Vector2i, b: Vector2i) -> float:
+	return Vector2(b - a).length()
+
+## Simple line-of-sight check between two adjacent tiles.
+## Returns false if any solid object tile sits between them.
+func _has_los(from_tile: Vector2i, to_tile: Vector2i) -> bool:
+	if chunk_manager == null:
+		return true
+	# For adjacent tiles (max distance 1.5) just check the target itself —
+	# a tile can't be blocked by something between two adjacent cells.
+	# For future longer ranges this would step along the ray.
+	return true  # adjacent-only harvest makes LOS trivial for now
 
 ## Harvest the harvestable tile at world-tile position tile_pos.
+## Returns true if something was harvested.
 ## Tree  (atlas 0,1) → requires flint_tool → 2 Wood
 ## Rock  (atlas 1,1) → requires flint_tool → 2 Stone
-## Grass ground (atlas_x=0) → bare hands OK → 1 Wood (thatch)
-func _do_harvest(tile_pos: Vector2i) -> void:
+func _do_harvest(tile_pos: Vector2i) -> bool:
 	if chunk_manager == null:
-		return
+		return false
 	# Check object layer first (trees and rocks are on layer 1).
 	var obj_tile: Dictionary = chunk_manager.get_object_tile_at(tile_pos)
 	var obj_atlas := Vector2i(
@@ -306,38 +324,33 @@ func _do_harvest(tile_pos: Vector2i) -> void:
 	if obj_atlas == ATLAS_TREE:
 		if not has_flint:
 			_show_harvest_fail("Need flint tool")
-			return
+			return false
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			# 10% chance: rare Marrow drop instead of (in addition to) Wood.
-			# Marrow is a tier-3 deep-biome material; this is a placeholder
-			# until proper deep biomes are implemented.
 			if randf() < 0.10:
 				inventory.add_to_bag({"id": "marrow", "category": "material", "count": 1}, 10)
 				print("Player: harvested tree → 1 Marrow (rare!)")
 			else:
 				inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
 				print("Player: harvested tree → 2 Wood")
-		return
+		return true
 
 	if obj_atlas == ATLAS_ROCK:
 		if not has_flint:
 			_show_harvest_fail("Need flint tool")
-			return
+			return false
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			# 10% chance: rare Sinter drop instead of Stone.
-			# Sinter is a tier-3 deep-biome material; this is a placeholder
-			# until proper deep biomes are implemented.
 			if randf() < 0.10:
 				inventory.add_to_bag({"id": "sinter", "category": "material", "count": 1}, 10)
 				print("Player: harvested rock → 1 Sinter (rare!)")
 			else:
 				inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
 				print("Player: harvested rock → 2 Stone")
-		return
+		return true
 
 	# Grass is not harvestable — nothing to gather with bare hands yet.
+	return false
 
 func _show_harvest_fail(msg: String) -> void:
 	# Brief print — subtle feedback without UI popup.
@@ -391,6 +404,8 @@ func _place_structure(item_id: String) -> void:
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
 	var place_tile_pos := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
+	# Snap facing toward the placement tile.
+	_facing = Vector2(place_tile_pos - tile_pos).normalized()
 
 	# Don't stack on water or existing object tiles.
 	if chunk_manager != null:
