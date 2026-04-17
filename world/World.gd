@@ -127,7 +127,6 @@ func _ready() -> void:
 	var is_web := OS.get_name() == "Web"
 	if not is_web:
 		_setup_merge_system(args)
-	_setup_action_bar()
 	_setup_performance_hud()
 	_setup_day_night_system()
 	_setup_debug_overlay()
