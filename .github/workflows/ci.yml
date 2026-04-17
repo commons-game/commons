@@ -40,8 +40,8 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-  godot-parse:
-    name: Godot script parse
+  godot:
+    name: Godot parse + unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +58,6 @@ jobs:
 
       - name: Parse check (headless)
         run: godot4 --headless --path . --quit-after 1 -- --no-managed-backend 2>&1 | tee /tmp/godot_parse.log
-        # Fail if any ERROR lines appear
       - name: Check for parse errors
         run: |
           if grep -q "^ERROR" /tmp/godot_parse.log; then
@@ -67,3 +66,20 @@ jobs:
             exit 1
           fi
           echo "No parse errors."
+
+      - name: Run GDUnit4 tests
+        run: |
+          godot4 --headless --path . \
+            --script addons/gdUnit4/bin/GdUnitCmdTool.gd \
+            -- --testsuites res://tests/unit res://tests/integration \
+            --report-path /tmp/gdunit_report \
+            -- --no-managed-backend \
+            2>&1 | tee /tmp/gdunit.log
+      - name: Check for test failures
+        run: |
+          if grep -qE "^(FAILED|ERROR)" /tmp/gdunit.log; then
+            echo "GDUnit4 test failures:"
+            grep -E "^(FAILED|ERROR)" /tmp/gdunit.log
+            exit 1
+          fi
+          echo "All GDUnit4 tests passed."
