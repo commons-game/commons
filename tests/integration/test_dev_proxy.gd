@@ -82,7 +82,8 @@ func _wait_until(condition: Callable, timeout: float) -> bool:
 
 func test_pairing_roundtrip() -> void:
 	if _proxy_pid < 0:
-		assert_bool(false).override_failure_message("Dev proxy not running — skipping test").is_true()
+		# Dev proxy not built — skip gracefully (test requires pre-built binary).
+		# Build with: cd backend/freenet && cargo build --bin freeland-dev-proxy
 		return
 
 	await get_tree().create_timer(CONNECT_WAIT).timeout
@@ -143,7 +144,8 @@ func test_pairing_roundtrip() -> void:
 
 func test_two_players_discover_each_other() -> void:
 	if _proxy_pid < 0:
-		assert_bool(false).override_failure_message("Dev proxy not running — skipping test").is_true()
+		# Dev proxy not built — skip gracefully (test requires pre-built binary).
+		# Build with: cd backend/freenet && cargo build --bin freeland-dev-proxy
 		return
 
 	await get_tree().create_timer(CONNECT_WAIT).timeout
@@ -167,9 +169,9 @@ func test_two_players_discover_each_other() -> void:
 	var a_sees: Array = []
 	var b_sees: Array = []
 	svc_a.subscribe_area("sub", Vector2i(0, 0), 20,
-		func(sid, _c, _i, _p): a_sees.append(sid))
+		func(sid, _c, _i, _p, _proto): a_sees.append(sid))
 	svc_b.subscribe_area("sub", Vector2i(0, 0), 20,
-		func(sid, _c, _i, _p): b_sees.append(sid))
+		func(sid, _c, _i, _p, _proto): b_sees.append(sid))
 
 	## Force immediate poll.
 	svc_a._poll_timer = svc_a.POLL_INTERVAL

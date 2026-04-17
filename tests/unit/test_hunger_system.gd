@@ -125,17 +125,19 @@ func test_eating_when_food_full_clamps_at_max() -> void:
 	assert_int(_player.food).is_equal(100)
 
 # ---------------------------------------------------------------------------
-# Starvation: food=0 deals damage
+# Starvation: food=0 — damage disabled until food items exist
 # ---------------------------------------------------------------------------
 
-func test_starvation_deals_damage_after_interval() -> void:
+func test_starvation_does_not_deal_damage_when_disabled() -> void:
+	# Starvation damage is intentionally disabled until consumable food items
+	# are added to the game. This test documents the current disabled state.
+	# Re-enable (and update this test) when food items are implemented.
 	_player.food = 0
 	_player._food_timer = 0.0
 	_player._starvation_timer = 0.0
 	var starting_hp: int = _player.hp
-	# Simulate one starvation tick (4 seconds by default).
 	_player._process(float(_player.STARVATION_INTERVAL))
-	assert_int(_player.hp).is_equal(starting_hp - _player.STARVATION_DAMAGE)
+	assert_int(_player.hp).is_equal(starting_hp)  # no damage — disabled
 
 func test_starvation_does_not_trigger_when_food_above_zero() -> void:
 	_player.food = 1

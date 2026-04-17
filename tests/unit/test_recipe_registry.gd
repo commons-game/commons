@@ -1,5 +1,15 @@
 ## Tests for RecipeRegistry — shapeless recipe matching.
 ##
+## Recipe reference (as of survival spine step 5):
+##   3 wood               → campfire   (hand)
+##   4 wood               → bedroll    (hand)
+##   6 wood               → workbench  (hand)
+##   2 stone + 2 wood     → flint_tool (hand)
+##   3 wood               → wooden_axe (workbench, takes priority over campfire in wb mode)
+##   2 wood + 1 stone     → wooden_pickaxe (workbench)
+##   3 stone + 2 wood     → stone_axe (workbench)
+##   2 stone + 3 wood     → stone_pickaxe (workbench)
+##
 ## Uses the autoload singleton directly so tests cover the actual registered
 ## recipes, not an isolated copy. Custom recipes are registered on a fresh
 ## instance to avoid polluting the singleton.
@@ -27,20 +37,25 @@ func after_test() -> void:
 # Hand-craftable structures — campfire and workbench (no workbench required)
 # ---------------------------------------------------------------------------
 
-func test_four_wood_yields_campfire() -> void:
+func test_three_wood_yields_campfire() -> void:
 	var r = _make()
-	var out: Dictionary = r.match_recipe({"wood": 4})
+	var out: Dictionary = r.match_recipe({"wood": 3})
 	assert_str(str(out.get("id", ""))).is_equal("campfire")
 
 func test_campfire_is_structure_category() -> void:
 	var r = _make()
-	var out: Dictionary = r.match_recipe({"wood": 4})
+	var out: Dictionary = r.match_recipe({"wood": 3})
 	assert_str(str(out.get("category", ""))).is_equal("structure")
 
 func test_campfire_count_is_1() -> void:
 	var r = _make()
-	var out: Dictionary = r.match_recipe({"wood": 4})
+	var out: Dictionary = r.match_recipe({"wood": 3})
 	assert_int(int(out.get("count", 0))).is_equal(1)
+
+func test_four_wood_yields_bedroll() -> void:
+	var r = _make()
+	var out: Dictionary = r.match_recipe({"wood": 4})
+	assert_str(str(out.get("id", ""))).is_equal("bedroll")
 
 func test_six_wood_yields_workbench() -> void:
 	var r = _make()
@@ -56,13 +71,15 @@ func test_workbench_is_structure_category() -> void:
 # Workbench-required tools — only match with workbench_mode=true
 # ---------------------------------------------------------------------------
 
-func test_wooden_axe_requires_workbench_false_mode() -> void:
+func test_wooden_axe_without_workbench_yields_campfire_not_axe() -> void:
+	# 3 wood without workbench = campfire (hand recipe takes over).
+	# wooden_axe must NOT appear outside workbench mode.
 	var r = _make()
-	# Without workbench mode, wooden_axe should NOT be crafted
 	var out: Dictionary = r.match_recipe({"wood": 3})
-	assert_bool(out.is_empty()).is_true()
+	assert_str(str(out.get("id", ""))).is_not_equal("wooden_axe")
 
 func test_wooden_axe_matches_in_workbench_mode() -> void:
+	# In workbench mode, workbench recipes take priority: 3 wood → wooden_axe.
 	var r = _make()
 	var out: Dictionary = r.match_recipe({"wood": 3}, true)
 	assert_str(str(out.get("id", ""))).is_equal("wooden_axe")
@@ -163,11 +180,12 @@ func test_single_stone_no_match() -> void:
 # workbench_mode does not grant hand-craft recipes unexpectedly
 # ---------------------------------------------------------------------------
 
-func test_campfire_also_available_in_workbench_mode() -> void:
+func test_bedroll_also_available_in_workbench_mode() -> void:
 	# Hand-craft recipes are always available, even in workbench mode.
+	# 4 wood → bedroll regardless of workbench mode (no workbench recipe uses 4 wood).
 	var r = _make()
 	var out: Dictionary = r.match_recipe({"wood": 4}, true)
-	assert_str(str(out.get("id", ""))).is_equal("campfire")
+	assert_str(str(out.get("id", ""))).is_equal("bedroll")
 
 func test_workbench_structure_also_available_in_workbench_mode() -> void:
 	var r = _make()
@@ -209,9 +227,9 @@ func test_all_recipes_count_grows_after_register() -> void:
 
 func test_match_returns_independent_copy() -> void:
 	var r = _make()
-	var out1: Dictionary = r.match_recipe({"wood": 4})
+	var out1: Dictionary = r.match_recipe({"wood": 3})
 	out1["id"] = "tampered"
-	var out2: Dictionary = r.match_recipe({"wood": 4})
+	var out2: Dictionary = r.match_recipe({"wood": 3})
 	assert_str(str(out2.get("id", ""))).is_equal("campfire")
 
 func test_all_recipes_entries_have_requires_workbench_field() -> void:

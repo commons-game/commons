@@ -23,6 +23,9 @@
 ##   hotbar.refresh()
 extends CanvasLayer
 
+const ITEM_ICON_ATLAS := preload("res://tilesets/placeholder_tileset.png")
+const ICON_TILE_PX    := 16   # atlas tile size in pixels
+
 var inventory: Object = null  # Inventory
 var player: Node = null
 
@@ -62,10 +65,11 @@ const COLOR_EXPANDED_BG   := Color(0.08, 0.08, 0.08, 0.88)
 var _slots: Array = []  # Array of Dictionaries
 
 # Per-slot nodes
-var _panels:       Array = []
-var _id_labels:    Array = []
-var _count_labels: Array = []
-var _borders:      Array = []
+var _panels:        Array = []
+var _icon_bgs:      Array = []   # ColorRect — solid icon colour (category/item)
+var _icon_textures: Array = []   # TextureRect — atlas crop (when item has icon_atlas)
+var _count_labels:  Array = []
+var _borders:       Array = []
 
 # HP / food bars
 var _hp_bar_bg:     ColorRect = null
@@ -163,17 +167,31 @@ func _build_ui() -> void:
 	# Drag cursor (always on top, hidden until drag starts)
 	_drag_cursor = ColorRect.new()
 	_drag_cursor.size = Vector2(SLOT_SIZE, SLOT_SIZE)
-	_drag_cursor.color = COLOR_DRAG_CURSOR
+	_drag_cursor.color = Color(0.12, 0.12, 0.12, 0.80)
 	_drag_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_drag_cursor.z_index = 100
 	_drag_cursor.visible = false
 	add_child(_drag_cursor)
+	# Icon area inside drag cursor
+	var drag_icon_bg := ColorRect.new()
+	drag_icon_bg.name = "IconBg"
+	drag_icon_bg.position = Vector2(4, 4)
+	drag_icon_bg.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	drag_icon_bg.color = COLOR_DRAG_CURSOR
+	_drag_cursor.add_child(drag_icon_bg)
+	var drag_icon_tex := TextureRect.new()
+	drag_icon_tex.name = "IconTex"
+	drag_icon_tex.position = Vector2(4, 4)
+	drag_icon_tex.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	drag_icon_tex.stretch_mode = TextureRect.STRETCH_SCALE
+	drag_icon_tex.texture = null
+	_drag_cursor.add_child(drag_icon_tex)
 	_drag_cursor_lbl = Label.new()
-	_drag_cursor_lbl.position = Vector2(2, 2)
-	_drag_cursor_lbl.size = Vector2(SLOT_SIZE - 4, SLOT_SIZE - 4)
+	_drag_cursor_lbl.position = Vector2(SLOT_SIZE - 18, SLOT_SIZE - 14)
+	_drag_cursor_lbl.size = Vector2(16, 12)
 	_drag_cursor_lbl.add_theme_font_size_override("font_size", 8)
-	_drag_cursor_lbl.add_theme_color_override("font_color", COLOR_LABEL)
-	_drag_cursor_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_drag_cursor_lbl.add_theme_color_override("font_color", COLOR_COUNT)
+	_drag_cursor_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_drag_cursor.add_child(_drag_cursor_lbl)
 
 func _build_hotbar_slots() -> void:
@@ -224,16 +242,22 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	panel.add_child(border)
 	_borders.append(border)
 
-	var id_lbl := Label.new()
-	id_lbl.position = Vector2(2, 2)
-	id_lbl.size = Vector2(SLOT_SIZE - 4, SLOT_SIZE - 14)
-	id_lbl.add_theme_font_size_override("font_size", 8)
-	id_lbl.add_theme_color_override("font_color", COLOR_LABEL)
-	id_lbl.text = ""
-	id_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	id_lbl.clip_contents = true
-	panel.add_child(id_lbl)
-	_id_labels.append(id_lbl)
+	# Icon background — filled with item's icon_color when occupied
+	var icon_bg := ColorRect.new()
+	icon_bg.position = Vector2(4, 4)
+	icon_bg.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	icon_bg.color = Color.TRANSPARENT
+	panel.add_child(icon_bg)
+	_icon_bgs.append(icon_bg)
+
+	# Icon texture overlay — shows atlas crop when item has icon_atlas
+	var icon_tex := TextureRect.new()
+	icon_tex.position = Vector2(4, 4)
+	icon_tex.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	icon_tex.stretch_mode = TextureRect.STRETCH_SCALE
+	icon_tex.texture = null
+	panel.add_child(icon_tex)
+	_icon_textures.append(icon_tex)
 
 	var cnt_lbl := Label.new()
 	cnt_lbl.position = Vector2(SLOT_SIZE - 18, SLOT_SIZE - 14)
@@ -305,22 +329,39 @@ func refresh() -> void:
 func _update_slot(i: int, stack: Dictionary) -> void:
 	if i >= _panels.size():
 		return
-	var panel: ColorRect  = _panels[i]
-	var id_lbl: Label     = _id_labels[i]
-	var cnt_lbl: Label    = _count_labels[i]
-	var border: ColorRect = _borders[i]
-	var desc: Dictionary  = _slots[i]
-	var is_hotbar: bool   = (str(desc.get("type", "")) == "hotbar")
-	var is_active: bool   = (is_hotbar and int(desc.get("index", -1)) == active_index)
+	var panel: ColorRect    = _panels[i]
+	var icon_bg: ColorRect  = _icon_bgs[i]
+	var icon_tex: TextureRect = _icon_textures[i]
+	var cnt_lbl: Label      = _count_labels[i]
+	var border: ColorRect   = _borders[i]
+	var desc: Dictionary    = _slots[i]
+	var is_hotbar: bool     = (str(desc.get("type", "")) == "hotbar")
+	var is_active: bool     = (is_hotbar and int(desc.get("index", -1)) == active_index)
 
 	if stack.is_empty():
-		panel.color = COLOR_ACTIVE if is_active else COLOR_BG_EMPTY
-		id_lbl.text  = ""
-		cnt_lbl.text = ""
+		panel.color        = COLOR_ACTIVE if is_active else COLOR_BG_EMPTY
+		icon_bg.color      = Color.TRANSPARENT
+		icon_tex.texture   = null
+		cnt_lbl.text       = ""
 	else:
 		panel.color = COLOR_ACTIVE if is_active else COLOR_BG_FILLED
-		var raw: String = str(stack.get("id", ""))
-		id_lbl.text = raw.replace("_", "\n").left(10)
+		var item_id: String = str(stack.get("id", ""))
+		var def = ItemRegistry.resolve(item_id)
+		if def != null and def.icon_atlas != Vector2i(-1, -1):
+			icon_bg.color = Color.TRANSPARENT
+			var atlas_tex := AtlasTexture.new()
+			atlas_tex.atlas  = ITEM_ICON_ATLAS
+			atlas_tex.region = Rect2(
+				def.icon_atlas.x * ICON_TILE_PX,
+				def.icon_atlas.y * ICON_TILE_PX,
+				ICON_TILE_PX, ICON_TILE_PX)
+			icon_tex.texture = atlas_tex
+		elif def != null:
+			icon_bg.color  = def.icon_color
+			icon_tex.texture = null
+		else:
+			icon_bg.color  = Color(0.35, 0.35, 0.35)
+			icon_tex.texture = null
 		var cnt: int = int(stack.get("count", 1))
 		cnt_lbl.text = str(cnt) if cnt > 1 else ""
 
@@ -328,7 +369,6 @@ func _update_slot(i: int, stack: Dictionary) -> void:
 	if is_active:
 		border.color = COLOR_ACTIVE_BORDER
 	else:
-		# Restore original border colour based on type
 		var t: String = str(desc.get("type", ""))
 		match t:
 			"tool":     border.color = COLOR_BORDER_TOOL
@@ -385,8 +425,7 @@ func _start_drag(slot_i: int) -> void:
 	_drag_origin = slot_i
 	_set_slot_stack(slot_i, {})
 	_drag_cursor.visible = true
-	var raw: String = str(_drag_stack.get("id", ""))
-	_drag_cursor_lbl.text = raw.replace("_", "\n").left(10)
+	_sync_drag_cursor_icon(_drag_stack)
 	refresh()
 
 func _drop_on_slot(slot_i: int) -> void:
@@ -419,7 +458,7 @@ func _place_one_on_slot(slot_i: int) -> void:
 		_end_drag()
 	else:
 		_drag_stack["count"] = drag_count
-		_drag_cursor_lbl.text = str(drag_count)
+		_sync_drag_cursor_icon(_drag_stack)
 		_set_slot_stack(_drag_origin, {})  # origin stays empty while dragging remainder
 		refresh()
 
@@ -441,9 +480,33 @@ func _start_split(slot_i: int) -> void:
 		remainder["count"] = leave
 		_set_slot_stack(slot_i, remainder)
 	_drag_cursor.visible = true
-	var raw: String = str(_drag_stack.get("id", ""))
-	_drag_cursor_lbl.text = raw.replace("_", "\n").left(10)
+	_sync_drag_cursor_icon(_drag_stack)
 	refresh()
+
+## Sync the drag cursor's icon and count to match the given stack.
+func _sync_drag_cursor_icon(stack: Dictionary) -> void:
+	var drag_icon_bg  := _drag_cursor.get_node_or_null("IconBg")  as ColorRect
+	var drag_icon_tex := _drag_cursor.get_node_or_null("IconTex") as TextureRect
+	var item_id: String = str(stack.get("id", ""))
+	var def = ItemRegistry.resolve(item_id)
+	if drag_icon_bg != null and drag_icon_tex != null:
+		if def != null and def.icon_atlas != Vector2i(-1, -1):
+			drag_icon_bg.color = Color.TRANSPARENT
+			var atlas_tex := AtlasTexture.new()
+			atlas_tex.atlas  = ITEM_ICON_ATLAS
+			atlas_tex.region = Rect2(
+				def.icon_atlas.x * ICON_TILE_PX,
+				def.icon_atlas.y * ICON_TILE_PX,
+				ICON_TILE_PX, ICON_TILE_PX)
+			drag_icon_tex.texture = atlas_tex
+		elif def != null:
+			drag_icon_bg.color    = def.icon_color
+			drag_icon_tex.texture = null
+		else:
+			drag_icon_bg.color    = COLOR_DRAG_CURSOR
+			drag_icon_tex.texture = null
+	var cnt: int = int(stack.get("count", 1))
+	_drag_cursor_lbl.text = str(cnt) if cnt > 1 else ""
 
 func _cancel_drag() -> void:
 	if _drag_origin < 0:

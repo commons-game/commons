@@ -25,6 +25,12 @@ var display_name: String = "":
 	set(value):
 		display_name = value
 
+## Icon color shown in hotbar/inventory when no atlas tile is available.
+var icon_color: Color = Color(0.35, 0.35, 0.35)
+## Atlas tile coords for this item's icon (from the main tileset).
+## Vector2i(-1,-1) = no atlas icon, fall back to icon_color.
+var icon_atlas: Vector2i = Vector2i(-1, -1)
+
 func is_weapon() -> bool:
 	return category == "weapon"
 

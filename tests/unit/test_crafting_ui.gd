@@ -96,19 +96,18 @@ func test_cycle_only_counts_materials_not_tools() -> void:
 # _update_match — recipe matching (hand-craft mode, no workbench)
 # ---------------------------------------------------------------------------
 
-func test_four_wood_in_grid_matches_campfire() -> void:
-	_add_wood(4)
-	_set_grid_4(["wood", "wood", "wood", "wood"])
-	_cui._update_match()
-	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_equal("campfire")
-
-func test_six_wood_needs_workbench_mode_for_grid() -> void:
-	# 6-slot grid can't be set in 4-slot mode — but verify recipe matching rejects
-	# wooden_axe without workbench (3 wood = no match in hand-craft)
+func test_three_wood_in_grid_matches_campfire() -> void:
 	_add_wood(3)
 	_set_grid_4(["wood", "wood", "wood", ""])
 	_cui._update_match()
-	assert_bool((_cui._matched as Dictionary).is_empty()).is_true()
+	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_equal("campfire")
+
+func test_three_wood_without_workbench_yields_campfire_not_axe() -> void:
+	# In hand mode, 3 wood → campfire (not wooden_axe, which is workbench-only).
+	_add_wood(3)
+	_set_grid_4(["wood", "wood", "wood", ""])
+	_cui._update_match()
+	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_not_equal("wooden_axe")
 
 func test_empty_grid_no_match() -> void:
 	_cui._update_match()
@@ -169,13 +168,14 @@ func test_workbench_mode_matches_stone_pickaxe() -> void:
 	_cui._update_match()
 	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_equal("stone_pickaxe")
 
-func test_workbench_mode_still_matches_campfire() -> void:
+func test_workbench_mode_still_matches_bedroll() -> void:
+	# 4 wood → bedroll in both hand and workbench mode (no workbench recipe uses 4 wood).
 	_add_wood(4)
 	_cui.open_workbench()
 	await get_tree().process_frame
 	_set_grid(["wood", "wood", "wood", "wood", "", "", "", "", ""])
 	_cui._update_match()
-	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_equal("campfire")
+	assert_str(str((_cui._matched as Dictionary).get("id", ""))).is_equal("bedroll")
 
 # ---------------------------------------------------------------------------
 # _check_can_craft — ingredient gating
@@ -244,8 +244,8 @@ func test_crafting_does_nothing_when_cannot_craft() -> void:
 # ---------------------------------------------------------------------------
 
 func test_crafted_campfire_goes_to_tool_slot() -> void:
-	_add_wood(4)
-	_set_grid_4(["wood", "wood", "wood", "wood"])
+	_add_wood(3)
+	_set_grid_4(["wood", "wood", "wood", ""])
 	_cui._update_match()
 	_cui._can_craft = true
 	_cui._do_craft()
@@ -257,8 +257,8 @@ func test_crafted_campfire_goes_to_tool_slot() -> void:
 	assert_bool(found).is_true()
 
 func test_crafted_campfire_not_in_bag_when_slot_available() -> void:
-	_add_wood(4)
-	_set_grid_4(["wood", "wood", "wood", "wood"])
+	_add_wood(3)
+	_set_grid_4(["wood", "wood", "wood", ""])
 	_cui._update_match()
 	_cui._can_craft = true
 	_cui._do_craft()
@@ -268,8 +268,8 @@ func test_crafted_structure_goes_to_bag_when_slots_full() -> void:
 	# Fill both tool slots
 	_inv.set_tool_slot(0, {"id": "lantern",  "category": "tool", "count": 1})
 	_inv.set_tool_slot(1, {"id": "shovel",   "category": "tool", "count": 1})
-	_add_wood(4)
-	_set_grid_4(["wood", "wood", "wood", "wood"])
+	_add_wood(3)
+	_set_grid_4(["wood", "wood", "wood", ""])
 	_cui._update_match()
 	_cui._can_craft = true
 	_cui._do_craft()

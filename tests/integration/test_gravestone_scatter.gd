@@ -64,8 +64,11 @@ func test_gravestone_tile_placed_and_detected() -> void:
 # ---------------------------------------------------------------------------
 
 func test_scatter_places_at_least_one_gravestone() -> void:
-	# With chunks loaded around origin, scatter must place at least 1 gravestone.
-	var placed := GravestoneScatterScript.scatter(_cm, Vector2i.ZERO, Constants.WORLD_SEED)
+	# Use chunk_radius=0 so scatter only samples the origin chunk, which loads
+	# immediately on update_player_position. Larger radii require multiple frames
+	# of chunk-queue draining that are impractical in a unit test.
+	var placed := GravestoneScatterScript.scatter(_cm, Vector2i.ZERO, Constants.WORLD_SEED,
+	                                               10, 0)
 	assert_int(placed).is_greater(0)
 
 func test_scatter_does_not_place_on_water() -> void:

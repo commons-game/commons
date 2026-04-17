@@ -24,7 +24,7 @@ func after_test() -> void:
 func test_callback_fires_for_nearby_player() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 10,
-		func(sid, chunk, ip, port): fired.append(sid))
+		func(sid, chunk, ip, port, _proto): fired.append(sid))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -41,7 +41,7 @@ func test_callback_fires_for_nearby_player() -> void:
 func test_callback_not_fired_for_distant_player() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 5,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -58,7 +58,7 @@ func test_callback_not_fired_for_distant_player() -> void:
 func test_self_entry_is_ignored() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 50,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -75,7 +75,7 @@ func test_self_entry_is_ignored() -> void:
 func test_stale_entry_is_ignored() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 50,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	var stale_ts: float = Time.get_unix_time_from_system() - (float(_svc.get("PRESENCE_TTL")) + 10.0)
 	_svc._process_lobby_state({
 		"entries": {
@@ -92,7 +92,7 @@ func test_stale_entry_is_ignored() -> void:
 func test_callback_receives_correct_ip_and_port() -> void:
 	var received: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 20,
-		func(_sid, _chunk, ip, port): received.append({"ip": ip, "port": port}))
+		func(_sid, _chunk, ip, port, _proto): received.append({"ip": ip, "port": port}))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -112,9 +112,9 @@ func test_multiple_subscriptions_all_fire() -> void:
 	var fired_a: Array = []
 	var fired_b: Array = []
 	_svc.subscribe_area("sub_a", Vector2i(0, 0), 10,
-		func(sid, _c, _i, _p): fired_a.append(sid))
+		func(sid, _c, _i, _p, _proto): fired_a.append(sid))
 	_svc.subscribe_area("sub_b", Vector2i(0, 0), 10,
-		func(sid, _c, _i, _p): fired_b.append(sid))
+		func(sid, _c, _i, _p, _proto): fired_b.append(sid))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -130,7 +130,7 @@ func test_multiple_subscriptions_all_fire() -> void:
 func test_unsubscribe_stops_callbacks() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 50,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	_svc.unsubscribe_area("sub")
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
@@ -148,7 +148,7 @@ func test_chebyshev_boundary_exactly_at_radius() -> void:
 	## With radius=5 they should trigger; radius=4 they should not.
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 5,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	var now := Time.get_unix_time_from_system()
 	_svc._process_lobby_state({
 		"entries": {
@@ -163,6 +163,6 @@ func test_chebyshev_boundary_exactly_at_radius() -> void:
 func test_empty_lobby_fires_no_callbacks() -> void:
 	var fired: Array = []
 	_svc.subscribe_area("sub", Vector2i(0, 0), 50,
-		func(sid, _c, _i, _p): fired.append(sid))
+		func(sid, _c, _i, _p, _proto): fired.append(sid))
 	_svc._process_lobby_state({"entries": {}})
 	assert_array(fired).is_empty()

@@ -41,6 +41,10 @@ func register(inputs: Dictionary, output: Dictionary,
 ## Given a dict of {item_id: count} from the crafting grid, return the
 ## matching recipe output as an ItemStack dict, or {} if no recipe matches.
 ## workbench_mode: pass true when the player is standing at a workbench.
+##
+## Priority: when workbench_mode=true, workbench-required recipes take priority
+## over hand recipes with the same ingredient set. This means 3 wood at a
+## workbench yields wooden_axe (not campfire).
 func match_recipe(items: Dictionary, workbench_mode: bool = false) -> Dictionary:
 	var clean: Dictionary = {}
 	for k in items:
@@ -48,9 +52,16 @@ func match_recipe(items: Dictionary, workbench_mode: bool = false) -> Dictionary
 			clean[k] = int(items[k])
 	if clean.is_empty():
 		return {}
+	# Pass 1 (workbench mode only): workbench-required recipes have priority.
+	if workbench_mode:
+		for recipe in _recipes:
+			if not bool(recipe.get("requires_workbench", false)):
+				continue
+			if _dicts_equal(clean, recipe["inputs"] as Dictionary):
+				return (recipe["output"] as Dictionary).duplicate()
+	# Pass 2: hand recipes (requires_workbench=false).
 	for recipe in _recipes:
-		var req_wb: bool = bool(recipe.get("requires_workbench", false))
-		if req_wb and not workbench_mode:
+		if bool(recipe.get("requires_workbench", false)):
 			continue
 		if _dicts_equal(clean, recipe["inputs"] as Dictionary):
 			return (recipe["output"] as Dictionary).duplicate()
