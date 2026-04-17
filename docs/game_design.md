@@ -267,6 +267,12 @@ The merge is an information asymmetry game. Both players share the same world bu
 
 ---
 
+## Deferred Design (not forgotten)
+
+- **Light mechanics** — how mobs and the world respond to artificial light. Torches, campfires, shrine glow. Does light repel Sprouts? Does it attract Tendrils? Does Still territory extinguish flame? Revisit when mob system is built.
+
+---
+
 ## Open Questions (design, not tech)
 
 1. **Shrine conflict mechanics** — can you destroy someone's shrine? Does it require physical presence? Does it require defeating its defenders first? Is the home's physical object (the flag) the same model as the shrine anchor?
