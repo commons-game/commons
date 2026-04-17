@@ -148,6 +148,9 @@ func _on_player_died() -> void:
 	_dead = true
 	print("Player: died — starting respawn sequence")
 
+	# Drop all inventory items as loot tiles at the death position before fading out.
+	_drop_inventory_as_loot()
+
 	# Build full-screen black overlay.
 	var overlay_layer := CanvasLayer.new()
 	overlay_layer.layer = 99
@@ -185,6 +188,31 @@ func _on_player_died() -> void:
 	await tween2.finished
 
 	overlay_layer.queue_free()
+
+## Drop all bag contents as loot_pickup tiles at the player's current tile.
+## Tool slots are kept (lantern, shovel are not lost on death — too punishing).
+## Clears the bag after dropping.
+func _drop_inventory_as_loot() -> void:
+	if inventory == null or chunk_manager == null:
+		return
+	var drop_tile := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+	                          int(floorf(position.y / Constants.TILE_SIZE)))
+	var dropped := 0
+	for i in range(inventory.BAG_SIZE):
+		var slot: Dictionary = inventory.bag[i] as Dictionary
+		if slot.is_empty():
+			continue
+		# Scatter each stack to a nearby tile (offset so they don't all stack on one).
+		var offset_x := dropped % 3 - 1   # -1, 0, 1
+		var offset_y := dropped / 3 - 1
+		var tile_pos := drop_tile + Vector2i(offset_x, offset_y)
+		chunk_manager.place_tile(tile_pos, 1, 0, Vector2i(3, 1), 0, "loot_pickup")
+		dropped += 1
+	if dropped > 0:
+		print("Player: dropped %d bag slots as loot on death" % dropped)
+	# Clear bag (tool slots kept — they're equipped, not carried).
+	for i in range(inventory.BAG_SIZE):
+		inventory.bag[i] = {}
 
 ## Attempt to start an attack swing. Sets cooldown and triggers the arc visual.
 ## Returns true if the swing was initiated (cooldown was ready), false if still

@@ -76,4 +76,4 @@ func _on_phase_changed(is_day: bool) -> void:
 	if is_day:
 		vibe_bus.push("day_night_cycle", 0.0, 0.3, 120.0)
 	else:
-		vibe_bus.push("day_night_cycle", 0.2, 0.0, 120.0)
+		vibe_bus.push("day_night_cycle", 0.5, 0.0, 120.0)
