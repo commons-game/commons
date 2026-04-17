@@ -141,6 +141,35 @@ Talismans are expensive, finite, and earned — not crafted from common material
 
 **Talismans nudge. The universe decides.**
 
+### The vibe system — how the player feels pressure
+
+There is no merge pressure bar. The world tells you.
+
+Merge pressure feeds into the VibeBus (tension axis). The world reads that tension and expresses it through the environment. A veteran player learns to read the signs. A new player just gets scared and doesn't know why. Both are correct responses.
+
+**Low pressure — nothing unusual.** Normal world.
+
+**Medium pressure — the world gets strange.**
+- Wind picks up
+- Ambient sounds shift — something slightly off, hard to name
+- Animals look in one direction
+- Screen edges desaturate slightly
+- Your shadow flickers
+
+**High pressure — something is close.**
+- Distant lights on the horizon (another player's fire or shrine glow)
+- Strange footprints in soft ground
+- The sky at the edge of the map changes hue
+- A sound you can't place
+
+**Merge imminent — the seam opens.**
+- Ground shifts at the edge of loaded chunks
+- Tiles from another biome flicker in and out at the periphery
+- A low heartbeat sound
+- Then the other island slides into view
+
+All cues are diegetic — they exist in the world, not as UI. The world is the interface.
+
 ---
 
 ## Open Questions (design, not tech)
