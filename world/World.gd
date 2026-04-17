@@ -629,6 +629,9 @@ func _process(delta: float) -> void:
 				cw_text = "  chunk_w=%.2f" % chunk.weight
 		print("FRAME: phase=%.4f cm=(%.2f,%.2f,%.2f)%s" % [phase, c.r, c.g, c.b, cw_text])
 
+	# --- Shrine power ticks: count players near each Shrine ---
+	_update_shrine_proximity()
+
 	# --- --dev-health-check ---
 	if _health_check_timer >= 0.0:
 		_health_check_timer += delta
@@ -644,6 +647,37 @@ func _process(delta: float) -> void:
 		if _health_check_timer >= total:
 			print("HealthCheck complete — %d screenshots in /tmp/freeland_health_*.png" % _health_check_counter)
 			get_tree().quit()
+
+## For each active Shrine, count how many player nodes (local + remote) are
+## within TERRITORY_RADIUS tiles and call notify_players_nearby on the Shrine.
+func _update_shrine_proximity() -> void:
+	var shrines: Array = ShrineRegistry.get_all()
+	if shrines.is_empty():
+		return
+	# Collect all player positions (local player + remote players).
+	var player_positions: Array = []
+	var local_player := $Player as Node2D
+	if is_instance_valid(local_player):
+		player_positions.append(local_player.position)
+	for remote in _remote_players.values():
+		if is_instance_valid(remote):
+			player_positions.append((remote as Node2D).position)
+	# For each shrine, count nearby players.
+	for shrine in shrines:
+		if not is_instance_valid(shrine):
+			continue
+		var shrine_tile := Vector2i(
+			int(floorf(shrine.position.x / Constants.TILE_SIZE)),
+			int(floorf(shrine.position.y / Constants.TILE_SIZE)))
+		var territory_r: int = shrine.get("TERRITORY_RADIUS") if shrine.get("TERRITORY_RADIUS") != null else 8
+		var nearby_count: int = 0
+		for ppos in player_positions:
+			var player_tile := Vector2i(
+				int(floorf((ppos as Vector2).x / Constants.TILE_SIZE)),
+				int(floorf((ppos as Vector2).y / Constants.TILE_SIZE)))
+			if (player_tile - shrine_tile).length() <= float(territory_r):
+				nearby_count += 1
+		shrine.call("notify_players_nearby", nearby_count)
 
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed:

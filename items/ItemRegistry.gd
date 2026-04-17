@@ -77,3 +77,12 @@ func _register_builtins() -> void:
 
 	# --- Flint tool ---
 	register(_make("flint_tool", "tool", "Flint Tool"))
+
+	# --- Shrine materials (placeholder — no drop sources yet) ---
+	register(_make("mass_core",    "material", "Mass Core",    5))
+	register(_make("form_crystal", "material", "Form Crystal", 5))
+	register(_make("ichor",        "material", "Ichor",        5))
+	register(_make("cipher",       "material", "Cipher",       5))
+
+	# --- Shrine — territory anchor. One per player. ---
+	register(_make("shrine", "structure", "Shrine", 1))

@@ -53,6 +53,7 @@ const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd
 const CampfireScript               := preload("res://world/structures/Campfire.gd")
 const BedrollScript                := preload("res://world/structures/Bedroll.gd")
 const TetherScript                 := preload("res://world/structures/Tether.gd")
+const ShrineScript                 := preload("res://world/structures/Shrine.gd")
 
 ## Atlas coords for harvestable tiles (layer 1 object layer).
 ## Tree: atlas (0, 1) on grass ground.
@@ -442,6 +443,12 @@ func _place_structure(item_id: String) -> void:
 		# Connect tether_broken: if it's ours, show the broken message.
 		structure.tether_broken.connect(_on_tether_broken)
 		print("Player: Tether placed — home anchor set at %s" % place_tile_pos)
+	elif item_id == "shrine":
+		structure = ShrineScript.new()
+		structure.owner_id = PlayerIdentity.id
+		# Connect shrine_broken: if it's ours, show the broken message.
+		structure.shrine_broken.connect(_on_shrine_broken)
+		print("Player: Shrine placed at %s" % place_tile_pos)
 
 	if structure == null:
 		print("Player: no structure handler for %s" % item_id)
@@ -466,6 +473,34 @@ func _on_tether_broken(broken_owner_id: String) -> void:
 	home_pos = Vector2.ZERO
 	print("Player: Tether broken — home anchor lost.")
 	_show_tether_broken_message()
+
+## Called when a Shrine emits shrine_broken. If the Shrine was ours, show a
+## center-screen message.
+func _on_shrine_broken(broken_owner_id: String) -> void:
+	if broken_owner_id != PlayerIdentity.id:
+		return
+	print("Player: Shrine broken — territory lost.")
+	_show_shrine_broken_message()
+
+## Display "Your Shrine has been broken." in red at screen center for 3 seconds.
+func _show_shrine_broken_message() -> void:
+	var canvas := CanvasLayer.new()
+	canvas.layer = 98  # just below death overlay
+	add_child(canvas)
+
+	var lbl := Label.new()
+	lbl.text = "Your Shrine has been broken."
+	lbl.add_theme_font_size_override("font_size", 36)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.05, 0.05))
+	# Position at screen centre (1280x720 nominal).
+	lbl.position = Vector2(1280.0 / 2.0 - 250.0, 720.0 / 2.0 - 24.0)
+	canvas.add_child(lbl)
+
+	# Fade out over 3 seconds (hold 1.5s opaque, then fade).
+	var tween := create_tween()
+	tween.tween_interval(1.5)
+	tween.tween_property(lbl, "modulate:a", 0.0, 1.5)
+	tween.tween_callback(canvas.queue_free)
 
 ## Display "Your Tether has been broken." in red at screen center for 3 seconds.
 func _show_tether_broken_message() -> void:

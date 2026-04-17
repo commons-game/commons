@@ -1,5 +1,19 @@
 # Known Issues
 
+## Survival Spine (Step 5 — Shrine)
+
+### Shrine materials have no drop sources yet
+**Status:** Placeholder items registered.
+**Detail:** `mass_core`, `form_crystal`, `ichor`, and `cipher` are registered in ItemRegistry with stack_max=5 but have no in-world drop sources. They must be given via dev console or added to loot tables when deep biomes / mobs are implemented.
+
+### Shrine structures are not persisted
+**Status:** Known limitation (same as campfire/bedroll/tether).
+**Detail:** Shrine nodes are added directly to the World scene tree. They are not stored in the CRDT tilemap, so they do not survive game restart. Phase 1+: write Shrine as a CRDT object-layer tile and drive ShrineRegistry from a tile scanner.
+
+### Shrine power system uses only local + remote player positions
+**Status:** Implemented with available data.
+**Detail:** World._update_shrine_proximity() counts the local $Player node and all _remote_players. Spectators or other future non-player entities are not counted. If a third player type is added, update _update_shrine_proximity() to include it.
+
 ## Survival Spine (Step 4 — Tether)
 
 ### Tether and Marrow/Sinter: placeholder deep-biome drops
