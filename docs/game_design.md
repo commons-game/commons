@@ -52,10 +52,18 @@ The spine is vertical progression. The tech tree fills in horizontally at each s
 - No death timer, no resurrection mechanic.
 
 ### Home
-- One per player. Destroyable by other players.
-- Early game: losing your home is devastating — you lose your spawn anchor.
-- Late game: rebuilding is cheap. The emotional weight scales correctly.
-- Getting your first home is the first real inflection point of the game.
+
+The home is whatever the player builds. Walls, rooms, hidden chambers — all just tiles. The anchor is **the Tether**.
+
+**The Tether** is a craftable object: 1 Marrow (deep Bloom) + 1 Sinter (deep Still). Two forces in tension, holding each other — and you — in place against the drift. Visually: a crystalline Still spike wound with a slow-pulsing Bloom tendril. Small, distinct, unmistakable.
+
+- One Tether per player. Placing it sets your spawn anchor and locks your home chunks.
+- Destroying the enemy's Tether collapses their home claim. Requires at least a Flint Tool — bare hands can't break it.
+- The Tether is the raid objective. Players hide it inside their build. Finding it is the attacker's challenge.
+- If your Tether is destroyed while you are logged in: stark red text center screen — *"Your Tether has been broken."* Fades after a few seconds. One exception to "in world and subtle" — this is a life event.
+- If you are offline when it happens: you find out on next login by spawning naked at a random location.
+- Early game: losing your Tether is devastating. Late game: rebuilding is cheap. The emotional weight scales correctly.
+- Getting your first Tether placed is the first real inflection point of the game.
 
 ### Shrine
 - One per player. Independent of the player — persists after you die.
