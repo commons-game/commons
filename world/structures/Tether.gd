@@ -5,10 +5,10 @@
 ##
 ## Mechanics:
 ##   - owner_id must be set immediately after instantiation.
-##   - hp = 50; immune to bare hands — requires flint_tool to damage.
+##   - hp = 50; immune to bare hands — requires flint_knife to damage.
 ##   - On hp <= 0: emits tether_broken(owner_id) and queue_frees itself.
 ##   - take_damage(amount, tool_id) returns false and prints "Need a tool"
-##     if tool_id is not "flint_tool".
+##     if tool_id is not "flint_knife".
 ##   - On _ready: registers with TetherRegistry (removing any previous Tether
 ##     for this owner). On predelete: unregisters.
 ##
@@ -21,7 +21,7 @@ signal tether_broken(owner_id: String)
 ## The PlayerIdentity.id of the player who placed this Tether.
 var owner_id: String = ""
 
-## Hit points. Reduced only by flint_tool or better.
+## Hit points. Reduced only by flint_knife or better.
 var hp: int = 50
 
 ## Visual animation state.
@@ -42,10 +42,10 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 ## Apply damage to this Tether.
-## attacker_tool: the id string of the tool being used (e.g. "flint_tool").
+## attacker_tool: the id string of the tool being used (e.g. "flint_knife").
 ## Returns false if the tool is insufficient (bare hands), true if damage was applied.
 func take_damage(amount: int, attacker_tool: String) -> bool:
-	if attacker_tool != "flint_tool":
+	if attacker_tool != "flint_knife":
 		print("Tether: Need a tool to damage this.")
 		return false
 	hp = max(0, hp - amount)

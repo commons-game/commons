@@ -4,7 +4,7 @@
 ##   3 wood               → campfire   (hand)
 ##   4 wood               → bedroll    (hand)
 ##   6 wood               → workbench  (hand)
-##   2 stone + 2 wood     → flint_tool (hand)
+##   2 stone + 2 wood     → flint_knife (hand)
 ##   3 wood               → wooden_axe (workbench, takes priority over campfire in wb mode)
 ##   2 wood + 1 stone     → wooden_pickaxe (workbench)
 ##   3 stone + 2 wood     → stone_axe (workbench)

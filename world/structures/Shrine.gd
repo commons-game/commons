@@ -9,7 +9,7 @@
 ##   - owner_id must be set immediately after instantiation.
 ##   - TERRITORY_RADIUS (8 tiles) defines the Shrine's area of influence.
 ##   - power (0.0–1.0) grows when players are present, drains when absent.
-##   - hp = 100; requires flint_tool to damage.
+##   - hp = 100; requires flint_knife to damage.
 ##   - On hp <= 0: emits shrine_broken(owner_id) and queue_frees.
 ##   - On _ready: registers with ShrineRegistry (removing any previous Shrine
 ##     for this owner). On predelete: unregisters.
@@ -23,7 +23,7 @@ signal shrine_broken(owner_id: String)
 ## The PlayerIdentity.id of the player who placed this Shrine.
 var owner_id: String = ""
 
-## Hit points. Reduced only by flint_tool or better.
+## Hit points. Reduced only by flint_knife or better.
 var hp: int = 100
 
 ## Territory influence radius in tiles.
@@ -99,10 +99,10 @@ func _update_light() -> void:
 	_light.color = LIGHT_COLOR_STILL.lerp(LIGHT_COLOR_BLOOM, power)
 
 ## Apply damage to this Shrine.
-## attacker_tool: the id string of the tool being used (e.g. "flint_tool").
+## attacker_tool: the id string of the tool being used (e.g. "flint_knife").
 ## Returns false if the tool is insufficient (bare hands), true if damage was applied.
 func take_damage(amount: int, attacker_tool: String) -> bool:
-	if attacker_tool != "flint_tool":
+	if attacker_tool != "flint_knife":
 		print("Shrine: Need a flint tool to damage this.")
 		return false
 	hp = max(0, hp - amount)

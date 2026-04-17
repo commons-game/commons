@@ -43,6 +43,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(2, 1),  # gravestone
 		Vector2i(3, 1),  # loot_pickup
 		Vector2i(3, 2),  # ether_crystal
+		Vector2i(2, 2),  # moonstone_patch
 	]
 	for coords in needed:
 		if not source.has_tile(coords):

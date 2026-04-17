@@ -19,6 +19,13 @@ const STARVATION_DAMAGE := 2
 const ATTACK_DAMAGE := 25
 const ATTACK_RANGE := 1.5  # tiles
 
+## Campfire healing — passive regen when near a campfire and out of combat.
+var _combat_cooldown: float = 0.0     # seconds since last damage taken
+const COMBAT_COOLDOWN_S := 5.0        # must be clear of combat this long to regen
+var _campfire_heal_timer: float = 0.0 # ticks up toward CAMPFIRE_HEAL_INTERVAL
+const CAMPFIRE_HEAL_INTERVAL := 3.0   # heal 1 HP every 3 seconds near fire
+const CAMPFIRE_HEAL_RANGE   := 6      # tiles — matches CampfireRegistry light radius
+
 ## Visual flash timers for combat feedback.
 var _damage_flash_timer: float = 0.0
 const DAMAGE_FLASH_DURATION := 0.15
@@ -145,6 +152,7 @@ func take_damage(amount: int) -> void:
 		return
 	hp = max(0, hp - amount)
 	_damage_flash_timer = DAMAGE_FLASH_DURATION
+	_combat_cooldown = COMBAT_COOLDOWN_S  # reset out-of-combat window
 	print("Player: took %d damage, hp=%d/%d" % [amount, hp, max_hp])
 	if hp == 0:
 		_on_player_died()
@@ -247,6 +255,8 @@ func _do_attack() -> void:
 		return
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
+	var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
+	var tool_id: String = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
 	# Check for mobs first.
 	var hit_mob: bool = false
 	for node in get_parent().get_children():
@@ -260,6 +270,8 @@ func _do_attack() -> void:
 		if dist <= ATTACK_RANGE:
 			var health = node.get_node_or_null("Health")
 			if health != null:
+				# Tag the mob with the weapon so its death can trigger the reveal effect.
+				node.set("last_damage_source", tool_id)
 				health.call("take_damage", ATTACK_DAMAGE)
 				hit_mob = true
 	if hit_mob:
@@ -277,9 +289,6 @@ func _do_attack() -> void:
 		                            int(floorf(node2d.position.y / Constants.TILE_SIZE)))
 		var dist: float = (tether_tile - tile_pos).length()
 		if dist <= ATTACK_RANGE:
-			# Pass the active tool id so Tether can enforce the flint_tool requirement.
-			var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
-			var tool_id: String = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
 			node.call("take_damage", ATTACK_DAMAGE, tool_id)
 			return
 	# If no mob or Tether hit, try harvesting the tile in the facing direction.
@@ -306,8 +315,8 @@ func _has_los(from_tile: Vector2i, to_tile: Vector2i) -> bool:
 
 ## Harvest the harvestable tile at world-tile position tile_pos.
 ## Returns true if something was harvested.
-## Tree  (atlas 0,1) → requires flint_tool → 2 Wood
-## Rock  (atlas 1,1) → requires flint_tool → 2 Stone
+## Tree  (atlas 0,1) → requires flint_knife → 2 Wood
+## Rock  (atlas 1,1) → requires flint_knife → 2 Stone
 func _do_harvest(tile_pos: Vector2i) -> bool:
 	if chunk_manager == null:
 		return false
@@ -319,34 +328,26 @@ func _do_harvest(tile_pos: Vector2i) -> bool:
 
 	var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
 	var tool_id: String = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
-	var has_flint: bool = (tool_id == "flint_tool")
+	var has_flint: bool = (tool_id == "flint_knife")
 
 	if obj_atlas == ATLAS_TREE:
 		if not has_flint:
-			_show_harvest_fail("Need flint tool")
+			_show_harvest_fail("Need flint knife")
 			return false
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			if randf() < 0.10:
-				inventory.add_to_bag({"id": "marrow", "category": "material", "count": 1}, 10)
-				print("Player: harvested tree → 1 Marrow (rare!)")
-			else:
-				inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
-				print("Player: harvested tree → 2 Wood")
+			inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
+			print("Player: harvested tree → 2 Wood")
 		return true
 
 	if obj_atlas == ATLAS_ROCK:
 		if not has_flint:
-			_show_harvest_fail("Need flint tool")
+			_show_harvest_fail("Need flint knife")
 			return false
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			if randf() < 0.10:
-				inventory.add_to_bag({"id": "sinter", "category": "material", "count": 1}, 10)
-				print("Player: harvested rock → 1 Sinter (rare!)")
-			else:
-				inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
-				print("Player: harvested rock → 2 Stone")
+			inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
+			print("Player: harvested rock → 2 Stone")
 		return true
 
 	# Grass is not harvestable — nothing to gather with bare hands yet.
@@ -552,6 +553,21 @@ func _process(delta: float) -> void:
 	# Starvation damage disabled until food items exist in the game.
 	# TODO: re-enable when food system is implemented.
 	_starvation_timer = 0.0
+	# Campfire healing — passive regen when near a campfire and out of combat.
+	_combat_cooldown = maxf(_combat_cooldown - delta, 0.0)
+	if _combat_cooldown <= 0.0 and hp < max_hp and not _dead:
+		var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+		                         int(floorf(position.y / Constants.TILE_SIZE)))
+		var nearest_cf: Vector2i = CampfireRegistry.nearest_campfire_tile(tile_pos)
+		if nearest_cf != Vector2i(-9999, -9999) and \
+				(nearest_cf - tile_pos).length() <= CAMPFIRE_HEAL_RANGE:
+			_campfire_heal_timer += delta
+			if _campfire_heal_timer >= CAMPFIRE_HEAL_INTERVAL:
+				_campfire_heal_timer -= CAMPFIRE_HEAL_INTERVAL
+				hp = min(hp + 1, max_hp)
+				_pickup_flash_timer = 0.05  # tiny green flash as subtle feedback
+		else:
+			_campfire_heal_timer = 0.0
 
 func _physics_process(_delta: float) -> void:
 	if _dead:
@@ -758,6 +774,13 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 		if inventory != null:
 			inventory.add_to_bag({"id": "ether_crystal", "category": "material", "count": 1}, 16)
 			print("Player: picked up ether_crystal")
+	elif ax == 2 and ay == 2:
+		# moonstone_patch — crystallised by Pale, harvestable at night only
+		chunk_manager.remove_tile(tile_pos, 1, "pickup")
+		_pickup_flash_timer = PICKUP_FLASH_DURATION
+		if inventory != null:
+			inventory.add_to_bag({"id": "moonstone", "category": "material", "count": 1}, 10)
+			print("Player: harvested moonstone")
 
 ## Active SpeechBubble nodes above this player (for stacking).
 var _speech_bubbles: Array = []

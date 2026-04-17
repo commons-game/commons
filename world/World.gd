@@ -46,6 +46,7 @@ const AlchemistPackScript         := preload("res://mods/builtin/AlchemistPack.g
 const GravestoneScatterScript     := preload("res://world/generation/GravestoneScatter.gd")
 const MobSpawnerScript            := preload("res://world/mobs/MobSpawner.gd")
 const NightSpawnerScript          := preload("res://world/NightSpawner.gd")
+const NightDarknessScript         := preload("res://world/NightDarkness.gd")
 const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
@@ -316,6 +317,11 @@ func _setup_day_night_system() -> void:
 	night_spawner.player = $Player
 	night_spawner.chunk_manager = $ChunkManager
 	add_child(night_spawner)
+
+	var night_darkness := NightDarknessScript.new()
+	night_darkness.name = "NightDarkness"
+	night_darkness.player = $Player
+	add_child(night_darkness)
 
 func _spawn_remote_player(peer_id: int) -> void:
 	var remote := RemotePlayerScene.instantiate()

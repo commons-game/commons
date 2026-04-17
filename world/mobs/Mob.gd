@@ -34,6 +34,12 @@ var _flash_timer: float = 0.0
 
 const FLASH_DURATION := 0.12
 
+## Set by the attacker before dealing the killing blow — used for the reveal effect.
+var last_damage_source: String = ""
+## When > 0, draw the opposite-force reveal flash instead of normal color.
+var _reveal_timer: float = 0.0
+const REVEAL_DURATION := 0.6
+
 func _ready() -> void:
 	z_index = 2
 	# Health child — already in scene tree via Mob.tscn, but also handle code-only init
@@ -50,10 +56,18 @@ func _ready() -> void:
 	h.damaged.connect(func(_amount, _current, _maximum): _flash_timer = FLASH_DURATION)
 	_idle_timer = randf_range(1.0, 2.0)
 
+## Returns the reveal-flash color for this mob's opposite force.
+## Override in subclasses: Bloom mobs return Still color, Still mobs return Bloom color.
+func _reveal_color() -> Color:
+	return Color(0.55, 0.72, 0.92)  # default: pale Still blue
+
 func _draw() -> void:
 	# Dark red filled circle + direction triangle (smaller than player).
 	var base_color := Color(0.55, 0.05, 0.05)
-	if _state == State.DEAD:
+	if _reveal_timer > 0.0:
+		var t: float = _reveal_timer / REVEAL_DURATION
+		base_color = _reveal_color().lerp(Color(0.55, 0.05, 0.05), 1.0 - t)
+	elif _state == State.DEAD:
 		base_color = Color(0.3, 0.05, 0.05, 0.5)
 	elif _flash_timer > 0.0:
 		base_color = Color(1.0, 0.6, 0.4)
@@ -83,6 +97,8 @@ func _process(_delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if _flash_timer > 0.0:
 		_flash_timer = maxf(_flash_timer - delta, 0.0)
+	if _reveal_timer > 0.0:
+		_reveal_timer = maxf(_reveal_timer - delta, 0.0)
 
 	if _state == State.DEAD:
 		_dead_timer += delta
@@ -179,6 +195,8 @@ func _on_health_died() -> void:
 	_state = State.DEAD
 	velocity = Vector2.ZERO
 	_dead_timer = 0.0
+	if last_damage_source == "flint_knife":
+		_reveal_timer = REVEAL_DURATION
 	_on_death()
 
 func _on_death() -> void:

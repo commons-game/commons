@@ -9,7 +9,7 @@
 ##   2. Items with world-tile art (wood, stone, ether_crystal) use their
 ##      corresponding atlas coords so the hotbar shows the same sprite
 ##      the player sees in the game world.
-##   3. Key milestone items (campfire, tether, flint_tool) have visually
+##   3. Key milestone items (campfire, tether, flint_knife) have visually
 ##      distinct colours rather than the neutral grey fallback.
 extends GdUnitTestSuite
 
@@ -21,7 +21,7 @@ const ALL_ITEM_IDS: Array = [
 	"leather_helmet", "leather_chest", "leather_legs", "leather_shoes",
 	"wood", "stone", "ether_crystal", "marrow", "sinter", "berry",
 	"campfire", "workbench", "bedroll", "tether", "shrine",
-	"flint_tool", "stone_axe", "stone_pickaxe",
+	"flint_knife", "stone_axe", "stone_pickaxe",
 	"mass_core", "form_crystal", "ichor", "cipher",
 ]
 
@@ -98,8 +98,8 @@ func test_campfire_has_no_atlas_icon() -> void:
 	var def = ItemRegistry.resolve("campfire")
 	assert_bool(def.icon_atlas == Vector2i(-1, -1)).is_true()
 
-func test_flint_tool_has_no_atlas_icon() -> void:
-	var def = ItemRegistry.resolve("flint_tool")
+func test_flint_knife_has_no_atlas_icon() -> void:
+	var def = ItemRegistry.resolve("flint_knife")
 	assert_bool(def.icon_atlas == Vector2i(-1, -1)).is_true()
 
 # ---------------------------------------------------------------------------

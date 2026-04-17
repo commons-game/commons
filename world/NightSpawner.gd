@@ -14,6 +14,8 @@
 extends Node
 
 const SproutScene := preload("res://world/mobs/Sprout.tscn")
+const WispScript  := preload("res://world/mobs/Wisp.gd")
+const PaleScript  := preload("res://world/mobs/Pale.gd")
 
 ## Set by World before add_child.
 var player: Node = null
@@ -104,6 +106,33 @@ func _on_dusk() -> void:
 		placed += 1
 
 	print("NightSpawner: spawned %d/%d Sprouts near %s (%d attempts)" % [placed, count, origin, attempts])
+	_spawn_night_mobs(origin, rng)
+
+## Spawn Wisps (Bloom night mob) and Pales (Still night mob) further out.
+## Uses ground tile to detect rough biome tier: stone ground → Still, grass → Bloom.
+func _spawn_night_mobs(origin: Vector2i, rng: RandomNumberGenerator) -> void:
+	var wisp_count := rng.randi_range(1, 2)
+	var pale_count := rng.randi_range(1, 2)
+	for i in range(wisp_count + pale_count):
+		var is_wisp := i < wisp_count
+		var dist := rng.randi_range(14, 24)
+		var angle := rng.randf_range(0.0, TAU)
+		var tx := origin.x + int(round(cos(angle) * dist))
+		var ty := origin.y + int(round(sin(angle) * dist))
+		var ground: Vector2i = chunk_manager.get_ground_atlas_at(Vector2i(tx, ty)) if chunk_manager else Vector2i(-1, -1)
+		if ground.x < 0 or ground.x == 3:
+			continue
+		var mob: CharacterBody2D
+		if is_wisp:
+			mob = WispScript.new()
+		else:
+			mob = PaleScript.new()
+		mob.position = Vector2(tx * Constants.TILE_SIZE + Constants.TILE_SIZE / 2.0,
+		                       ty * Constants.TILE_SIZE + Constants.TILE_SIZE / 2.0)
+		mob.chunk_manager = chunk_manager
+		mob.player = player
+		get_parent().add_child(mob)
+	print("NightSpawner: spawned %d Wisps + %d Pales" % [wisp_count, pale_count])
 
 func _on_dawn() -> void:
 	var chased := 0

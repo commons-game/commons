@@ -39,7 +39,7 @@ func _register_builtins() -> void:
 	# --- Tools ---
 	# Atlas row 0 = ground tiles, row 1 = objects (tree, rock, …). Tools have no
 	# world-tile art yet — give each a distinct colour so they're visually distinct.
-	register(_make("flint_tool",     "tool", "Flint Tool",     1, "", Color(0.48, 0.46, 0.35)))
+	register(_make("flint_knife",     "tool", "Flint Knife",     1, "", Color(0.48, 0.46, 0.35)))
 	register(_make("stone_axe",      "tool", "Stone Axe",      1, "", Color(0.52, 0.52, 0.55)))
 	register(_make("stone_pickaxe",  "tool", "Stone Pickaxe",  1, "", Color(0.48, 0.52, 0.58)))
 	register(_make("wooden_axe",     "tool", "Wooden Axe",     1, "", Color(0.65, 0.48, 0.28)))
@@ -70,8 +70,9 @@ func _register_builtins() -> void:
 	register(_make("stone",        "material", "Stone",         32, "", Color(0.55, 0.55, 0.55), Vector2i(1, 1)))
 	register(_make("ether_crystal","material", "Ether Crystal", 16, "", Color(0.30, 0.80, 0.75), Vector2i(3, 2)))
 	# Tier-3 deep-biome materials (placeholder — Bloom/Still identity colours).
-	register(_make("marrow",       "material", "Marrow",        10, "", Color(0.65, 0.12, 0.18)))  # deep Bloom crimson
+	register(_make("marrow",       "material", "Marrow",        10, "", Color(0.65, 0.12, 0.18)))  # deep Bloom crimson — drops from Wisp (Bloom night mob)
 	register(_make("sinter",       "material", "Sinter",        10, "", Color(0.55, 0.72, 0.88)))  # Still ice blue
+	register(_make("moonstone",    "material", "Moonstone",     10, "", Color(0.82, 0.88, 0.98)))  # pale cold white — crystallises in Hollow at night
 
 	# --- Food ---
 	register(_make("berry", "food", "Berry", 32, "", Color(0.88, 0.22, 0.28)))

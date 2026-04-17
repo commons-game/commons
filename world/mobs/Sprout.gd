@@ -24,6 +24,10 @@ var _flee_timer: float = 0.0
 const FLEE_DURATION := 2.0
 const FLEE_SPEED    := 90.0
 
+## Bloom mob — reveal flash shows Still crystalline blue.
+func _reveal_color() -> Color:
+	return Color(0.60, 0.80, 0.98)
+
 func _ready() -> void:
 	super._ready()
 	# Override HP from base.

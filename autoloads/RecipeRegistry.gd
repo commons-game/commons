@@ -87,11 +87,11 @@ func _register_builtins() -> void:
 	register({"wood": 6}, {"id": "workbench", "category": "structure", "count": 1})
 
 	# Flint tool — hand-craftable
-	register({"stone": 2, "wood": 2}, {"id": "flint_tool", "category": "tool", "count": 1})
+	register({"stone": 2, "wood": 2}, {"id": "flint_knife", "category": "tool", "count": 1})
 
-	# Tether — requires tier-3 Marrow + Sinter (deep biome materials).
-	# Tether is hand-craftable (no workbench required) since it is a late-game keystone.
-	register({"marrow": 1, "sinter": 1}, {"id": "tether", "category": "structure", "count": 1})
+	# Tether — requires Marrow (from Wisp night mob) + Moonstone (harvested in Hollow at night).
+	# Both materials are night-gated, making the Tether require engaging with the dark.
+	register({"marrow": 1, "moonstone": 1}, {"id": "tether", "category": "structure", "count": 1})
 
 	# Shrine — territory anchor. Requires late-game materials.
 	# Hand-craftable (no workbench) since it is a progression keystone.
