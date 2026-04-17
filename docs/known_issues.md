@@ -2,9 +2,9 @@
 
 ## Survival Spine (Steps 2–3)
 
-### CraftingUI (C key) replaced by CraftingSystem quick-craft
-**Status:** Intentional change.
-**Detail:** `KEY_C` now calls `CraftingSystem.try_craft()` (first matching hand recipe, no UI panel). The old `CraftingUI` toggle is still reachable as a fallback if `CraftingSystem` node isn't present. Workbench mode (`KEY_E`) is unchanged and still opens the full UI.
+### CraftingSystem: recipe selection overlay (replaces auto-craft)
+**Status:** Implemented.
+**Detail:** `KEY_C` now opens a CanvasLayer overlay listing all hand recipes (affordable first, greyed-out unaffordable ones after). C / Up / Down cycle selection; Enter crafts; Escape closes. `CraftingSystem.try_craft()` has been removed — the new entry points are `open_menu()`, `close_menu()`, `_cycle(dir)`, `_confirm_craft()`. Workbench mode (`KEY_E`) is unchanged and still opens `CraftingUI`.
 
 ### RecipeRegistry: campfire recipe changed from 4 wood to 3 wood
 **Status:** Updated to match survival spine design doc.

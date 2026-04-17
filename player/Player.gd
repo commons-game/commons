@@ -489,10 +489,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F:
 			_do_place_use()
 		KEY_C:
-			# Quick-craft: try first matching hand recipe.
+			# Open crafting menu or cycle to next recipe if already open.
 			var cs := get_node_or_null("../CraftingSystem")
 			if cs != null:
-				cs.call("try_craft")
+				if cs.get("is_open"):
+					cs.call("_cycle", 1)
+				else:
+					cs.call("open_menu")
 			else:
 				# Fallback: open CraftingUI if present.
 				var cui := get_node_or_null("../CraftingUI")
