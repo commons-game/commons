@@ -66,11 +66,26 @@ The home is whatever the player builds. Walls, rooms, hidden chambers — all ju
 - Getting your first Tether placed is the first real inflection point of the game.
 
 ### Shrine
-- One per player. Independent of the player — persists after you die.
-- Base function: locks nearby chunks into a coherent island in the CRDT. Without a shrine, your chunks are contested and ephemeral. With one, your territory is real.
-- Grows as a chunk ball outward from the anchor point (see modding_design.md for territory mechanics).
-- Upgrades apply mods to the territory (see modding_design.md).
-- Placing a shrine is the second inflection point of the game.
+
+The Shrine is the second inflection point. Where the Tether says "I am here," the Shrine says "this is mine."
+
+**Recipe:** 1 Mass Core (drop from Mass mob, tier-3 Bloom) + 1 Form Crystal (drop from Form mob, tier-3 Still) + 1 Ichor + 1 Cipher. All four require deep biome runs or Seam runs. Two hunts, two Seam trips.
+
+**Base function:** locks nearby chunks into a coherent island in the CRDT. Without a Shrine, chunks are contested and ephemeral. With one, territory is real.
+
+**Power:** grows from player presence — the count of players physically inside the territory bubble per tick. A thriving settlement is genuinely more powerful than an abandoned one.
+
+- High power → chunks resist decay, territory holds at its full extent
+- Low power → edge chunks fade back to shifting lands, territory contracts inward
+- No power → slow but steady contraction; the Shrine never disappears without being physically destroyed
+- The Shrine is permanent unless destroyed. Territory is not.
+
+**Visual:** a `PointLight2D` whose energy and range scale with power. Dim and close when weak. Vivid and far-reaching when strong. At night it becomes a beacon — visible long before you reach it. A glowing Shrine means someone is home and active. A dim one is new or abandoned.
+
+**Appearance:** rooted but reaching. Anchored to the ground, both forces visible and in motion — a Still crystal core with Bloom tendrils slowly rotating around it. Pulse rate reflects power level. The two forces never quite touch.
+
+**Territory and chunk retention:** see modding_design.md for full mechanics.
+**Mod upgrades:** see modding_design.md.
 
 ### Shrine vs Shrine
 - Two shrine territories never touch.
