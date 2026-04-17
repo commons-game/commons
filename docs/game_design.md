@@ -96,17 +96,44 @@ This means:
 - Two players who merge may have very different maps — asymmetry creates trade dynamics and strategic asymmetry.
 - Early game isolation is not safety. It is a different kind of danger (see: merge pressure below).
 
-### Biomes and resources
+### The two forces
 
-- **Biome difficulty scales with resource value.** Good materials live in dangerous places.
-- The map is a risk/reward map that players memorize over time — that knowledge is itself power.
-- Biomes are matched at merge seams. When two islands collide, the CRDT connects them at compatible edges — forests bleed into forests, not forests slamming into deserts. Incompatible seams become shifting lands naturally.
+The world is shaped by two natural forces. They are not good and evil — they are philosophical opposites, both indifferent to the player. You are a mortal scavenging at the edge of a war between gods who do not know your name.
+
+**Bloom** — growth, chaos, consumption. It spreads, absorbs, transforms. Organic, fungal, bioluminescent. It does not want to destroy — it wants to become everything. Left unchecked it covers the world in slow unstoppable growth.
+
+**Still** — order, refinement, preservation. It perfects and holds. Crystalline, geometric, cold. A forest touched by Still becomes a forest of glass — perfect, eternal, dead. It does not want to rule — it wants to fix things in their ideal form forever.
+
+The horror of each: taken to its extreme, both end the world. Pure Bloom is everything dissolving into undifferentiated growth. Pure Still is a perfect crystal tomb.
+
+Resources are harvested from the conflict — Bloom materials are things the growth force left behind or is in the process of becoming. Still materials are crystallized remnants, the residue of refinement. The most potent materials of each exist where the forces grind directly against each other.
+
+### Biomes
+
+Six biomes plus one special zone. Named by force and intensity:
+
+| Tier | Bloom | Still |
+|------|-------|-------|
+| 1 — Heartland | **Verdant** — soft, living, familiar | **Moraine** — worn smooth, old stone, glacial |
+| 2 — Wildlands | **Tangle** — dense, hungry, getting strange | **Shard** — geometric outcrops, crystal formations |
+| 3 — Deep | **Mire** — deep fungal, bioluminescent, wrong | **Hollow** — calcified, petrified, silent as a held breath |
+
+**The Seam** — where Bloom and Still grind against each other directly. Reality is unstable here. Neither force dominates. The shrine-tier materials exist only here, created by the friction between the two forces. This is the Rift at the edge of every island.
+
+### Expansion grammar
+
+Every future biome is one of three things:
+- A pure expression of one force at a new tier or character (underground, coastal, elevated)
+- A blend — one force dominant, the other present as a scar or intrusion
+- A contested zone — neither force strong, the space between (e.g. *Scar*, *Breach*)
+
+Names follow the same register: short, real words, slightly repurposed. One or two syllables. No compound words. Only name biomes when building them.
 
 ### Shrine territories and shifting lands
 
-- **Shrine territories** are islands of relative safety and expressed identity. Entering someone else's territory means playing by their rules.
-- **Shifting lands** sit between shrine territories — unclaimed, unmodded, dangerous, and potentially the richest areas in the game. No one has pacified them. No one owns what spawns there.
-- When two islands are pushed together by merge pressure, the shifting lands form at the seam between them.
+- **Shrine territories** drift toward the character of their construction materials — Bloom materials pull the territory toward growth, Still materials toward crystal. Mixed materials create unstable contested ground inside your own territory.
+- **Shifting lands** sit between shrine territories — unclaimed, unmodded, dangerous, and potentially the richest areas in the game. No one has pacified them.
+- When two islands merge, the shifting lands form at the seam between them. If the two shrines are of opposing forces, that seam is volatile.
 
 ---
 
@@ -169,6 +196,36 @@ Merge pressure feeds into the VibeBus (tension axis). The world reads that tensi
 - Then the other island slides into view
 
 All cues are diegetic — they exist in the world, not as UI. The world is the interface.
+
+---
+
+## Materials
+
+Harvested from the conflict between forces. Bloom materials are things the growth force left behind or is becoming. Still materials are crystallized remnants, residue of refinement. Seam materials exist only where the forces grind directly against each other.
+
+| Tier | Bloom | Still |
+|------|-------|-------|
+| 1 — Common | **Pulp** — raw organic matter | **Grit** — ground stone, mineral dust |
+| 2 — Uncommon | **Spore** — concentrated Bloom essence | **Vein** — crystalline mineral thread |
+| 3 — Rare *(home gate)* | **Marrow** — deep biological, taken from something living | **Sinter** — fused mineral, formed under pressure |
+| 4 — Seam only *(shrine gate)* | **Ichor** — pure Bloom, unstable, alive | **Cipher** — pure Still, a pattern that perfects whatever holds it |
+
+Tier 4 materials only exist in the Seam. Getting them requires surviving the most dangerous zone in the game.
+
+---
+
+## Mobs
+
+Creatures are expressions of whichever force dominates their biome — not monsters with backstories, but manifestations of Bloom or Still at different intensities. Weft is the exception: it belongs to neither force and exists only in the Seam.
+
+| Tier | Bloom | Still |
+|------|-------|-------|
+| 1 — Verdant / Moraine | **Sprout** — something small that used to be an animal, beginning to change | **Mote** — a drifting crystalline fragment, passive until disturbed |
+| 2 — Tangle / Shard | **Tendril** — fast, aggressive, reaching | **Facet** — geometric, precise, repetitive |
+| 3 — Mire / Hollow | **Mass** — a thing that was several things, now one | **Form** — something perfected into a weapon, no wasted motion |
+| Seam | **Weft** | **Weft** |
+
+Weft is singular — one name regardless of which side of the Seam you approach from. It's neither force. It's the collision. It shouldn't have a comfortable name.
 
 ---
 
