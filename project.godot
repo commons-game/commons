@@ -33,6 +33,7 @@ ChatSystem="*res://autoloads/ChatSystem.gd"
 FreenetDMQueue="*res://autoloads/FreenetDMQueue.gd"
 GameConfig="*res://autoloads/GameConfig.gd"
 CampfireRegistry="*res://world/structures/CampfireRegistry.gd"
+TetherRegistry="*res://world/structures/TetherRegistry.gd"
 
 [input]
 

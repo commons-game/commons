@@ -52,6 +52,7 @@ const InventoryScript              := preload("res://items/Inventory.gd")
 const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd")
 const CampfireScript               := preload("res://world/structures/Campfire.gd")
 const BedrollScript                := preload("res://world/structures/Bedroll.gd")
+const TetherScript                 := preload("res://world/structures/Tether.gd")
 
 ## Atlas coords for harvestable tiles (layer 1 object layer).
 ## Tree: atlas (0, 1) on grass ground.
@@ -260,10 +261,29 @@ func _do_attack() -> void:
 			if health != null:
 				health.call("take_damage", ATTACK_DAMAGE)
 				hit_mob = true
-	# If no mob hit, try harvesting the tile in the facing direction.
-	if not hit_mob:
-		var facing_tile := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
-		_do_harvest(facing_tile)
+	if hit_mob:
+		return
+	# Check for Tether nodes in range (enemy or own — either can be attacked).
+	for node in get_parent().get_children():
+		if not node.get_script():
+			continue
+		if not node.has_method("take_damage"):
+			continue
+		if not node is Node2D:
+			continue
+		var node2d := node as Node2D
+		var tether_tile := Vector2i(int(floorf(node2d.position.x / Constants.TILE_SIZE)),
+		                            int(floorf(node2d.position.y / Constants.TILE_SIZE)))
+		var dist: float = (tether_tile - tile_pos).length()
+		if dist <= ATTACK_RANGE:
+			# Pass the active tool id so Tether can enforce the flint_tool requirement.
+			var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
+			var tool_id: String = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
+			node.call("take_damage", ATTACK_DAMAGE, tool_id)
+			return
+	# If no mob or Tether hit, try harvesting the tile in the facing direction.
+	var facing_tile := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
+	_do_harvest(facing_tile)
 
 ## Harvest the harvestable tile at world-tile position tile_pos.
 ## Tree  (atlas 0,1) → requires flint_tool → 2 Wood
@@ -288,8 +308,15 @@ func _do_harvest(tile_pos: Vector2i) -> void:
 			return
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
-		print("Player: harvested tree → 2 Wood")
+			# 10% chance: rare Marrow drop instead of (in addition to) Wood.
+			# Marrow is a tier-3 deep-biome material; this is a placeholder
+			# until proper deep biomes are implemented.
+			if randf() < 0.10:
+				inventory.add_to_bag({"id": "marrow", "category": "material", "count": 1}, 10)
+				print("Player: harvested tree → 1 Marrow (rare!)")
+			else:
+				inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
+				print("Player: harvested tree → 2 Wood")
 		return
 
 	if obj_atlas == ATLAS_ROCK:
@@ -298,8 +325,15 @@ func _do_harvest(tile_pos: Vector2i) -> void:
 			return
 		chunk_manager.remove_tile(tile_pos, 1, "harvest")
 		if inventory != null:
-			inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
-		print("Player: harvested rock → 2 Stone")
+			# 10% chance: rare Sinter drop instead of Stone.
+			# Sinter is a tier-3 deep-biome material; this is a placeholder
+			# until proper deep biomes are implemented.
+			if randf() < 0.10:
+				inventory.add_to_bag({"id": "sinter", "category": "material", "count": 1}, 10)
+				print("Player: harvested rock → 1 Sinter (rare!)")
+			else:
+				inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
+				print("Player: harvested rock → 2 Stone")
 		return
 
 	# Grass is not harvestable — nothing to gather with bare hands yet.
@@ -397,7 +431,17 @@ func _place_structure(item_id: String) -> void:
 	elif item_id == "bedroll":
 		structure = BedrollScript.new()
 		structure.world_tile_pos = place_tile_pos
-		structure.home_set.connect(_on_home_set)
+		# NOTE: Bedroll no longer sets home_pos. The Tether owns home spawn.
+		# The home_set signal connection is intentionally removed here.
+	elif item_id == "tether":
+		structure = TetherScript.new()
+		structure.owner_id = PlayerIdentity.id
+		# Set home spawn immediately on placement (before _ready so registry fires).
+		home_pos = place_world_pos
+		_has_home = true
+		# Connect tether_broken: if it's ours, show the broken message.
+		structure.tether_broken.connect(_on_tether_broken)
+		print("Player: Tether placed — home anchor set at %s" % place_tile_pos)
 
 	if structure == null:
 		print("Player: no structure handler for %s" % item_id)
@@ -411,6 +455,37 @@ func _place_structure(item_id: String) -> void:
 func _on_home_set(world_pos: Vector2) -> void:
 	home_pos = world_pos
 	_has_home = true
+
+## Called when a Tether emits tether_broken. If the Tether was ours, show a
+## stark center-screen message and clear our home anchor.
+func _on_tether_broken(broken_owner_id: String) -> void:
+	if broken_owner_id != PlayerIdentity.id:
+		return
+	# Home is lost — player will spawn at random on next death.
+	_has_home = false
+	home_pos = Vector2.ZERO
+	print("Player: Tether broken — home anchor lost.")
+	_show_tether_broken_message()
+
+## Display "Your Tether has been broken." in red at screen center for 3 seconds.
+func _show_tether_broken_message() -> void:
+	var canvas := CanvasLayer.new()
+	canvas.layer = 98  # just below death overlay
+	add_child(canvas)
+
+	var lbl := Label.new()
+	lbl.text = "Your Tether has been broken."
+	lbl.add_theme_font_size_override("font_size", 36)
+	lbl.add_theme_color_override("font_color", Color(0.9, 0.05, 0.05))
+	# Position at screen centre (1280x720 nominal).
+	lbl.position = Vector2(1280.0 / 2.0 - 260.0, 720.0 / 2.0 - 24.0)
+	canvas.add_child(lbl)
+
+	# Fade out over 3 seconds (hold 1.5s opaque, then fade).
+	var tween := create_tween()
+	tween.tween_interval(1.5)
+	tween.tween_property(lbl, "modulate:a", 0.0, 1.5)
+	tween.tween_callback(canvas.queue_free)
 
 func _process(delta: float) -> void:
 	queue_redraw()

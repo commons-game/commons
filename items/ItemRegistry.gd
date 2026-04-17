@@ -56,6 +56,10 @@ func _register_builtins() -> void:
 	register(_make("wood",          "material", "Wood",         32))
 	register(_make("stone",         "material", "Stone",        32))
 	register(_make("ether_crystal", "material", "Ether Crystal", 16))
+	# Tier-3 deep-biome materials (placeholder drops until deep biomes are implemented).
+	# Marrow: rare drop from trees (10% chance). Sinter: rare drop from rocks (10% chance).
+	register(_make("marrow",        "material", "Marrow",       10))
+	register(_make("sinter",        "material", "Sinter",       10))
 
 	# --- Food ---
 	register(_make("berry", "food", "Berry", 32))
@@ -68,6 +72,8 @@ func _register_builtins() -> void:
 	register(_make("campfire",  "structure", "Campfire",  1))
 	register(_make("workbench", "structure", "Workbench", 1))
 	register(_make("bedroll",   "structure", "Bedroll",   1))
+	# Tether — home anchor and raid objective. One per player.
+	register(_make("tether",    "structure", "Tether",    1))
 
 	# --- Flint tool ---
 	register(_make("flint_tool", "tool", "Flint Tool"))

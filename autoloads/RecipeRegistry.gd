@@ -78,6 +78,10 @@ func _register_builtins() -> void:
 	# Flint tool — hand-craftable
 	register({"stone": 2, "wood": 2}, {"id": "flint_tool", "category": "tool", "count": 1})
 
+	# Tether — requires tier-3 Marrow + Sinter (deep biome materials).
+	# Tether is hand-craftable (no workbench required) since it is a late-game keystone.
+	register({"marrow": 1, "sinter": 1}, {"id": "tether", "category": "structure", "count": 1})
+
 	# Workbench-required tools
 	register({"wood": 3},             {"id": "wooden_axe",      "category": "tool", "count": 1}, true)
 	register({"wood": 2, "stone": 1}, {"id": "wooden_pickaxe",  "category": "tool", "count": 1}, true)
