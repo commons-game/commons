@@ -157,6 +157,8 @@ func _ready() -> void:
 		print("FrameLog: per-frame visual logging enabled")
 	if not is_web and "--force-day" in args:
 		DayClock._time_override = Constants.DAY_CYCLE_SECONDS * 0.25  # pin to midday
+	if not is_web and "--force-dusk" in args:
+		DayClock.set_start_phase(0.45)  # golden hour, dusk imminent — clock keeps ticking
 
 func _setup_merge_system(args: Array) -> void:
 	ErrorReporter.set_phase("connecting")

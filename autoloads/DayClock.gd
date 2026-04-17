@@ -15,9 +15,19 @@ extends Node
 ## Emitted when the phase crosses the day/night boundary.
 signal phase_changed(is_day: bool)
 
-## Set to a non-negative value to override Time.get_unix_time_from_system().
-## Used exclusively in tests — leave at -1.0 in production.
+## Set to a non-negative value to pin the clock to a fixed unix time (tests only).
 var _time_override: float = -1.0
+
+## Added to real unix time so the cycle starts at a desired phase.
+## Set via set_start_phase() — does not stop the clock ticking.
+var _time_offset: float = 0.0
+
+## Shift the clock so the cycle phase is `phase` right now, then let it run.
+func set_start_phase(phase: float) -> void:
+	var real_now := Time.get_unix_time_from_system()
+	var current_phase := fmod(real_now, Constants.DAY_CYCLE_SECONDS) / Constants.DAY_CYCLE_SECONDS
+	var delta_phase := phase - current_phase
+	_time_offset = delta_phase * Constants.DAY_CYCLE_SECONDS
 
 var _last_is_day: bool = true
 
@@ -56,4 +66,4 @@ func sky_alpha() -> float:
 func _get_unix_time() -> float:
 	if _time_override >= 0.0:
 		return _time_override
-	return Time.get_unix_time_from_system()
+	return Time.get_unix_time_from_system() + _time_offset
