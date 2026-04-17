@@ -35,7 +35,7 @@ These are the phase transitions. Everything else in the tech tree hangs off them
 |------|-------------|---------|------|
 | 1 | Start naked, gather stone and wood by hand | Basic awareness of the world | None |
 | 2 | Craft flint tool | Faster gathering, can fight back | Stone + wood |
-| 3 | Build first camp (fire + bedroll) | Survive the night | Flint + wood |
+| 3 | Build first campfire | Survive the night | Flint + wood |
 | 4 | Claim a home | Permanent spawn anchor — death has memory now | Rare material from dangerous area |
 | 5 | Place shrine | Territory locked, island formed in CRDT | Very expensive, multiple rare materials |
 | 6 | Upgrade shrine | Mod applied to land — world shaped to your will | See modding_design.md |
@@ -103,6 +103,20 @@ The day pulls you out. The night terrifies you.
 - **Night** — something is out there. Mob behavior changes, danger scales up. Being caught far from shelter is a real threat.
 
 The day/night cycle is the heartbeat of the game. It creates a natural session rhythm: push out during the day, survive the night, assess what you gathered, plan tomorrow.
+
+Night cannot be skipped — the clock is shared across all players. Everyone faces it.
+
+### Night serves three purposes
+
+**1. Danger** — Sprouts spawn at dusk, flee at dawn. Night-exclusive mob variants planned (things that don't exist in daylight — seeing one for the first time creates real dread).
+
+**2. Resource opportunity** — certain materials only appear at night. Bioluminescent fungi in Mire, frost crystals in Hollow. Night is dangerous but profitable if you're skilled enough to work it. The campfire becomes a decision point: stay safe or risk it for the good stuff.
+
+**3. Heightened merge pressure** — the universe pushes hardest at night. Merge pressure ramp rate multiplied ~2x after dusk. The vibe cues hit hardest in the dark. A merge at night is more dangerous because you're already exposed. This is when the world feels thinnest.
+
+### The bedroll
+
+Removed from the spine. A campfire is the step-3 milestone — build fire, survive the night. The bedroll is a comfort item: sleep near it for passive health regen. No skip-to-dawn (shared clock). Deferred to later implementation.
 
 Dangerous biomes near valuable resources mean the question is always: *do I push deeper, carrying what I've already got, or do I bank it first?* Full loot drop makes this genuinely tense.
 
