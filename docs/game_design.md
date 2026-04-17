@@ -34,9 +34,9 @@ These are the phase transitions. Everything else in the tech tree hangs off them
 | Step | What you do | Unlocks | Gate |
 |------|-------------|---------|------|
 | 1 | Start naked, gather stone and wood by hand | Basic awareness of the world | None |
-| 2 | Craft flint tool | Faster gathering, can fight back | Stone + wood |
-| 3 | Build first campfire | Survive the night | Flint + wood |
-| 4 | Claim a home | Permanent spawn anchor — death has memory now | Rare material from dangerous area |
+| 2 | Craft flint knife | Faster gathering, can fight back, first glimpse of dual-force mechanic | Stone + wood |
+| 3 | Build first campfire | Survive the night | Flint knife + wood |
+| 4 | Claim a home | Permanent spawn anchor — death has memory now | Marrow + Moonstone (night-gated) |
 | 5 | Place shrine | Territory locked, island formed in CRDT | Very expensive, multiple rare materials |
 | 6 | Upgrade shrine | Mod applied to land — world shaped to your will | See modding_design.md |
 
@@ -244,10 +244,10 @@ Harvested from the conflict between forces. Bloom materials are things the growt
 |------|-------|-------|
 | 1 — Common | **Pulp** — raw organic matter | **Grit** — ground stone, mineral dust |
 | 2 — Uncommon | **Spore** — concentrated Bloom essence | **Vein** — crystalline mineral thread |
-| 3 — Rare *(home gate)* | **Marrow** — deep biological, taken from something living | **Sinter** — fused mineral, formed under pressure |
+| 3 — Rare *(home gate)* | **Marrow** — deep biological, only drops from the Bloom night mob | **Moonstone** — crystallises on Hollow stone surfaces at night, dissolves at dawn |
 | 4 — Seam only *(shrine gate)* | **Ichor** — pure Bloom, unstable, alive | **Cipher** — pure Still, a pattern that perfects whatever holds it |
 
-Tier 4 materials only exist in the Seam. Getting them requires surviving the most dangerous zone in the game.
+Tier 3 materials are night-gated: Marrow comes from hunting the bioluminescent Bloom night creature; Moonstone must be harvested from the Hollow before dawn. Both gate the Tether. Tier 4 materials only exist in the Seam.
 
 ---
 
@@ -263,6 +263,67 @@ Creatures are expressions of whichever force dominates their biome — not monst
 | Seam | **Weft** | **Weft** |
 
 Weft is singular — one name regardless of which side of the Seam you approach from. It's neither force. It's the collision. It shouldn't have a comfortable name.
+
+---
+
+## The Flint Knife
+
+The first crafted object and the first lesson in dual-force mechanics.
+
+**Recipe:** stone + wood (same as the old flint tool).
+**Function:** harvesting tool and weapon. No split — one object does both.
+
+**The reveal effect:** when a mob is killed with the flint knife, it briefly shows its other side before dying. A Bloom creature momentarily crystallizes — Still structure flickering through it. A Still creature briefly pulses with organic warmth and color before shattering. Then it's gone.
+
+This is not a power-up. It is the world showing something true: every creature is both forces underneath, expressed as one. The knife — itself both forces — cuts through the expression to the nature beneath. The vibe distortion quiets for a moment as a side effect, not a reward.
+
+No tooltip. No explanation. The player sees it happen and wonders why.
+
+---
+
+## The Night
+
+Night is one of the first enemies of the game. It takes away your vision, changes what is alive in the world, and makes reality less stable. It also offers things the day does not.
+
+### Darkness
+
+The player has a tiny ambient glow — barely 2 tiles. Not enough to feel safe, enough to see what's touching you. The campfire is your intelligence radius. Everything beyond it is unknown.
+
+The **lantern** extends vision but makes you visible. In tier 1 biomes this is pure upside. In tier 3 biomes you're advertising your position to things that hunt by light.
+
+### Light and mob behavior — the gradient
+
+Mob behavior toward light follows the danger gradient of the island:
+
+| Biome tier | Light behavior |
+|------------|---------------|
+| Tier 1 — Verdant / Moraine | Light repels. Sprouts and Motes flee campfire. The campfire is safety. |
+| Tier 2 — Tangle / Shard | Mixed. Some creatures flee, some ignore, some probe the edges. |
+| Tier 3 — Mire / Hollow | Light attracts. The campfire is a beacon. Mass and Form variants are drawn to it. |
+
+New players learn: campfire = good. Then the world starts teaching the deeper rule. In the deep biomes, building a fire means committing to defend it.
+
+**Bloom vs Still flavor:** Bloom creatures are drawn to warmth in the deep (organic, growth-seeking — a campfire in the Mire is like leaving food out). Still creatures are drawn to structure — in the Hollow, your built fire is interesting to something that perfects things.
+
+### Campfire healing
+
+Within campfire radius, 5 seconds out of combat → slow passive regeneration. Enough to matter over a minute of rest. Enough reason to return between raids, not just to escape mobs.
+
+In tier 3 biomes this creates a clock: the fire heals you but draws enemies. Rest long enough to recover, leave before the next wave arrives.
+
+### Night mobs
+
+Two night-exclusive creatures gate the path to the Tether:
+
+**The Bloom night mob** — bioluminescent. You can see it from far away, which means it can see you. Moves fast, dies quickly. Drops **Marrow**. The glow makes it findable but makes hunting it a mutual visibility problem. Lives in Tangle and Mire.
+
+**The Still night mob** — barely visible until it's on top of you. Slow, high HP, hits hard. **Moonstone** does not drop from it — instead, Moonstone crystallises on Hollow stone surfaces where these creatures have been. You harvest the ground they've touched. Lives in Shard and Hollow.
+
+Both vanish at dawn. Marrow does not drop from trees during the day. Moonstone does not form in daylight. The Tether requires the night.
+
+### Merge pressure at night
+
+Merge pressure ramp rate doubles after dusk. The vibe cues hit hardest in the dark — distant lights on the horizon are visible in a way they aren't during the day. Night is when you first *see* evidence of another player. The paranoia of "is that a campfire I didn't build?" is a night experience specifically.
 
 ---
 
