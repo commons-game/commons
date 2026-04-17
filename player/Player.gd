@@ -302,12 +302,7 @@ func _do_harvest(tile_pos: Vector2i) -> void:
 		print("Player: harvested rock → 2 Stone")
 		return
 
-	# No harvestable object — check ground layer for soft tile (grass).
-	var ground_atlas: Vector2i = chunk_manager.get_ground_atlas_at(tile_pos)
-	if ground_atlas.x == 0:  # grass
-		if inventory != null:
-			inventory.add_to_bag({"id": "wood", "category": "material", "count": 1}, 20)
-		print("Player: gathered grass → 1 Wood")
+	# Grass is not harvestable — nothing to gather with bare hands yet.
 
 func _show_harvest_fail(msg: String) -> void:
 	# Brief print — subtle feedback without UI popup.
