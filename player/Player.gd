@@ -548,6 +548,9 @@ func _physics_process(_delta: float) -> void:
 		return
 	var input := Vector2(Input.get_axis("ui_left", "ui_right"),
 	                     Input.get_axis("ui_up", "ui_down"))
+	var cs := get_node_or_null("../CraftingSystem")
+	if cs != null and cs.get("is_open"):
+		input = Vector2.ZERO
 	velocity = input.normalized() * SPEED
 	if input != Vector2.ZERO:
 		_facing = input.normalized()

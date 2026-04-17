@@ -5,16 +5,10 @@
 ##   headless mode   → skip to World immediately (test runner / CI)
 ##
 ## Normal launch → _build_ui() constructs the menu widgets.
-## The server URL field (under "Advanced") writes to user://server_config.cfg,
-## which World._resolve_proxy_url() reads on the next scene load.
 extends Control
-
-const DEFAULT_PROXY_URL  := "ws://127.0.0.1:7510"
-const CONFIG_PATH        := "user://server_config.cfg"
 
 ## Exposed so tests can inspect after _ready().
 var _name_edit:   LineEdit = null
-var _server_edit: LineEdit = null
 var _status_dot:  ColorRect = null
 var _status_label: Label = null
 var _play_btn:    Button = null
@@ -26,12 +20,6 @@ var _update_get_btn: Button = null
 var _update_dismiss_btn: Button = null
 var _update_url: String = ""
 
-## WS probe for connection status
-var _probe_ws: WebSocketPeer = null
-var _probe_url: String = ""
-var _probe_timer: float = 0.0
-const PROBE_INTERVAL := 4.0   ## re-check every 4 s
-
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if "--skip-menu" in args:
@@ -41,7 +29,7 @@ func _ready() -> void:
 		get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
 		return
 	_build_ui()
-	# Connect ProcessManager signals before deciding whether to probe
+	# Connect ProcessManager signals
 	ProcessManager.backend_ready.connect(_on_backend_ready)
 	ProcessManager.backend_failed.connect(_on_backend_failed)
 	ProcessManager.status_changed.connect(_on_backend_status)
@@ -57,23 +45,6 @@ func _ready() -> void:
 		add_child(overlay)
 		overlay.connect("accepted", func(): ErrorReporter.set_consent(true))
 		overlay.connect("declined", func(): ErrorReporter.set_consent(false))
-
-func _process(delta: float) -> void:
-	if _probe_ws == null:
-		return
-	_probe_ws.poll()
-	match _probe_ws.get_ready_state():
-		WebSocketPeer.STATE_OPEN:
-			_set_status(true)
-			_probe_ws.close()
-			_probe_ws = null
-		WebSocketPeer.STATE_CLOSED:
-			_set_status(false)
-			_probe_ws = null
-	_probe_timer -= delta
-	if _probe_timer <= 0.0:
-		_probe_timer = PROBE_INTERVAL
-		_start_probe()
 
 # ---------------------------------------------------------------------------
 # UI construction
@@ -119,7 +90,7 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	# Server status row
+	# ProcessManager status row
 	var status_row := HBoxContainer.new()
 	status_row.name = "StatusRow"
 	vbox.add_child(status_row)
@@ -132,35 +103,8 @@ func _build_ui() -> void:
 
 	_status_label = Label.new()
 	_status_label.name = "StatusLabel"
-	_status_label.text = "  Server: checking…"
+	_status_label.text = "  Backend: starting…"
 	status_row.add_child(_status_label)
-
-	# Advanced toggle
-	var adv_btn := Button.new()
-	adv_btn.name = "AdvancedToggle"
-	adv_btn.text = "▸ Advanced"
-	adv_btn.flat = true
-	vbox.add_child(adv_btn)
-
-	var adv_box := VBoxContainer.new()
-	adv_box.name = "AdvancedBox"
-	adv_box.visible = false
-	vbox.add_child(adv_box)
-
-	var srv_label := Label.new()
-	srv_label.text = "Server URL:"
-	adv_box.add_child(srv_label)
-
-	_server_edit = LineEdit.new()
-	_server_edit.name = "ServerEdit"
-	_server_edit.placeholder_text = DEFAULT_PROXY_URL
-	_server_edit.text = _load_saved_url()
-	_server_edit.text_changed.connect(_on_server_url_changed)
-	adv_box.add_child(_server_edit)
-
-	adv_btn.pressed.connect(func():
-		adv_box.visible = not adv_box.visible
-		adv_btn.text = ("▾ Advanced" if adv_box.visible else "▸ Advanced"))
 
 	vbox.add_child(HSeparator.new())
 
@@ -176,43 +120,20 @@ func _build_ui() -> void:
 	_build_update_banner(vbox)
 
 # ---------------------------------------------------------------------------
-# Proxy connection probe
-# ---------------------------------------------------------------------------
-
-func _start_probe() -> void:
-	var url := _current_url()
-	if url == _probe_url and _probe_ws != null:
-		return
-	_probe_url = url
-	if _probe_ws != null:
-		_probe_ws.close()
-	_probe_ws = WebSocketPeer.new()
-	var err := _probe_ws.connect_to_url(url)
-	if err != OK:
-		_probe_ws = null
-		_set_status(false)
-
-func _set_status(reachable: bool) -> void:
-	if _status_dot == null or _status_label == null:
-		return
-	if reachable:
-		_status_dot.color  = Color(0.2, 0.85, 0.3)   # green
-		_status_label.text = "  Server: connected"
-	else:
-		_status_dot.color  = Color(0.85, 0.2, 0.2)   # red
-		_status_label.text = "  Server: unreachable"
-
-# ---------------------------------------------------------------------------
 # ProcessManager signal handlers
 # ---------------------------------------------------------------------------
 
 func _on_backend_ready() -> void:
 	if _play_btn != null:
 		_play_btn.disabled = false
-	_start_probe()
+	if _status_dot != null:
+		_status_dot.color = Color(0.2, 0.85, 0.3)   # green
+	if _status_label != null:
+		_status_label.text = "  Backend: ready"
 
 func _on_backend_failed(reason: String) -> void:
-	_set_status(false)
+	if _status_dot != null:
+		_status_dot.color = Color(0.85, 0.2, 0.2)   # red
 	if _status_label != null:
 		_status_label.text = "  " + reason
 
@@ -226,44 +147,13 @@ func _on_backend_status(message: String) -> void:
 # Helpers
 # ---------------------------------------------------------------------------
 
-func _current_url() -> String:
-	if _server_edit != null:
-		var typed := _server_edit.text.strip_edges()
-		if not typed.is_empty():
-			return typed
-	return _load_saved_url()
-
-func _load_saved_url() -> String:
-	if FileAccess.file_exists(CONFIG_PATH):
-		var f := FileAccess.open(CONFIG_PATH, FileAccess.READ)
-		if f:
-			var stored := f.get_line().strip_edges()
-			f.close()
-			if not stored.is_empty():
-				return stored
-	return ""   # empty means "use default"
-
-func _on_server_url_changed(_new_text: String) -> void:
-	# Restart probe when URL changes; save on play.
-	_probe_timer = 0.0
-
 func _on_play_pressed() -> void:
 	_save_name()
-	_save_server_url()
 	get_tree().change_scene_to_file("res://world/World.tscn")
 
 func _save_name() -> void:
 	if _name_edit != null:
 		PlayerIdentity.save_display_name(_name_edit.text)
-
-func _save_server_url() -> void:
-	if _server_edit == null:
-		return
-	var url := _server_edit.text.strip_edges()
-	var fw := FileAccess.open(CONFIG_PATH, FileAccess.WRITE)
-	if fw:
-		fw.store_line(url)   # empty string = use default next launch
-		fw.close()
 
 # ---------------------------------------------------------------------------
 # Update banner
