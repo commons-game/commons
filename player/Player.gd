@@ -594,6 +594,11 @@ func _physics_process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _dead:
 		return
+	# Handle right-click place/use (mouse button events bypass the key filter below)
+	if event is InputEventMouseButton and event.pressed and not event.echo:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			_do_place_use()
+			return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	match event.keycode:
