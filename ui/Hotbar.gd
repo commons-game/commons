@@ -43,6 +43,14 @@ var _panels: Array = []   # ColorRect per slot
 var _id_labels: Array = []   # Label: item id
 var _count_labels: Array = []  # Label: count
 
+const BAR_HEIGHT     := 5
+const BAR_GAP        := 3
+var _hp_bar_bg: ColorRect   = null
+var _hp_bar_fill: ColorRect = null
+var _food_bar_bg: ColorRect   = null
+var _food_bar_fill: ColorRect = null
+var _bar_total_width: int = 0
+
 func _ready() -> void:
 	layer = 11   # above ActionBarHUD (10)
 	_build_ui()
@@ -94,6 +102,33 @@ func _build_ui() -> void:
 		cnt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		panel.add_child(cnt_lbl)
 		_count_labels.append(cnt_lbl)
+
+	# HP bar — background + fill above slots
+	_bar_total_width = total_width
+	var hp_bar_y: int = y - BAR_GAP - BAR_HEIGHT - BAR_GAP - BAR_HEIGHT
+	_hp_bar_bg = ColorRect.new()
+	_hp_bar_bg.position = Vector2(start_x, hp_bar_y)
+	_hp_bar_bg.size = Vector2(total_width, BAR_HEIGHT)
+	_hp_bar_bg.color = Color(0.25, 0.05, 0.05, 0.85)
+	add_child(_hp_bar_bg)
+	_hp_bar_fill = ColorRect.new()
+	_hp_bar_fill.position = Vector2(start_x, hp_bar_y)
+	_hp_bar_fill.size = Vector2(total_width, BAR_HEIGHT)
+	_hp_bar_fill.color = Color(0.85, 0.15, 0.15)
+	add_child(_hp_bar_fill)
+
+	# Food bar — below HP bar, above slots
+	var food_bar_y: int = y - BAR_GAP - BAR_HEIGHT
+	_food_bar_bg = ColorRect.new()
+	_food_bar_bg.position = Vector2(start_x, food_bar_y)
+	_food_bar_bg.size = Vector2(total_width, BAR_HEIGHT)
+	_food_bar_bg.color = Color(0.15, 0.15, 0.05, 0.85)
+	add_child(_food_bar_bg)
+	_food_bar_fill = ColorRect.new()
+	_food_bar_fill.position = Vector2(start_x, food_bar_y)
+	_food_bar_fill.size = Vector2(total_width, BAR_HEIGHT)
+	_food_bar_fill.color = Color(0.75, 0.65, 0.15)
+	add_child(_food_bar_fill)
 
 	# Key hint labels
 	for i in range(TOTAL_SLOTS):
@@ -190,3 +225,19 @@ func _process(_delta: float) -> void:
 	if _frame_counter >= 6:
 		_frame_counter = 0
 		refresh()
+		_refresh_bars()
+
+func _refresh_bars() -> void:
+	if player == null or _hp_bar_fill == null:
+		return
+	# HP
+	var health_node = player.get_node_or_null("Health")
+	if health_node != null:
+		var frac: float = float(health_node.get("current_hp")) / float(health_node.get("max_hp"))
+		frac = clampf(frac, 0.0, 1.0)
+		_hp_bar_fill.size.x = _bar_total_width * frac
+	# Food
+	var max_food: int = int(player.get("max_food")) if player.get("max_food") else 100
+	var food: int = int(player.get("food")) if player.get("food") != null else 0
+	var food_frac: float = clampf(float(food) / float(max_food), 0.0, 1.0)
+	_food_bar_fill.size.x = _bar_total_width * food_frac
