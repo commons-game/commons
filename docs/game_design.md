@@ -229,6 +229,44 @@ Weft is singular — one name regardless of which side of the Seam you approach 
 
 ---
 
+## Design Principle: In World and Subtle
+
+**The world communicates. The UI does not.**
+
+No notifications. No bars. No popups. If something is happening, the world shows it. A good player reads the world. A new player gets scared and doesn't know why. Both are correct responses.
+
+This principle governs every system — merge pressure, health, hunger, faction tension, force dominance. When designing a new mechanic, the question is always: *how does the world show this*, not *how does the UI show this*.
+
+---
+
+## The Merge Moment
+
+No notification is sent when a merge occurs. The world simply changes.
+
+### Phase 1 — Premonition *(before the merge)*
+The vibe cues escalate as pressure builds. The world gets strange. A good player is already paying attention and preparing. See: *The vibe system* above.
+
+### Phase 2 — The Merge *(the moment itself)*
+Quiet and disorienting. No cutscene, no loading screen, no sound effect. You're walking and the ground is slightly different than it was. A tile you didn't place. A path that wasn't there. The world has shifted at the edges while you weren't looking. A bad player doesn't notice for a while.
+
+### Phase 3 — The Hunt *(post-merge, pre-contact)*
+Two players in a merged world, neither has seen the other. This is a full gameplay phase — reading signs, tracking, deciding whether to hide or hunt.
+
+Signs a good player reads:
+- **Disturbed tiles** — freshly harvested trees, dug ground, placed objects that aren't yours
+- **Warmth** — a fire still burning, embers that are fresh
+- **Tracks** — footprints in Bloom biomes, crystalline impressions in Still biomes
+- **Absence** — mobs that should be here aren't. Something spooked them.
+- **Light** — at night, another player's torch or campfire glow visible before they are
+- **Force reaction** — if their shrine is Bloom and yours is Still, the Bloom starts creeping toward your territory before you ever see them
+
+### Phase 4 — Contact
+The first moment you see the other player. Earned, not given. If you read the signs you saw them first. If you didn't, you didn't.
+
+The merge is an information asymmetry game. Both players share the same world but have different knowledge of it. The player who reads the signs faster has the advantage. That skill gap is meaningful and learnable — a veteran doesn't just have better gear, they notice things a new player walks past.
+
+---
+
 ## Open Questions (design, not tech)
 
 1. **Shrine conflict mechanics** — can you destroy someone's shrine? Does it require physical presence? Does it require defeating its defenders first? Is the home's physical object (the flag) the same model as the shrine anchor?
