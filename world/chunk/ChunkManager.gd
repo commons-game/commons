@@ -16,6 +16,7 @@ var _unload_queue: Array = []  # pending unload Vector2i coords — drained MAX_
 var shifting_lands: Node = null
 const MAX_LOADS_PER_FRAME   := 3
 const MAX_UNLOADS_PER_FRAME := 3
+const PRELOAD_MARGIN        := 4  # tiles from chunk edge to trigger priority pre-load
 
 func _ready() -> void:
 	_ensure_tileset_atlas_registered()
@@ -68,6 +69,10 @@ func _validate_tileset() -> void:
 
 func update_player_position(world_tile_pos: Vector2i) -> void:
 	var new_chunk := CoordUtils.world_to_chunk(world_tile_pos)
+	# Directional pre-loading: bump neighbor chunks to front of queue before
+	# the player arrives at an edge. Runs before the early-return so it fires
+	# every call while the player is near a boundary, not only on transitions.
+	_preload_ahead(world_tile_pos, new_chunk)
 	# Always load if chunk changed OR if the current chunk was evicted under the player.
 	if new_chunk == _player_chunk and _loaded_chunks.has(new_chunk):
 		return
@@ -167,6 +172,35 @@ func _persist_all_loaded_chunks() -> void:
 	for coords in _loaded_chunks:
 		var chunk := _loaded_chunks[coords] as ChunkData
 		Backend.store_chunk(coords, _serialize_chunk(chunk))
+
+## Directional pre-loading: when the player is within PRELOAD_MARGIN tiles of
+## a chunk edge, move the adjacent chunk to the front of _load_queue so it is
+## ready before the player arrives. Eliminates synchronous center-chunk loads
+## during normal movement.
+func _preload_ahead(tile_pos: Vector2i, current_chunk: Vector2i) -> void:
+	var cs := Constants.CHUNK_SIZE
+	var lx := tile_pos.x % cs
+	var ly := tile_pos.y % cs
+	# GDScript modulo returns negative values for negative coordinates — normalize
+	if lx < 0: lx += cs
+	if ly < 0: ly += cs
+	if lx < PRELOAD_MARGIN:
+		_priority_load(current_chunk + Vector2i(-1, 0))
+	if lx >= cs - PRELOAD_MARGIN:
+		_priority_load(current_chunk + Vector2i(1, 0))
+	if ly < PRELOAD_MARGIN:
+		_priority_load(current_chunk + Vector2i(0, -1))
+	if ly >= cs - PRELOAD_MARGIN:
+		_priority_load(current_chunk + Vector2i(0, 1))
+
+## Bump a chunk to the front of _load_queue so it loads before anything else.
+## No-op if the chunk is already loaded or already being loaded.
+func _priority_load(coords: Vector2i) -> void:
+	if _loaded_chunks.has(coords):
+		return
+	_unload_queue.erase(coords)
+	_load_queue.erase(coords)
+	_load_queue.push_front(coords)
 
 func _load_chunks_in_radius(center: Vector2i, radius: int) -> void:
 	# Player's chunk loads immediately — they're standing on it

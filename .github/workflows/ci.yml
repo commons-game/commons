@@ -53,6 +53,9 @@ jobs:
           sudo mv /tmp/godot/Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot4
           sudo chmod +x /usr/local/bin/godot4
 
+      - name: Import resources
+        run: godot4 --headless --path . --import 2>&1 | tail -5 || true
+
       - name: Parse check (headless)
         run: godot4 --headless --path . --quit-after 1 -- --no-managed-backend 2>&1 | tee /tmp/godot_parse.log
         # Fail if any ERROR lines appear

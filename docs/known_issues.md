@@ -1,5 +1,14 @@
 # Known Issues
 
+## CI / GitHub Actions
+
+### Godot parse job was failing on every push (FIXED)
+**Status:** Fixed in CI workflow + gdUnit4 annotation patch.
+**Root cause (1):** On a fresh CI checkout, `.godot/imported/` does not exist (gitignored), so `res://tilesets/placeholder_tileset.png` has no compiled `.ctex`. This causes `Chunk.tscn`, `MainTileSet.tres`, and all scripts using `ChunkData`, `CRDTTileStore`, `ChunkManager` to fail with parse errors, which cascades to `Backend.gd`, `Player.gd`, and more.
+**Fix:** Added `godot4 --headless --path . --import` step in `ci.yml` and `test.yml` before the parse/test steps. This generates `.godot/imported/` on the CI runner before scripts are compiled.
+**Root cause (2):** `addons/gdUnit4/` v5.0.3 uses `@warning_ignore_start` / `@warning_ignore_restore` annotations which were added in Godot 4.4. The project and CI use Godot 4.3.
+**Fix:** Removed the two block-annotation lines from `addons/gdUnit4/src/ui/settings/GdUnitSettingsDialog.gd`. They are warning-suppression only (no functional effect); the dialog is editor-only UI.
+
 ## Survival Spine (Step 5 — Shrine)
 
 ### Shrine materials have no drop sources yet
