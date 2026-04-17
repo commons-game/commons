@@ -83,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
     let params = Arc::new(Parameters::from(vec![]));
     let container = ContractContainer::try_from((contract_bytes, params))
         .map_err(|e| anyhow::anyhow!("Error contract init failed: {e}"))?;
-    let contract_id: ContractInstanceId = container.id().clone();
+    let contract_id: ContractInstanceId = *container.id();
 
     // Send GET request.
     let get = ClientRequest::ContractOp(ContractRequest::Get {
@@ -190,8 +190,8 @@ async fn main() -> anyhow::Result<()> {
     );
     println!("{sep}");
     println!(
-        "{:<20} {:<20} {:<30} {:<9} {:<10} {}",
-        "TIME", "TYPE", "FILE", "PHASE", "PLATFORM", "VER"
+        "{:<20} {:<20} {:<30} {:<9} {:<10} VER",
+        "TIME", "TYPE", "FILE", "PHASE", "PLATFORM"
     );
 
     for (_, report) in &reports {

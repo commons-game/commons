@@ -30,6 +30,7 @@ pub struct VersionManifest {
     pub min_protocol_version: u32,
 }
 
+#[allow(dead_code)]
 struct VersionManifestContract;
 
 #[contract]

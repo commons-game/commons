@@ -131,7 +131,7 @@ impl ContractInterface for LobbyContract {
             .filter(|(sid, entry)| {
                 peer_summary
                     .get(*sid)
-                    .map_or(true, |&peer_ts| entry.timestamp > peer_ts)
+                    .is_none_or(|&peer_ts| entry.timestamp > peer_ts)
             })
             .map(|(sid, e)| (sid.clone(), e.clone()))
             .collect();
@@ -159,6 +159,7 @@ mod tests {
             ip: "192.168.1.1".to_string(),
             enet_port: 7777,
             timestamp,
+            protocol_version: 0,
         }
     }
 

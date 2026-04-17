@@ -12,6 +12,7 @@ use freeland_common::{PlayerDelegateRequest, PlayerDelegateResponse};
 
 pub use freeland_common::{PlayerDelegateRequest as Request, PlayerDelegateResponse as Response};
 
+#[allow(dead_code)]
 struct PlayerDelegate;
 
 #[delegate]
@@ -47,6 +48,7 @@ impl DelegateInterface for PlayerDelegate {
     }
 }
 
+#[allow(dead_code)]
 fn handle_request(ctx: &mut DelegateCtx, request: PlayerDelegateRequest) -> PlayerDelegateResponse {
     match request {
         PlayerDelegateRequest::SaveReputation { player_id, data_json } => {

@@ -138,7 +138,7 @@ impl ContractInterface for ChunkContract {
             .filter(|(key, entry)| {
                 peer_summary
                     .get(key)
-                    .map_or(true, |&peer_ts| entry.timestamp > peer_ts)
+                    .is_none_or(|&peer_ts| entry.timestamp > peer_ts)
             })
             .map(|(k, e)| (*k, e.clone()))
             .collect();

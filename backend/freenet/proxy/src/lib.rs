@@ -27,6 +27,7 @@ use tracing::{debug, error, info, warn};
 
 /// Start the proxy listener. Returns the bound address (useful when port 0 is
 /// passed for testing). Runs until the listener is dropped / process exits.
+#[allow(clippy::too_many_arguments)]
 pub async fn run_listener(
     listen_addr: SocketAddr,
     node_url: String,
@@ -131,6 +132,7 @@ pub async fn run_listener(
 // Per-client handler
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_client(
     stream: TcpStream,
     node_url: String,
@@ -221,6 +223,7 @@ async fn handle_client(
 // Request dispatch
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 async fn dispatch(
     freenet: &mut WebApi,
     contract_bytes: &[u8],
@@ -393,7 +396,7 @@ async fn get_chunk(
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("Contract init: {e}") },
     };
-    let contract_id: ContractInstanceId = container.id().clone();
+    let contract_id: ContractInstanceId = *container.id();
 
     let get = ClientRequest::ContractOp(ContractRequest::Get {
         key: contract_id,
@@ -535,7 +538,7 @@ async fn lobby_get(
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("Lobby contract init: {e}") },
     };
-    let contract_id: ContractInstanceId = container.id().clone();
+    let contract_id: ContractInstanceId = *container.id();
 
     let get = ClientRequest::ContractOp(ContractRequest::Get {
         key: contract_id,
@@ -671,7 +674,7 @@ async fn pairing_get(
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("Pairing contract init: {e}") },
     };
-    let contract_id: ContractInstanceId = container.id().clone();
+    let contract_id: ContractInstanceId = *container.id();
 
     let get = ClientRequest::ContractOp(ContractRequest::Get {
         key: contract_id,
@@ -899,7 +902,7 @@ async fn get_version_manifest(
         Ok(c) => c,
         Err(e) => return ProxyResponse::Error { message: format!("version contract init: {e}") },
     };
-    let contract_id: ContractInstanceId = container.id().clone();
+    let contract_id: ContractInstanceId = *container.id();
 
     let get = ClientRequest::ContractOp(ContractRequest::Get {
         key: contract_id,

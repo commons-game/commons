@@ -120,12 +120,12 @@ impl ContractInterface for PairingContract {
         let offer_newer = current
             .offer
             .as_ref()
-            .map(|s| peer.offer_ts.map_or(true, |pt| s.timestamp > pt))
+            .map(|s| peer.offer_ts.is_none_or(|pt| s.timestamp > pt))
             .unwrap_or(false);
         let answer_newer = current
             .answer
             .as_ref()
-            .map(|s| peer.answer_ts.map_or(true, |pt| s.timestamp > pt))
+            .map(|s| peer.answer_ts.is_none_or(|pt| s.timestamp > pt))
             .unwrap_or(false);
 
         if offer_newer || answer_newer {
