@@ -67,3 +67,7 @@ func _register_builtins() -> void:
 	# --- Structures (placed in the world) ---
 	register(_make("campfire",  "structure", "Campfire",  1))
 	register(_make("workbench", "structure", "Workbench", 1))
+	register(_make("bedroll",   "structure", "Bedroll",   1))
+
+	# --- Flint tool ---
+	register(_make("flint_tool", "tool", "Flint Tool"))

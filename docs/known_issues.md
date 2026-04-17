@@ -1,5 +1,23 @@
 # Known Issues
 
+## Survival Spine (Steps 2–3)
+
+### CraftingUI (C key) replaced by CraftingSystem quick-craft
+**Status:** Intentional change.
+**Detail:** `KEY_C` now calls `CraftingSystem.try_craft()` (first matching hand recipe, no UI panel). The old `CraftingUI` toggle is still reachable as a fallback if `CraftingSystem` node isn't present. Workbench mode (`KEY_E`) is unchanged and still opens the full UI.
+
+### RecipeRegistry: campfire recipe changed from 4 wood to 3 wood
+**Status:** Updated to match survival spine design doc.
+**Detail:** Pre-existing recipe used `{"wood": 4}` for campfire. Survival spine spec says 3 Wood → Campfire, 4 Wood → Bedroll. Both recipes now distinct.
+
+### Hotbar conflicts with ActionBarHUD
+**Status:** Known co-existence — both are shown simultaneously.
+**Detail:** `ActionBarHUD` (layer 10) shows weapon/tool/talisman. `Hotbar` (layer 11) shows tool slots + bag slots 0–5 at a slightly higher vertical position. They are separate and non-overlapping by design. If screen layout becomes cluttered, consider merging them.
+
+### Placed campfire/bedroll structures are not persisted
+**Status:** Known limitation (placeholder).
+**Detail:** Campfire and Bedroll structures are Node2D instances added directly to the World scene tree. They are not stored in the CRDT tilemap, so they don't survive chunk reload or game restart. Phase 1+ work: write campfire/bedroll as CRDT object-layer tiles (atlas coords TBD) and drive CampfireRegistry from CampfireSystem's tile scanner.
+
 ## Chat System
 
 ### T key did not open chat (FIXED)

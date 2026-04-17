@@ -50,6 +50,8 @@ const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
 const CampfireSystemScript        := preload("res://world/CampfireSystem.gd")
+const HotbarScript                := preload("res://ui/Hotbar.gd")
+const CraftingSystemScript2       := preload("res://items/CraftingSystem.gd")
 const ChatInputScript             := preload("res://ui/ChatInput.gd")
 const ChatHistoryPanelScript      := preload("res://ui/ChatHistoryPanel.gd")
 const ChatRPCScript               := preload("res://multiplayer/ChatRPC.gd")
@@ -132,6 +134,8 @@ func _ready() -> void:
 	_setup_equipment_ui()
 	_setup_crafting_ui()
 	_setup_campfire_system()
+	_setup_hotbar()
+	_setup_crafting_system()
 	_setup_shifting_lands_hud()
 	_setup_chat_system()
 	_assert_layer_order()
@@ -818,6 +822,21 @@ func _setup_campfire_system() -> void:
 	var cs := CampfireSystemScript.new()
 	cs.name = "CampfireSystem"
 	cs._chunk_mgr = $ChunkManager
+	add_child(cs)
+
+func _setup_hotbar() -> void:
+	var hotbar := HotbarScript.new()
+	hotbar.name = "Hotbar"
+	hotbar.inventory = $Player.inventory
+	hotbar.player = $Player
+	add_child(hotbar)
+	hotbar.refresh()
+
+func _setup_crafting_system() -> void:
+	var cs := CraftingSystemScript2.new()
+	cs.name = "CraftingSystem"
+	cs.inventory = $Player.inventory
+	cs.player_node = $Player
 	add_child(cs)
 
 func _setup_chat_system() -> void:

@@ -50,6 +50,22 @@ const CharacterRendererScript      := preload("res://player/CharacterRenderer.gd
 const AssetPackScript              := preload("res://player/AssetPack.gd")
 const InventoryScript              := preload("res://items/Inventory.gd")
 const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd")
+const CampfireScript               := preload("res://world/structures/Campfire.gd")
+const BedrollScript                := preload("res://world/structures/Bedroll.gd")
+
+## Atlas coords for harvestable tiles (layer 1 object layer).
+## Tree: atlas (0, 1) on grass ground.
+## Rock: atlas (1, 1) on stone ground.
+## Ground atlas: grass=0, dirt=1, stone=2, water=3.
+const ATLAS_TREE  := Vector2i(0, 1)
+const ATLAS_ROCK  := Vector2i(1, 1)
+
+## Home position for respawn (set by placing a bedroll).
+var home_pos: Vector2 = Vector2.ZERO
+var _has_home: bool = false
+
+## Placed structure nodes (campfires/bedrolls) owned by this player.
+var _placed_structures: Array = []
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
@@ -179,7 +195,7 @@ func _on_player_died() -> void:
 	# Reset player state.
 	hp = max_hp
 	food = max_food
-	position = Vector2.ZERO
+	position = home_pos if _has_home else Vector2.ZERO
 
 	# Fade back in.
 	_dead = false
@@ -229,7 +245,8 @@ func _do_attack() -> void:
 		return
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
-	# Find any mob within ATTACK_RANGE tiles — duck-type check via "mob_died" signal
+	# Check for mobs first.
+	var hit_mob: bool = false
 	for node in get_parent().get_children():
 		if not node.get_script():
 			continue
@@ -242,6 +259,163 @@ func _do_attack() -> void:
 			var health = node.get_node_or_null("Health")
 			if health != null:
 				health.call("take_damage", ATTACK_DAMAGE)
+				hit_mob = true
+	# If no mob hit, try harvesting the tile in the facing direction.
+	if not hit_mob:
+		var facing_tile := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
+		_do_harvest(facing_tile)
+
+## Harvest the harvestable tile at world-tile position tile_pos.
+## Tree  (atlas 0,1) → requires flint_tool → 2 Wood
+## Rock  (atlas 1,1) → requires flint_tool → 2 Stone
+## Grass ground (atlas_x=0) → bare hands OK → 1 Wood (thatch)
+func _do_harvest(tile_pos: Vector2i) -> void:
+	if chunk_manager == null:
+		return
+	# Check object layer first (trees and rocks are on layer 1).
+	var obj_tile: Dictionary = chunk_manager.get_object_tile_at(tile_pos)
+	var obj_atlas := Vector2i(
+		int(obj_tile.get("atlas_x", -1)),
+		int(obj_tile.get("atlas_y", -1)))
+
+	var active_tool: Dictionary = inventory.get_active_tool() if inventory != null else {}
+	var tool_id: String = str(active_tool.get("id", "")) if not active_tool.is_empty() else ""
+	var has_flint: bool = (tool_id == "flint_tool")
+
+	if obj_atlas == ATLAS_TREE:
+		if not has_flint:
+			_show_harvest_fail("Need flint tool")
+			return
+		chunk_manager.remove_tile(tile_pos, 1, "harvest")
+		if inventory != null:
+			inventory.add_to_bag({"id": "wood", "category": "material", "count": 2}, 20)
+		print("Player: harvested tree → 2 Wood")
+		return
+
+	if obj_atlas == ATLAS_ROCK:
+		if not has_flint:
+			_show_harvest_fail("Need flint tool")
+			return
+		chunk_manager.remove_tile(tile_pos, 1, "harvest")
+		if inventory != null:
+			inventory.add_to_bag({"id": "stone", "category": "material", "count": 2}, 20)
+		print("Player: harvested rock → 2 Stone")
+		return
+
+	# No harvestable object — check ground layer for soft tile (grass).
+	var ground_atlas: Vector2i = chunk_manager.get_ground_atlas_at(tile_pos)
+	if ground_atlas.x == 0:  # grass
+		if inventory != null:
+			inventory.add_to_bag({"id": "wood", "category": "material", "count": 1}, 20)
+		print("Player: gathered grass → 1 Wood")
+
+func _show_harvest_fail(msg: String) -> void:
+	# Brief print — subtle feedback without UI popup.
+	print("Player: %s" % msg)
+
+## Handle place_use action.
+## - If active hotbar slot contains a structure: place it in front of the player.
+## - If active hotbar slot is a consumable: use it.
+## - Also check for bedrolls in range to activate home-set.
+func _do_place_use() -> void:
+	# Check for a bedroll in range first (walk onto / activate).
+	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+	                         int(floorf(position.y / Constants.TILE_SIZE)))
+	for structure in _placed_structures:
+		if not is_instance_valid(structure):
+			continue
+		if not structure.get_script():
+			continue
+		if not structure.has_method("activate"):
+			continue
+		var s_tile := Vector2i(
+			int(floorf(structure.position.x / Constants.TILE_SIZE)),
+			int(floorf(structure.position.y / Constants.TILE_SIZE)))
+		if (s_tile - tile_pos).length() <= 1.5:
+			structure.activate(position)
+			return
+
+	# Check active hotbar slot.
+	var hotbar := get_node_or_null("../Hotbar")
+	var active_stack: Dictionary = {}
+	if hotbar != null:
+		active_stack = hotbar.call("get_active_stack") as Dictionary
+	else:
+		# Fallback: active tool slot
+		if inventory != null:
+			active_stack = inventory.get_active_tool()
+
+	if active_stack.is_empty():
+		return
+
+	var item_id: String = str(active_stack.get("id", ""))
+	var item_cat: String = str(active_stack.get("category", ""))
+
+	if item_cat == "structure":
+		_place_structure(item_id)
+	elif item_cat == "food":
+		_try_eat()
+
+## Place a structure one tile in front of the player.
+func _place_structure(item_id: String) -> void:
+	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+	                         int(floorf(position.y / Constants.TILE_SIZE)))
+	var place_tile_pos := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
+
+	# Don't stack on water or existing object tiles.
+	if chunk_manager != null:
+		var ground: Vector2i = chunk_manager.get_ground_atlas_at(place_tile_pos)
+		if ground.x == 3:  # water
+			print("Player: can't place structure on water")
+			return
+		if chunk_manager.has_tile_at(place_tile_pos, 1):
+			print("Player: tile already occupied")
+			return
+
+	# Consume from inventory (remove from bag, or from tool slot if it's there).
+	var consumed: bool = false
+	if inventory != null:
+		if inventory.bag_stack_total(item_id) > 0:
+			inventory.remove_from_bag(item_id, 1)
+			consumed = true
+		else:
+			# Check tool slots.
+			for i in range(inventory.TOOL_SLOT_COUNT):
+				var slot: Dictionary = inventory.tool_slots[i] as Dictionary
+				if str(slot.get("id", "")) == item_id:
+					inventory.clear_tool_slot(i)
+					consumed = true
+					break
+	if not consumed:
+		print("Player: no %s in inventory" % item_id)
+		return
+
+	# Instantiate and add to world.
+	var place_world_pos := Vector2(
+		place_tile_pos.x * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
+		place_tile_pos.y * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
+
+	var structure: Node2D = null
+	if item_id == "campfire":
+		structure = CampfireScript.new()
+		structure.world_tile_pos = place_tile_pos
+	elif item_id == "bedroll":
+		structure = BedrollScript.new()
+		structure.world_tile_pos = place_tile_pos
+		structure.home_set.connect(_on_home_set)
+
+	if structure == null:
+		print("Player: no structure handler for %s" % item_id)
+		return
+
+	structure.position = place_world_pos
+	get_parent().add_child(structure)
+	_placed_structures.append(structure)
+	print("Player: placed %s at %s" % [item_id, place_tile_pos])
+
+func _on_home_set(world_pos: Vector2) -> void:
+	home_pos = world_pos
+	_has_home = true
 
 func _process(delta: float) -> void:
 	queue_redraw()
@@ -317,6 +491,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	match event.keycode:
 		KEY_SPACE:
 			_do_attack()
+		KEY_F:
+			_do_place_use()
+		KEY_C:
+			# Quick-craft: try first matching hand recipe.
+			var cs := get_node_or_null("../CraftingSystem")
+			if cs != null:
+				cs.call("try_craft")
+			else:
+				# Fallback: open CraftingUI if present.
+				var cui := get_node_or_null("../CraftingUI")
+				if cui != null:
+					cui.call("toggle")
 		KEY_L:
 			# Toggle lantern — mirrors whether lantern tool is in action bar.
 			if _lantern != null:
@@ -351,17 +537,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			var ui := get_node_or_null("../EquipmentUI")
 			if ui != null:
 				ui.call("toggle")
-		KEY_C:
-			# Toggle CraftingUI.
-			var cui := get_node_or_null("../CraftingUI")
-			if cui != null:
-				cui.call("toggle")
 		KEY_E:
 			# Open workbench if standing within 2 tiles of one.
 			_try_open_workbench()
-		KEY_F:
-			# Eat food from bag.
-			_try_eat()
 		KEY_ENTER, KEY_KP_ENTER:
 			# Enter is handled by ChatInput's LineEdit when chat is active.
 			pass

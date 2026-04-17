@@ -83,6 +83,15 @@ func _on_dusk() -> void:
 		# Skip water (atlas x=3) and unloaded chunks (atlas x<0).
 		if ground.x < 0 or ground.x == 3:
 			continue
+		# Skip tiles too close to an active campfire.
+		var candidate_pos := Vector2i(tx, ty)
+		var near_campfire: bool = false
+		for cf_pos in CampfireRegistry.get_campfire_positions():
+			if (cf_pos - candidate_pos).length() <= 6.0:
+				near_campfire = true
+				break
+		if near_campfire:
+			continue
 
 		var sprout = SproutScene.instantiate()
 		sprout.position = Vector2(tx * Constants.TILE_SIZE + Constants.TILE_SIZE / 2.0,

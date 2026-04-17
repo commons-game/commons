@@ -71,8 +71,12 @@ func _dicts_equal(a: Dictionary, b: Dictionary) -> bool:
 
 func _register_builtins() -> void:
 	# Hand-craftable structures (no workbench required)
-	register({"wood": 4}, {"id": "campfire",  "category": "structure", "count": 1})
+	register({"wood": 3}, {"id": "campfire",  "category": "structure", "count": 1})
+	register({"wood": 4}, {"id": "bedroll",   "category": "structure", "count": 1})
 	register({"wood": 6}, {"id": "workbench", "category": "structure", "count": 1})
+
+	# Flint tool — hand-craftable
+	register({"stone": 2, "wood": 2}, {"id": "flint_tool", "category": "tool", "count": 1})
 
 	# Workbench-required tools
 	register({"wood": 3},             {"id": "wooden_axe",      "category": "tool", "count": 1}, true)

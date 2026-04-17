@@ -99,6 +99,21 @@ func _tick_chase(_delta: float) -> void:
 	var dir: Vector2 = player.position - position
 	if dir.length() > 0.1:
 		dir = dir.normalized()
+		# Steer away from campfires if one is too close.
+		var my_tile := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
+		                        int(floorf(position.y / Constants.TILE_SIZE)))
+		var nearest_cf: Vector2i = CampfireRegistry.nearest_campfire_tile(my_tile)
+		const AVOID_RADIUS := 6  # tiles (LIGHT_RADIUS * 0.8 rounded)
+		if nearest_cf != Vector2i(-9999, -9999):
+			var cf_dist: float = (nearest_cf - my_tile).length()
+			if cf_dist < AVOID_RADIUS:
+				var cf_world_pos := Vector2(
+					nearest_cf.x * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
+					nearest_cf.y * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
+				var away: Vector2 = (position - cf_world_pos).normalized()
+				# Blend away vector with chase direction — tangential orbit.
+				var blend: float = 1.0 - (cf_dist / AVOID_RADIUS)
+				dir = (dir + away * blend * 2.0).normalized()
 		_facing = dir
 		velocity = dir * SPROUT_CHASE_SPEED
 		move_and_slide()
