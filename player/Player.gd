@@ -534,14 +534,9 @@ func _process(delta: float) -> void:
 	while _food_timer >= FOOD_DRAIN_INTERVAL:
 		_food_timer -= FOOD_DRAIN_INTERVAL
 		food = max(0, food - 1)
-	# Starvation damage when food hits 0.
-	if food == 0:
-		_starvation_timer += delta
-		if _starvation_timer >= STARVATION_INTERVAL:
-			_starvation_timer -= STARVATION_INTERVAL
-			take_damage(STARVATION_DAMAGE)
-	else:
-		_starvation_timer = 0.0
+	# Starvation damage disabled until food items exist in the game.
+	# TODO: re-enable when food system is implemented.
+	_starvation_timer = 0.0
 
 func _physics_process(_delta: float) -> void:
 	if _dead:
