@@ -1,5 +1,19 @@
 # Known Issues
 
+## Survival Spine (Step 4 — Tether)
+
+### Tether and Marrow/Sinter: placeholder deep-biome drops
+**Status:** Implemented as placeholder.
+**Detail:** Marrow and Sinter are tier-3 materials required to craft the Tether. Until deep biomes are implemented, they drop with 10% probability from any tree (Marrow) or rock (Sinter) tile when harvested with a flint_tool. Drop replaces the normal Wood/Stone yield on that harvest, not in addition to it.
+
+### Tether structures are not persisted
+**Status:** Known limitation (same as campfire/bedroll).
+**Detail:** Tether nodes are added directly to the World scene tree. They are not stored in the CRDT tilemap, so they do not survive game restart. Phase 1+: write Tether as a CRDT object-layer tile and drive TetherRegistry from a tile scanner.
+
+### Bedroll home_pos responsibility removed
+**Status:** Implemented.
+**Detail:** Bedroll.activate() no longer sets Player.home_pos. Home spawn is now exclusively owned by the Tether. The bedroll activates visually (mat turns green) and prints a hint but does not affect respawn. The home_set signal declaration is kept for wiring compatibility but is no longer connected in Player._place_structure.
+
 ## Survival Spine (Steps 2–3)
 
 ### CraftingSystem: recipe selection overlay (replaces auto-craft)
