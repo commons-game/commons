@@ -1,141 +1,158 @@
-## Hotbar — horizontal bar at bottom-center showing active items.
+## Hotbar + Inventory UI
 ##
-## Layout (left → right):
-##   [ tool_slot 0 ] [ tool_slot 1 ] | [ bag 0 ] [ bag 1 ] [ bag 2 ] [ bag 3 ] [ bag 4 ] [ bag 5 ]
+## Always-visible bottom bar: bag slots 0–7 (8 slots).
+## Tab/I toggles expanded inventory panel above the hotbar showing:
+##   Row 2 : bag slots 8–11
+##   Side  : tool_slot 0, tool_slot 1, weapon_slot, talisman_slot
 ##
-## Active slot has a bright highlight border.
-## Item count shown in bottom-right corner of each slot.
-## Item id shown as short label (no icon yet).
-## Scroll wheel and 1–8 keys cycle active slot.
+## Active slot (bright highlight) cycles through hotbar slots only.
+## Scroll wheel and 1–8 keys change the active slot.
 ##
-## Wiring:
+## Drag & drop:
+##   Left-click  : pick up stack / swap / place
+##   Right-click : split (take half from filled slot, place one on filled slot)
+##   Escape / Tab while holding : cancel drag, return stack to origin
+##
+## Interface for Player.gd:
+##   get_active_stack() → ItemStack dict from bag[active_index]
+##
+## Wiring (World.gd):
 ##   hotbar.inventory = $Player.inventory
-##   hotbar.player = $Player
-## then add_child.
+##   hotbar.player    = $Player
+##   add_child(hotbar)
+##   hotbar.refresh()
 extends CanvasLayer
 
 var inventory: Object = null  # Inventory
 var player: Node = null
 
-const SLOT_SIZE      := 40
-const SLOT_GAP       := 4
-const TOOL_BAG_GAP   := 12   # wider gap between tool section and bag section
-const TOOL_SLOTS     := 2
-const BAG_SHOWN      := 6
+# ---------------------------------------------------------------------------
+# Layout constants
+# ---------------------------------------------------------------------------
+const SLOT_SIZE   := 40
+const SLOT_GAP    := 4
+const SECTION_GAP := 12   # gap between bag row and side-panel columns
 
-## Combined slot count for the hotbar: tool0, tool1, bag0..bag5.
-const TOTAL_SLOTS    := TOOL_SLOTS + BAG_SHOWN
+const HOTBAR_SLOTS := 8        # bag[0..7]
+const HOTBAR_BAG_EXTRA := 4    # bag[8..11]  — second row in expanded view
+const TOOL_SLOT_COUNT := 2     # tool_slots[0..1]
 
-## Active slot index (0..TOTAL_SLOTS-1).
-var active_index: int = 0
+const BAR_HEIGHT := 5
+const BAR_GAP    := 3
 
-const COLOR_BG_EMPTY  := Color(0.12, 0.12, 0.12, 0.80)
-const COLOR_BG_FILLED := Color(0.22, 0.22, 0.22, 0.90)
-const COLOR_ACTIVE    := Color(0.35, 0.35, 0.15, 0.95)
-const COLOR_BORDER    := Color(0.30, 0.55, 0.85)
-const COLOR_ACTIVE_BORDER := Color(1.0, 0.90, 0.2)
-const COLOR_TOOL_SECTION  := Color(0.30, 0.55, 0.85)
-const COLOR_BAG_SECTION   := Color(0.40, 0.40, 0.40)
-const COLOR_LABEL         := Color(1.0, 1.0, 0.9)
-const COLOR_COUNT         := Color(0.9, 0.85, 0.4)
+# Colours
+const COLOR_BG_EMPTY      := Color(0.12, 0.12, 0.12, 0.80)
+const COLOR_BG_FILLED     := Color(0.22, 0.22, 0.22, 0.90)
+const COLOR_ACTIVE        := Color(0.35, 0.35, 0.15, 0.95)
+const COLOR_BORDER_NORMAL := Color(0.40, 0.40, 0.40)
+const COLOR_BORDER_TOOL   := Color(0.30, 0.55, 0.85)
+const COLOR_BORDER_WEAPON := Color(0.75, 0.25, 0.25)
+const COLOR_BORDER_TALISM := Color(0.55, 0.20, 0.75)
+const COLOR_ACTIVE_BORDER := Color(1.0,  0.90, 0.2)
+const COLOR_LABEL         := Color(1.0,  1.0,  0.9)
+const COLOR_COUNT         := Color(0.9,  0.85, 0.4)
+const COLOR_DRAG_CURSOR   := Color(0.85, 0.75, 0.20, 0.92)
+const COLOR_EXPANDED_BG   := Color(0.08, 0.08, 0.08, 0.88)
 
-var _panels: Array = []   # ColorRect per slot
-var _id_labels: Array = []   # Label: item id
-var _count_labels: Array = []  # Label: count
+# ---------------------------------------------------------------------------
+# Slot descriptor — one entry per rendered slot
+# ---------------------------------------------------------------------------
+# type: "hotbar" | "extra_bag" | "tool" | "weapon" | "talisman"
+# index: relevant array index (bag index, tool index, etc.)
+var _slots: Array = []  # Array of Dictionaries
 
-const BAR_HEIGHT     := 5
-const BAR_GAP        := 3
-var _hp_bar_bg: ColorRect   = null
-var _hp_bar_fill: ColorRect = null
-var _food_bar_bg: ColorRect   = null
+# Per-slot nodes
+var _panels:       Array = []
+var _id_labels:    Array = []
+var _count_labels: Array = []
+var _borders:      Array = []
+
+# HP / food bars
+var _hp_bar_bg:     ColorRect = null
+var _hp_bar_fill:   ColorRect = null
+var _food_bar_bg:   ColorRect = null
 var _food_bar_fill: ColorRect = null
 var _bar_total_width: int = 0
 
+# Expanded panel background
+var _expanded_bg: ColorRect = null
+var _expanded_visible: bool = false
+
+# Active hotbar slot (0..HOTBAR_SLOTS-1)
+var active_index: int = 0
+
+# Drag state
+var _drag_stack:      Dictionary = {}   # stack being dragged (copy)
+var _drag_origin:     int = -1          # slot index of origin, -1 = none
+var _drag_cursor:     Control = null    # visual following mouse
+var _drag_cursor_lbl: Label = null
+
+# Geometry cache (set in _build_ui)
+var _hotbar_start_x: int = 0
+var _hotbar_y:       int = 0
+
+# ---------------------------------------------------------------------------
+# Ready
+# ---------------------------------------------------------------------------
 func _ready() -> void:
-	layer = 11   # above ActionBarHUD (10)
+	layer = 11
 	_build_ui()
 
+# ---------------------------------------------------------------------------
+# Build UI
+# ---------------------------------------------------------------------------
 func _build_ui() -> void:
-	var total_width: int = (TOTAL_SLOTS * SLOT_SIZE
-	                        + (TOTAL_SLOTS - 1) * SLOT_GAP
-	                        + TOOL_BAG_GAP)  # extra gap between sections
-	var start_x: int = (1280 - total_width) / 2
-	var y: int = 720 - SLOT_SIZE - 50  # above ActionBarHUD
+	# Hotbar row
+	var hotbar_width: int = HOTBAR_SLOTS * SLOT_SIZE + (HOTBAR_SLOTS - 1) * SLOT_GAP
+	_hotbar_start_x = (1280 - hotbar_width) / 2
+	_hotbar_y = 720 - SLOT_SIZE - 50
 
-	for i in range(TOTAL_SLOTS):
-		var extra_x: int = TOOL_BAG_GAP if i >= TOOL_SLOTS else 0
-		var x: int = start_x + i * (SLOT_SIZE + SLOT_GAP) + extra_x
-
-		var panel := ColorRect.new()
-		panel.position = Vector2(x, y)
-		panel.size = Vector2(SLOT_SIZE, SLOT_SIZE)
-		panel.color = COLOR_BG_EMPTY
-		add_child(panel)
-		_panels.append(panel)
-
-		# Border indicator — bottom strip
-		var border := ColorRect.new()
-		border.position = Vector2(0, SLOT_SIZE - 3)
-		border.size = Vector2(SLOT_SIZE, 3)
-		border.color = COLOR_TOOL_SECTION if i < TOOL_SLOTS else COLOR_BAG_SECTION
-		panel.add_child(border)
-
-		# Item id label (top of slot)
-		var id_lbl := Label.new()
-		id_lbl.position = Vector2(2, 2)
-		id_lbl.size = Vector2(SLOT_SIZE - 4, SLOT_SIZE - 14)
-		id_lbl.add_theme_font_size_override("font_size", 8)
-		id_lbl.add_theme_color_override("font_color", COLOR_LABEL)
-		id_lbl.text = ""
-		id_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		id_lbl.clip_contents = true
-		panel.add_child(id_lbl)
-		_id_labels.append(id_lbl)
-
-		# Count label (bottom-right of slot)
-		var cnt_lbl := Label.new()
-		cnt_lbl.position = Vector2(SLOT_SIZE - 18, SLOT_SIZE - 14)
-		cnt_lbl.size = Vector2(16, 12)
-		cnt_lbl.add_theme_font_size_override("font_size", 8)
-		cnt_lbl.add_theme_color_override("font_color", COLOR_COUNT)
-		cnt_lbl.text = ""
-		cnt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		panel.add_child(cnt_lbl)
-		_count_labels.append(cnt_lbl)
-
-	# HP bar — background + fill above slots
-	_bar_total_width = total_width
-	var hp_bar_y: int = y - BAR_GAP - BAR_HEIGHT - BAR_GAP - BAR_HEIGHT
+	# HP bar
+	var hp_y := _hotbar_y - BAR_GAP - BAR_HEIGHT - BAR_GAP - BAR_HEIGHT
+	_bar_total_width = hotbar_width
 	_hp_bar_bg = ColorRect.new()
-	_hp_bar_bg.position = Vector2(start_x, hp_bar_y)
-	_hp_bar_bg.size = Vector2(total_width, BAR_HEIGHT)
+	_hp_bar_bg.position = Vector2(_hotbar_start_x, hp_y)
+	_hp_bar_bg.size = Vector2(hotbar_width, BAR_HEIGHT)
 	_hp_bar_bg.color = Color(0.25, 0.05, 0.05, 0.85)
 	add_child(_hp_bar_bg)
 	_hp_bar_fill = ColorRect.new()
-	_hp_bar_fill.position = Vector2(start_x, hp_bar_y)
-	_hp_bar_fill.size = Vector2(total_width, BAR_HEIGHT)
+	_hp_bar_fill.position = Vector2(_hotbar_start_x, hp_y)
+	_hp_bar_fill.size = Vector2(hotbar_width, BAR_HEIGHT)
 	_hp_bar_fill.color = Color(0.85, 0.15, 0.15)
 	add_child(_hp_bar_fill)
 
-	# Food bar — below HP bar, above slots
-	var food_bar_y: int = y - BAR_GAP - BAR_HEIGHT
+	# Food bar
+	var food_y := _hotbar_y - BAR_GAP - BAR_HEIGHT
 	_food_bar_bg = ColorRect.new()
-	_food_bar_bg.position = Vector2(start_x, food_bar_y)
-	_food_bar_bg.size = Vector2(total_width, BAR_HEIGHT)
+	_food_bar_bg.position = Vector2(_hotbar_start_x, food_y)
+	_food_bar_bg.size = Vector2(hotbar_width, BAR_HEIGHT)
 	_food_bar_bg.color = Color(0.15, 0.15, 0.05, 0.85)
 	add_child(_food_bar_bg)
 	_food_bar_fill = ColorRect.new()
-	_food_bar_fill.position = Vector2(start_x, food_bar_y)
-	_food_bar_fill.size = Vector2(total_width, BAR_HEIGHT)
+	_food_bar_fill.position = Vector2(_hotbar_start_x, food_y)
+	_food_bar_fill.size = Vector2(hotbar_width, BAR_HEIGHT)
 	_food_bar_fill.color = Color(0.75, 0.65, 0.15)
 	add_child(_food_bar_fill)
 
-	# Key hint labels
-	for i in range(TOTAL_SLOTS):
-		var extra_x: int = TOOL_BAG_GAP if i >= TOOL_SLOTS else 0
-		var x: int = start_x + i * (SLOT_SIZE + SLOT_GAP) + extra_x
+	# Expanded panel background (hidden initially)
+	# Height: one extra bag row + one tool/equip row, with gaps
+	var exp_rows_height := (SLOT_SIZE + SLOT_GAP) * 2 + SLOT_GAP
+	_expanded_bg = ColorRect.new()
+	_expanded_bg.position = Vector2(_hotbar_start_x - 4, _hotbar_y - exp_rows_height - 8)
+	_expanded_bg.size = Vector2(hotbar_width + 8, exp_rows_height + 8)
+	_expanded_bg.color = COLOR_EXPANDED_BG
+	_expanded_bg.visible = false
+	add_child(_expanded_bg)
+
+	# Build slot descriptors and panels
+	_build_hotbar_slots()
+	_build_expanded_slots()
+
+	# Key hint labels below hotbar
+	for i in range(HOTBAR_SLOTS):
+		var hx: int = _hotbar_start_x + i * (SLOT_SIZE + SLOT_GAP)
 		var hint := Label.new()
-		hint.position = Vector2(x, y + SLOT_SIZE + 2)
+		hint.position = Vector2(hx, _hotbar_y + SLOT_SIZE + 2)
 		hint.size = Vector2(SLOT_SIZE, 12)
 		hint.add_theme_font_size_override("font_size", 8)
 		hint.add_theme_color_override("font_color", Color(0.55, 0.55, 0.55))
@@ -143,64 +160,336 @@ func _build_ui() -> void:
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		add_child(hint)
 
-## Call to sync displayed items with inventory.
+	# Drag cursor (always on top, hidden until drag starts)
+	_drag_cursor = ColorRect.new()
+	_drag_cursor.size = Vector2(SLOT_SIZE, SLOT_SIZE)
+	_drag_cursor.color = COLOR_DRAG_CURSOR
+	_drag_cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_cursor.z_index = 100
+	_drag_cursor.visible = false
+	add_child(_drag_cursor)
+	_drag_cursor_lbl = Label.new()
+	_drag_cursor_lbl.position = Vector2(2, 2)
+	_drag_cursor_lbl.size = Vector2(SLOT_SIZE - 4, SLOT_SIZE - 4)
+	_drag_cursor_lbl.add_theme_font_size_override("font_size", 8)
+	_drag_cursor_lbl.add_theme_color_override("font_color", COLOR_LABEL)
+	_drag_cursor_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_drag_cursor.add_child(_drag_cursor_lbl)
+
+func _build_hotbar_slots() -> void:
+	for i in range(HOTBAR_SLOTS):
+		var x: int = _hotbar_start_x + i * (SLOT_SIZE + SLOT_GAP)
+		_add_slot({"type": "hotbar", "index": i},
+		          x, _hotbar_y, COLOR_BORDER_NORMAL)
+
+func _build_expanded_slots() -> void:
+	# Row above hotbar: bag[8..11] in first 4 columns, then gap, then tool/equip slots
+	var row_y := _hotbar_y - SLOT_SIZE - SLOT_GAP
+
+	# Extra bag row: 4 slots
+	for i in range(HOTBAR_BAG_EXTRA):
+		var x: int = _hotbar_start_x + i * (SLOT_SIZE + SLOT_GAP)
+		_add_slot({"type": "extra_bag", "index": HOTBAR_SLOTS + i},
+		          x, row_y, COLOR_BORDER_NORMAL)
+
+	# Tool slots (after bag row, with a section gap)
+	var side_x_start: int = _hotbar_start_x + HOTBAR_BAG_EXTRA * (SLOT_SIZE + SLOT_GAP) + SECTION_GAP
+	for i in range(TOOL_SLOT_COUNT):
+		var x: int = side_x_start + i * (SLOT_SIZE + SLOT_GAP)
+		_add_slot({"type": "tool", "index": i},
+		          x, row_y, COLOR_BORDER_TOOL)
+
+	# Weapon slot
+	var weapon_x: int = side_x_start + TOOL_SLOT_COUNT * (SLOT_SIZE + SLOT_GAP)
+	_add_slot({"type": "weapon", "index": 0}, weapon_x, row_y, COLOR_BORDER_WEAPON)
+
+	# Talisman slot
+	var talism_x: int = weapon_x + SLOT_SIZE + SLOT_GAP
+	_add_slot({"type": "talisman", "index": 0}, talism_x, row_y, COLOR_BORDER_TALISM)
+
+func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
+	var panel := ColorRect.new()
+	panel.position = Vector2(x, y)
+	panel.size = Vector2(SLOT_SIZE, SLOT_SIZE)
+	panel.color = COLOR_BG_EMPTY
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(panel)
+	_panels.append(panel)
+	_slots.append(desc)
+
+	var border := ColorRect.new()
+	border.position = Vector2(0, SLOT_SIZE - 3)
+	border.size = Vector2(SLOT_SIZE, 3)
+	border.color = border_color
+	panel.add_child(border)
+	_borders.append(border)
+
+	var id_lbl := Label.new()
+	id_lbl.position = Vector2(2, 2)
+	id_lbl.size = Vector2(SLOT_SIZE - 4, SLOT_SIZE - 14)
+	id_lbl.add_theme_font_size_override("font_size", 8)
+	id_lbl.add_theme_color_override("font_color", COLOR_LABEL)
+	id_lbl.text = ""
+	id_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	id_lbl.clip_contents = true
+	panel.add_child(id_lbl)
+	_id_labels.append(id_lbl)
+
+	var cnt_lbl := Label.new()
+	cnt_lbl.position = Vector2(SLOT_SIZE - 18, SLOT_SIZE - 14)
+	cnt_lbl.size = Vector2(16, 12)
+	cnt_lbl.add_theme_font_size_override("font_size", 8)
+	cnt_lbl.add_theme_color_override("font_color", COLOR_COUNT)
+	cnt_lbl.text = ""
+	cnt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	panel.add_child(cnt_lbl)
+	_count_labels.append(cnt_lbl)
+
+	# Hide expanded slots by default
+	var is_expanded: bool = (str(desc.get("type", "")) != "hotbar")
+	panel.visible = not is_expanded
+
+# ---------------------------------------------------------------------------
+# Inventory accessors
+# ---------------------------------------------------------------------------
+
+func _get_slot_stack(slot_i: int) -> Dictionary:
+	if inventory == null or slot_i < 0 or slot_i >= _slots.size():
+		return {}
+	var desc: Dictionary = _slots[slot_i]
+	var t: String = str(desc.get("type", ""))
+	var idx: int = int(desc.get("index", 0))
+	match t:
+		"hotbar", "extra_bag":
+			return inventory.bag[idx] as Dictionary
+		"tool":
+			return inventory.tool_slots[idx] as Dictionary
+		"weapon":
+			return inventory.weapon_slot as Dictionary
+		"talisman":
+			return inventory.talisman_slot as Dictionary
+	return {}
+
+func _set_slot_stack(slot_i: int, stack: Dictionary) -> void:
+	if inventory == null or slot_i < 0 or slot_i >= _slots.size():
+		return
+	var desc: Dictionary = _slots[slot_i]
+	var t: String = str(desc.get("type", ""))
+	var idx: int = int(desc.get("index", 0))
+	match t:
+		"hotbar", "extra_bag":
+			inventory.bag[idx] = stack
+		"tool":
+			inventory.tool_slots[idx] = stack
+		"weapon":
+			inventory.weapon_slot = stack
+		"talisman":
+			inventory.talisman_slot = stack
+
+## Return the active hotbar slot's ItemStack (bag[active_index]).
+func get_active_stack() -> Dictionary:
+	if inventory == null:
+		return {}
+	return inventory.bag[active_index] as Dictionary
+
+# ---------------------------------------------------------------------------
+# Refresh
+# ---------------------------------------------------------------------------
+
 func refresh() -> void:
 	if inventory == null:
 		return
-	for i in range(TOTAL_SLOTS):
-		var stack: Dictionary = _get_slot_stack(i)
-		_update_slot(i, stack)
-
-## Return the ItemStack dict for hotbar index i, or {}.
-func _get_slot_stack(i: int) -> Dictionary:
-	if inventory == null:
-		return {}
-	if i < TOOL_SLOTS:
-		return inventory.tool_slots[i] as Dictionary
-	var bag_i: int = i - TOOL_SLOTS
-	if bag_i < inventory.BAG_SIZE:
-		return inventory.bag[bag_i] as Dictionary
-	return {}
-
-## Return the currently active slot's ItemStack, or {}.
-func get_active_stack() -> Dictionary:
-	return _get_slot_stack(active_index)
+	for i in range(_slots.size()):
+		_update_slot(i, _get_slot_stack(i))
 
 func _update_slot(i: int, stack: Dictionary) -> void:
 	if i >= _panels.size():
 		return
-	var panel: ColorRect = _panels[i]
-	var id_lbl: Label = _id_labels[i]
-	var cnt_lbl: Label = _count_labels[i]
+	var panel: ColorRect  = _panels[i]
+	var id_lbl: Label     = _id_labels[i]
+	var cnt_lbl: Label    = _count_labels[i]
+	var border: ColorRect = _borders[i]
+	var desc: Dictionary  = _slots[i]
+	var is_hotbar: bool   = (str(desc.get("type", "")) == "hotbar")
+	var is_active: bool   = (is_hotbar and int(desc.get("index", -1)) == active_index)
 
 	if stack.is_empty():
-		panel.color = COLOR_ACTIVE if i == active_index else COLOR_BG_EMPTY
-		id_lbl.text = ""
+		panel.color = COLOR_ACTIVE if is_active else COLOR_BG_EMPTY
+		id_lbl.text  = ""
 		cnt_lbl.text = ""
 	else:
-		panel.color = COLOR_ACTIVE if i == active_index else COLOR_BG_FILLED
+		panel.color = COLOR_ACTIVE if is_active else COLOR_BG_FILLED
 		var raw: String = str(stack.get("id", ""))
 		id_lbl.text = raw.replace("_", "\n").left(10)
 		var cnt: int = int(stack.get("count", 1))
 		cnt_lbl.text = str(cnt) if cnt > 1 else ""
 
-	# Update border color to indicate active
-	var border: ColorRect = panel.get_child(0) as ColorRect
-	if border != null:
-		if i == active_index:
-			border.color = COLOR_ACTIVE_BORDER
-		elif i < TOOL_SLOTS:
-			border.color = COLOR_TOOL_SECTION
-		else:
-			border.color = COLOR_BAG_SECTION
+	# Border highlight for active slot
+	if is_active:
+		border.color = COLOR_ACTIVE_BORDER
+	else:
+		# Restore original border colour based on type
+		var t: String = str(desc.get("type", ""))
+		match t:
+			"tool":     border.color = COLOR_BORDER_TOOL
+			"weapon":   border.color = COLOR_BORDER_WEAPON
+			"talisman": border.color = COLOR_BORDER_TALISM
+			_:          border.color = COLOR_BORDER_NORMAL
+
+# ---------------------------------------------------------------------------
+# Active slot management
+# ---------------------------------------------------------------------------
 
 func _set_active(i: int) -> void:
-	i = clampi(i, 0, TOTAL_SLOTS - 1)
+	i = clampi(i, 0, HOTBAR_SLOTS - 1)
 	active_index = i
+	# Sync inventory.active_tool_index so Player.gd's get_active_tool() fallback
+	# and appearance update see the correct tool when bag[i] is a tool item.
+	if inventory != null:
+		var stack: Dictionary = inventory.bag[active_index] as Dictionary
+		if str(stack.get("category", "")) == "tool":
+			# Find which tool slot holds the same id, or default 0
+			var tid: String = str(stack.get("id", ""))
+			for ti in range(inventory.TOOL_SLOT_COUNT):
+				var ts: Dictionary = inventory.tool_slots[ti] as Dictionary
+				if str(ts.get("id", "")) == tid:
+					inventory.active_tool_index = ti
+					break
 	refresh()
 
+# ---------------------------------------------------------------------------
+# Expanded panel toggle
+# ---------------------------------------------------------------------------
+
+func _toggle_expanded() -> void:
+	# Cancel any in-flight drag on close
+	if _expanded_visible and _drag_origin >= 0:
+		_cancel_drag()
+	_expanded_visible = not _expanded_visible
+	_expanded_bg.visible = _expanded_visible
+	for i in range(_slots.size()):
+		var t: String = str(_slots[i].get("type", ""))
+		if t != "hotbar":
+			_panels[i].visible = _expanded_visible
+	refresh()
+
+# ---------------------------------------------------------------------------
+# Drag & drop
+# ---------------------------------------------------------------------------
+
+func _start_drag(slot_i: int) -> void:
+	var stack: Dictionary = _get_slot_stack(slot_i)
+	if stack.is_empty():
+		return
+	_drag_stack  = stack.duplicate()
+	_drag_origin = slot_i
+	_set_slot_stack(slot_i, {})
+	_drag_cursor.visible = true
+	var raw: String = str(_drag_stack.get("id", ""))
+	_drag_cursor_lbl.text = raw.replace("_", "\n").left(10)
+	refresh()
+
+func _drop_on_slot(slot_i: int) -> void:
+	# Place dragged stack onto target slot; swap if occupied
+	var target: Dictionary = _get_slot_stack(slot_i)
+	_set_slot_stack(slot_i, _drag_stack)
+	if not target.is_empty():
+		_set_slot_stack(_drag_origin, target)
+	_end_drag()
+
+func _place_one_on_slot(slot_i: int) -> void:
+	# Place exactly one unit of dragged stack onto slot
+	var target: Dictionary = _get_slot_stack(slot_i)
+	var drag_id: String = str(_drag_stack.get("id", ""))
+	var drag_count: int = int(_drag_stack.get("count", 1))
+	if target.is_empty():
+		var one: Dictionary = _drag_stack.duplicate()
+		one["count"] = 1
+		_set_slot_stack(slot_i, one)
+		drag_count -= 1
+	elif str(target.get("id", "")) == drag_id:
+		target["count"] = int(target.get("count", 0)) + 1
+		_set_slot_stack(slot_i, target)
+		drag_count -= 1
+	else:
+		# Different item — full swap instead
+		_drop_on_slot(slot_i)
+		return
+	if drag_count <= 0:
+		_end_drag()
+	else:
+		_drag_stack["count"] = drag_count
+		_drag_cursor_lbl.text = str(drag_count)
+		_set_slot_stack(_drag_origin, {})  # origin stays empty while dragging remainder
+		refresh()
+
+func _start_split(slot_i: int) -> void:
+	# Take half (rounded up) from slot into drag
+	var stack: Dictionary = _get_slot_stack(slot_i)
+	if stack.is_empty():
+		return
+	var total: int = int(stack.get("count", 1))
+	var take: int  = max(1, (total + 1) / 2)
+	var leave: int = total - take
+	_drag_stack  = stack.duplicate()
+	_drag_stack["count"] = take
+	_drag_origin = slot_i
+	if leave <= 0:
+		_set_slot_stack(slot_i, {})
+	else:
+		var remainder := stack.duplicate()
+		remainder["count"] = leave
+		_set_slot_stack(slot_i, remainder)
+	_drag_cursor.visible = true
+	var raw: String = str(_drag_stack.get("id", ""))
+	_drag_cursor_lbl.text = raw.replace("_", "\n").left(10)
+	refresh()
+
+func _cancel_drag() -> void:
+	if _drag_origin < 0:
+		return
+	# Return stack to origin (merge with whatever is there)
+	var current: Dictionary = _get_slot_stack(_drag_origin)
+	if current.is_empty():
+		_set_slot_stack(_drag_origin, _drag_stack)
+	else:
+		# Try to merge counts if same id
+		if str(current.get("id", "")) == str(_drag_stack.get("id", "")):
+			current["count"] = int(current.get("count", 0)) + int(_drag_stack.get("count", 1))
+			_set_slot_stack(_drag_origin, current)
+		else:
+			# Find first empty slot to dump
+			for i in range(_slots.size()):
+				if _get_slot_stack(i).is_empty():
+					_set_slot_stack(i, _drag_stack)
+					break
+	_end_drag()
+
+func _end_drag() -> void:
+	_drag_stack  = {}
+	_drag_origin = -1
+	_drag_cursor.visible = false
+	refresh()
+
+# ---------------------------------------------------------------------------
+# Hit test — return slot index under a canvas-space point, or -1
+# ---------------------------------------------------------------------------
+func _slot_at_point(pt: Vector2) -> int:
+	for i in range(_panels.size()):
+		var p: ColorRect = _panels[i]
+		if not p.visible:
+			continue
+		var r := Rect2(p.position, p.size)
+		if r.has_point(pt):
+			return i
+	return -1
+
+# ---------------------------------------------------------------------------
+# Input
+# ---------------------------------------------------------------------------
+
 func _unhandled_input(event: InputEvent) -> void:
-	# Number keys 1-8
+	# Number keys 1–8 (hotbar active slot)
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_1: _set_active(0)
@@ -211,16 +500,54 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_6: _set_active(5)
 			KEY_7: _set_active(6)
 			KEY_8: _set_active(7)
-	# Scroll wheel
+			KEY_TAB, KEY_I:
+				_toggle_expanded()
+				get_viewport().set_input_as_handled()
+			KEY_ESCAPE:
+				if _drag_origin >= 0:
+					_cancel_drag()
+					get_viewport().set_input_as_handled()
+				elif _expanded_visible:
+					_toggle_expanded()
+					get_viewport().set_input_as_handled()
+
+	# Scroll wheel cycles active hotbar slot
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_set_active((active_index - 1 + TOTAL_SLOTS) % TOTAL_SLOTS)
+			_set_active((active_index - 1 + HOTBAR_SLOTS) % HOTBAR_SLOTS)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_set_active((active_index + 1) % TOTAL_SLOTS)
+			_set_active((active_index + 1) % HOTBAR_SLOTS)
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			var pt: Vector2 = event.position
+			var si: int = _slot_at_point(pt)
+			if si >= 0:
+				if _drag_origin < 0:
+					_start_drag(si)
+				else:
+					_drop_on_slot(si)
+				get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			var pt: Vector2 = event.position
+			var si: int = _slot_at_point(pt)
+			if si >= 0:
+				if _drag_origin < 0:
+					_start_split(si)
+				else:
+					_place_one_on_slot(si)
+				get_viewport().set_input_as_handled()
+
+# ---------------------------------------------------------------------------
+# Process: refresh display + bars + drag cursor position
+# ---------------------------------------------------------------------------
 
 var _frame_counter: int = 0
 
 func _process(_delta: float) -> void:
+	# Move drag cursor to mouse position
+	if _drag_cursor.visible:
+		var mp: Vector2 = get_viewport().get_mouse_position()
+		_drag_cursor.position = mp - Vector2(SLOT_SIZE / 2, SLOT_SIZE / 2)
+
 	_frame_counter += 1
 	if _frame_counter >= 6:
 		_frame_counter = 0
@@ -230,13 +557,11 @@ func _process(_delta: float) -> void:
 func _refresh_bars() -> void:
 	if player == null or _hp_bar_fill == null:
 		return
-	# HP
 	var health_node = player.get_node_or_null("Health")
 	if health_node != null:
 		var frac: float = float(health_node.get("current_hp")) / float(health_node.get("max_hp"))
 		frac = clampf(frac, 0.0, 1.0)
 		_hp_bar_fill.size.x = _bar_total_width * frac
-	# Food
 	var max_food: int = int(player.get("max_food")) if player.get("max_food") else 100
 	var food: int = int(player.get("food")) if player.get("food") != null else 0
 	var food_frac: float = clampf(float(food) / float(max_food), 0.0, 1.0)

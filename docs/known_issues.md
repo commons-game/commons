@@ -38,9 +38,9 @@
 **Status:** Updated to match survival spine design doc.
 **Detail:** Pre-existing recipe used `{"wood": 4}` for campfire. Survival spine spec says 3 Wood → Campfire, 4 Wood → Bedroll. Both recipes now distinct.
 
-### Hotbar conflicts with ActionBarHUD
-**Status:** Known co-existence — both are shown simultaneously.
-**Detail:** `ActionBarHUD` (layer 10) shows weapon/tool/talisman. `Hotbar` (layer 11) shows tool slots + bag slots 0–5 at a slightly higher vertical position. They are separate and non-overlapping by design. If screen layout becomes cluttered, consider merging them.
+### Unified hotbar + inventory UI (implemented)
+**Status:** Done.
+**Detail:** Hotbar now shows bag[0..7] (8 slots, always visible). Tab/I toggles expanded inventory panel above the hotbar showing bag[8..11] (row 2) and tool/weapon/talisman slots. Drag-and-drop (left-click pick/swap, right-click split/place-one, Escape to cancel) works across all slots. `get_active_stack()` returns bag[active_index]. `inventory.get_active_tool()` still works for harvesting because Player.gd calls it directly; the hotbar also syncs `inventory.active_tool_index` when the active bag slot contains a tool item. `ActionBarHUD` (layer 10) may still be visible — consider removing it or wiring it to show equipped weapon/talisman from the expanded panel.
 
 ### Placed campfire/bedroll structures are not persisted
 **Status:** Known limitation (placeholder).
