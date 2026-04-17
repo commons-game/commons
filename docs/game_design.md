@@ -87,19 +87,70 @@ Dangerous biomes near valuable resources mean the question is always: *do I push
 
 ## World Structure
 
-- **Biome difficulty scales with resource value.** Good materials live in dangerous places. The map is a risk/reward map that players memorize over time — that knowledge is power.
-- **Shifting lands** (between shrine territories) are the wildest and most dangerous areas, but potentially the most rewarding. No one owns them; no one has pacified them.
-- **Shrine territories** are islands of relative safety and expressed identity. Entering someone else's territory means playing by their rules (their mods, their creatures, their tile set).
+### Personal islands
+
+Every player starts on their own procedurally generated island centered on their spawn point. Danger radiates outward from the center — the further you venture, the harder it gets. You are completely alone on your island until the universe pushes you into contact with another.
+
+This means:
+- The danger gradient is personal, not global. Your deep zones are shaped by your island's generation.
+- Two players who merge may have very different maps — asymmetry creates trade dynamics and strategic asymmetry.
+- Early game isolation is not safety. It is a different kind of danger (see: merge pressure below).
+
+### Biomes and resources
+
+- **Biome difficulty scales with resource value.** Good materials live in dangerous places.
+- The map is a risk/reward map that players memorize over time — that knowledge is itself power.
+- Biomes are matched at merge seams. When two islands collide, the CRDT connects them at compatible edges — forests bleed into forests, not forests slamming into deserts. Incompatible seams become shifting lands naturally.
+
+### Shrine territories and shifting lands
+
+- **Shrine territories** are islands of relative safety and expressed identity. Entering someone else's territory means playing by their rules.
+- **Shifting lands** sit between shrine territories — unclaimed, unmodded, dangerous, and potentially the richest areas in the game. No one has pacified them. No one owns what spawns there.
+- When two islands are pushed together by merge pressure, the shifting lands form at the seam between them.
+
+---
+
+## The Universe as Antagonist
+
+**The universe pushes players together and pulls them apart. This is not fully under player control.**
+
+Players do not choose when to merge with another player's world. Merge pressure is a force the universe exerts — driven by time, isolation, and proximity in the network of connected worlds. Left alone long enough, your island will drift toward others. After a merge, worlds may drift apart again.
+
+This is the central tension of the game. You are never truly safe in isolation, and you are never truly in control of who you meet.
+
+### Merge pressure
+
+Each player has a loneliness pressure value that builds over time in isolation. As it rises, the probability of merging with another player's world increases. It resets after a merge event.
+
+- **High pressure** — merge is imminent. You don't know who.
+- **Low pressure** — recently merged, stable for now.
+
+This means isolation is a temporary state, not a permanent choice. You can delay contact. You cannot prevent it forever.
+
+### Talismans — the player's tool
+
+Talismans are rare items that let players nudge merge pressure, not control it. They are the game's primary mechanism for exercising agency over the universe's will.
+
+Examples of talisman effects:
+- Slow the buildup of loneliness pressure (delay the next merge)
+- Accelerate pressure toward a specific known player (seek contact)
+- Bias the merge toward worlds with compatible biomes (safer seams)
+- Temporarily repel a merge that is already in progress (not guaranteed)
+
+Talismans are expensive, finite, and earned — not crafted from common materials. They are late-game tools for players who have already established themselves and want to manage their political situation.
+
+**Talismans nudge. The universe decides.**
 
 ---
 
 ## Open Questions (design, not tech)
 
-1. **Shrine conflict mechanics** — can you destroy someone's shrine? Does it require physical presence? Does it require defeating its defenders first?
-2. **Home destruction** — how is a home destroyed? Player must be present? Requires a specific item? Can be griefed from range?
-3. **Resource gating** — what are the rare materials that gate the home and shrine? Where do they live on the danger map?
-4. **Faction mechanics** — how do tribes/factions form mechanically? Is it purely social, or does the game support shared ownership of structures?
-5. **New player experience in a mature world** — what prevents late-game players from instantly destroying new players? Is that even a problem worth solving, or is the "get absorbed by a faction" path the intended answer?
+1. **Shrine conflict mechanics** — can you destroy someone's shrine? Does it require physical presence? Does it require defeating its defenders first? Is the home's physical object (the flag) the same model as the shrine anchor?
+2. **Home destruction** — tied to a physical object that must be found and destroyed. Requires presence, creating real risk for the attacker.
+3. **Resource gating** — what are the rare materials that gate the home and shrine? Where do they live on the danger map? (needs a biome draft)
+4. **Faction mechanics** — how do tribes/factions form mechanically? Is it purely social, or does the game support shared ownership of structures/shrines?
+5. **New player experience in a mature world** — what prevents late-game players from instantly destroying new players? Is that even a problem worth solving, or is "get absorbed by a faction" the intended answer?
+6. **Merge pressure tuning** — how fast does loneliness build? Is it time-based, activity-based, or both? What does a merge event actually feel like moment-to-moment?
 
 ---
 
