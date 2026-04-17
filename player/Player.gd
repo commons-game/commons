@@ -774,6 +774,13 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 		if inventory != null:
 			inventory.add_to_bag({"id": "ether_crystal", "category": "material", "count": 1}, 16)
 			print("Player: picked up ether_crystal")
+	elif ax == 1 and ay == 2:
+		# marrow_drop — dropped by Wisp on death
+		chunk_manager.remove_tile(tile_pos, 1, "pickup")
+		_pickup_flash_timer = PICKUP_FLASH_DURATION
+		if inventory != null:
+			inventory.add_to_bag({"id": "marrow", "category": "material", "count": 1}, 10)
+			print("Player: picked up marrow")
 	elif ax == 2 and ay == 2:
 		# moonstone_patch — crystallised by Pale, harvestable at night only
 		chunk_manager.remove_tile(tile_pos, 1, "pickup")

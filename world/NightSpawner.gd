@@ -132,6 +132,8 @@ func _spawn_night_mobs(origin: Vector2i, rng: RandomNumberGenerator) -> void:
 		mob.chunk_manager = chunk_manager
 		mob.player = player
 		get_parent().add_child(mob)
+		if is_wisp:
+			mob.mob_died.connect(_on_wisp_died.bind(mob))
 	print("NightSpawner: spawned %d Wisps + %d Pales" % [wisp_count, pale_count])
 
 func _on_dawn() -> void:
@@ -149,8 +151,11 @@ func _on_dawn() -> void:
 	print("NightSpawner: dawn — %d Sprouts fleeing, %d still chasing" % [fled, chased])
 
 func _on_sprout_died(tile_pos: Vector2i, sprout: Node) -> void:
-	# Remove from tracking list.
 	_active_sprouts = _active_sprouts.filter(func(s): return s != sprout)
-	# Drop Pulp loot tile at death position.
 	if chunk_manager != null:
 		chunk_manager.place_tile(tile_pos, 1, 0, Vector2i(3, 1), 0, "pulp_drop")
+
+func _on_wisp_died(tile_pos: Vector2i, _wisp: Node) -> void:
+	# Drop a Marrow tile — the night-gated Tether ingredient.
+	if chunk_manager != null:
+		chunk_manager.place_tile(tile_pos, 1, 0, Vector2i(1, 2), 0, "marrow_drop")
