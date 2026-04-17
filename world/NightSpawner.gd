@@ -109,21 +109,36 @@ func _on_dusk() -> void:
 	_spawn_night_mobs(origin, rng)
 
 ## Spawn Wisps (Bloom night mob) and Pales (Still night mob) further out.
-## Uses ground tile to detect rough biome tier: stone ground → Still, grass → Bloom.
+## Mob type is chosen per-tile based on the biome at that position:
+##   Bloom biomes (Verdant/Tangle/Mire) → Wisp
+##   Still biomes (Moraine/Shard/Hollow) → Pale
+##   Tier 1 biomes → no night mobs (only Sprouts at tier 1)
 func _spawn_night_mobs(origin: Vector2i, rng: RandomNumberGenerator) -> void:
-	var wisp_count := rng.randi_range(1, 2)
-	var pale_count := rng.randi_range(1, 2)
-	for i in range(wisp_count + pale_count):
-		var is_wisp := i < wisp_count
+	var spawned_wisps := 0
+	var spawned_pales := 0
+	var target := rng.randi_range(2, 4)  # total night mobs per wave
+	var attempts := 0
+
+	while (spawned_wisps + spawned_pales) < target and attempts < target * 15:
+		attempts += 1
 		var dist := rng.randi_range(14, 24)
 		var angle := rng.randf_range(0.0, TAU)
 		var tx := origin.x + int(round(cos(angle) * dist))
 		var ty := origin.y + int(round(sin(angle) * dist))
-		var ground: Vector2i = chunk_manager.get_ground_atlas_at(Vector2i(tx, ty)) if chunk_manager else Vector2i(-1, -1)
+		if chunk_manager == null:
+			continue
+		var ground: Vector2i = chunk_manager.get_ground_atlas_at(Vector2i(tx, ty))
 		if ground.x < 0 or ground.x == 3:
 			continue
+		var chunk_coords := CoordUtils.world_to_chunk(Vector2i(tx, ty))
+		var biome := ProceduralGenerator.get_biome(chunk_coords, Constants.SPAWN_CHUNK, Constants.WORLD_SEED)
+		# Tier 1 biomes: no Wisps or Pales — Sprouts only
+		if biome == ProceduralGenerator.Biome.VERDANT or biome == ProceduralGenerator.Biome.MORAINE:
+			continue
+		var is_bloom_biome := (biome == ProceduralGenerator.Biome.TANGLE or
+		                       biome == ProceduralGenerator.Biome.MIRE)
 		var mob: CharacterBody2D
-		if is_wisp:
+		if is_bloom_biome:
 			mob = WispScript.new()
 		else:
 			mob = PaleScript.new()
@@ -132,9 +147,12 @@ func _spawn_night_mobs(origin: Vector2i, rng: RandomNumberGenerator) -> void:
 		mob.chunk_manager = chunk_manager
 		mob.player = player
 		get_parent().add_child(mob)
-		if is_wisp:
+		if is_bloom_biome:
 			mob.mob_died.connect(_on_wisp_died.bind(mob))
-	print("NightSpawner: spawned %d Wisps + %d Pales" % [wisp_count, pale_count])
+			spawned_wisps += 1
+		else:
+			spawned_pales += 1
+	print("NightSpawner: spawned %d Wisps + %d Pales (%d attempts)" % [spawned_wisps, spawned_pales, attempts])
 
 func _on_dawn() -> void:
 	var chased := 0
