@@ -278,6 +278,8 @@ func _do_attack() -> void:
 		return
 	# Check for Tether nodes in range (enemy or own — either can be attacked).
 	for node in get_parent().get_children():
+		if node == self:
+			continue  # never attack ourselves
 		if not node.get_script():
 			continue
 		if not node.has_method("take_damage"):

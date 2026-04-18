@@ -25,14 +25,20 @@ var _player_light: PointLight2D = null
 var _is_night: bool = false
 
 func _ready() -> void:
-	# CanvasModulate lives at the top of the scene — affects all 2D nodes below it.
 	_modulate = CanvasModulate.new()
 	_modulate.color = COLOR_DAY
-	# Must be added to the scene tree (World), not to this node.
 	if get_parent() != null:
 		get_parent().add_child(_modulate)
 
 	DayClock.phase_changed.connect(_on_phase_changed)
+
+	# If the game launched mid-night, phase_changed never fires for dusk.
+	# Apply night state immediately if it's already dark.
+	await get_tree().process_frame
+	if not DayClock.is_day():
+		_modulate.color = COLOR_NIGHT
+		if player != null and _player_light == null:
+			_attach_player_light()
 
 func _on_phase_changed(is_day: bool) -> void:
 	_is_night = not is_day
