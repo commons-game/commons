@@ -7,6 +7,8 @@
 ## LIGHT_RADIUS is in tiles. NightSpawner and Sprout use this for proximity checks.
 extends Node2D
 
+const NightDarknessScript := preload("res://world/NightDarkness.gd")
+
 const LIGHT_RADIUS := 6  # tiles
 
 ## The world-tile position this campfire occupies. Set by Player after instantiating.
@@ -14,11 +16,22 @@ var world_tile_pos: Vector2i = Vector2i.ZERO
 
 ## Visual animation state.
 var _anim_time: float = 0.0
+var _light: PointLight2D = null
 
 func _ready() -> void:
 	z_index = 2
-	# Register with the singleton so NightSpawner can find us.
 	CampfireRegistry.register_campfire(world_tile_pos)
+	_attach_light()
+
+func _attach_light() -> void:
+	_light = PointLight2D.new()
+	# Warm orange campfire glow, covers ~6-tile radius.
+	_light.texture       = NightDarknessScript._make_radial_texture(128)
+	_light.texture_scale = 1.5
+	_light.energy        = 1.2
+	_light.color         = Color(1.0, 0.65, 0.25)
+	_light.shadow_enabled = false
+	add_child(_light)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
@@ -27,6 +40,8 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	_anim_time += delta
 	queue_redraw()
+	if _light != null:
+		_light.energy = 1.1 + sin(_anim_time * 6.0) * 0.12 + sin(_anim_time * 11.3) * 0.06
 
 func _draw() -> void:
 	# Flicker: oscillate radius and alpha slightly.
