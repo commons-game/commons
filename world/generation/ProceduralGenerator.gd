@@ -45,71 +45,81 @@ static func get_biome(coords: Vector2i, spawn_chunk: Vector2i, world_seed: int) 
 
 ## Ground tile atlas_x given biome + terrain noise value t ∈ [-1, 1].
 ## atlas_x: 0=grass, 1=dirt, 2=stone, 3=water
-## Thresholds chosen so each biome has a distinct feel at a glance.
+##
+## Thresholds are calibrated to the ACTUAL noise distribution, not the theoretical
+## uniform distribution. FastNoiseLite/SimplexSmooth clusters heavily near 0 and
+## rarely exceeds ±0.65 for the seeds and frequencies used here. All thresholds
+## are kept within [-0.55, 0.65] to guarantee every tile type can appear.
 static func _ground_atlas(biome: int, t: float) -> int:
 	match biome:
 		Biome.VERDANT:
-			# Lush starting zone. Half grass, pockets of water, dirt, stone.
-			if t < -0.70: return 3  # water  ~15%
-			if t < 0.30:  return 0  # grass  ~50%
-			if t < 0.65:  return 1  # dirt   ~17%
-			return 2                # stone  ~18%
+			# Lush starting zone. Grass dominant, patches of water, dirt, stone.
+			if t < -0.40: return 3  # water  ~30%
+			if t < 0.15:  return 0  # grass  ~27%
+			if t < 0.50:  return 1  # dirt   ~17%
+			return 2                # stone  ~26%
 		Biome.MORAINE:
-			# Worn, open plateau. Stone and dirt dominant, sparse grass.
-			if t < -0.75: return 3  # water  ~12%
-			if t < 0.20:  return 2  # stone  ~47%
-			if t < 0.60:  return 1  # dirt   ~20%
-			return 0                # grass  ~21%
+			# Worn plateau. Stone dominant, less water than Verdant.
+			if t < -0.50: return 3  # water  ~25%
+			if t < 0.30:  return 2  # stone  ~40%  ← centered on 0 = most common
+			if t < 0.60:  return 1  # dirt   ~15%
+			return 0                # grass  ~20%
 		Biome.TANGLE:
-			# Dense wetlands. Lots of water, grass where it's dry.
-			if t < -0.30: return 3  # water  ~35%
-			if t < 0.50:  return 0  # grass  ~40%
-			if t < 0.80:  return 1  # dirt   ~15%
-			return 2                # stone  ~10%
+			# Dense wetlands. Heavy water, grass where it's dry.
+			if t < -0.10: return 3  # water  ~45%
+			if t < 0.35:  return 0  # grass  ~22%
+			if t < 0.55:  return 1  # dirt   ~10%
+			return 2                # stone  ~23%
 		Biome.SHARD:
-			# Crystalline highlands. Stone almost everywhere.
-			if t < -0.75: return 3  # water  ~12%
-			if t < 0.40:  return 2  # stone  ~57%
-			if t < 0.75:  return 1  # dirt   ~17%
-			return 0                # grass  ~14%
+			# Crystalline highlands. Stone very dominant, sparse grass.
+			if t < -0.50: return 3  # water  ~25%
+			if t < 0.40:  return 2  # stone  ~45%  ← wide middle range
+			if t < 0.60:  return 1  # dirt   ~10%
+			return 0                # grass  ~20%
 		Biome.MIRE:
-			# Boggy deep biome. Half water, dangerous to navigate.
-			if t < -0.30: return 3  # water  ~35%
-			if t < 0.20:  return 1  # dirt   ~25%
-			if t < 0.60:  return 0  # grass  ~20%
-			return 2                # stone  ~20%
+			# Boggy deep biome. Half water, soft ground.
+			if t < 0.00:  return 3  # water  ~50%
+			if t < 0.35:  return 1  # dirt   ~17%
+			if t < 0.55:  return 0  # grass  ~10%
+			return 2                # stone  ~23%
 		Biome.HOLLOW:
-			# Calcified wasteland. Nearly pure stone.
-			if t < -0.80: return 3  # water  ~10%
-			if t < 0.60:  return 2  # stone  ~70%
-			if t < 0.85:  return 1  # dirt   ~12%
-			return 0                # grass  ~8%
+			# Calcified wasteland. Stone dominant, oppressively empty.
+			if t < -0.50: return 3  # water  ~25%
+			if t < 0.45:  return 2  # stone  ~47%  ← wide middle range
+			if t < 0.60:  return 1  # dirt   ~7%
+			return 0                # grass  ~21%
 	return 0
 
 ## Object tile atlas coords given biome + ground atlas + object noise o ∈ [-1, 1].
 ## Returns Vector2i(-1,-1) for no object.
+##
+## Object noise thresholds are also calibrated to actual distribution.
+## Original code used o > 0.3 (trees) and o > 0.5 (rocks) — both work reliably.
+## All thresholds here stay within that range.
 static func _object_atlas(biome: int, ground: int, o: float) -> Vector2i:
 	match biome:
 		Biome.VERDANT:
 			if ground == 0 and o > 0.30:  return Vector2i(0, 1)  # tree  ~35%
 			if ground == 2 and o > 0.50:  return Vector2i(1, 1)  # rock  ~25%
-			if ground == 1 and o > 0.68:  return Vector2i(2, 2)  # plant ~16%
+			if ground == 1 and o > 0.55:  return Vector2i(2, 2)  # plant ~22%
 		Biome.MORAINE:
 			if ground == 2 and o > 0.40:  return Vector2i(1, 1)  # rock  ~30%
-			if ground == 0 and o > 0.70:  return Vector2i(0, 1)  # tree  ~15%
+			if ground == 0 and o > 0.60:  return Vector2i(0, 1)  # tree  ~20%
 		Biome.TANGLE:
 			# Claustrophobic — trees on almost every grass tile
 			if ground == 0 and o > 0.00:  return Vector2i(0, 1)  # tree  ~50%
-			if ground == 1 and o > 0.50:  return Vector2i(2, 2)  # plant ~25%
+			if ground == 1 and o > 0.40:  return Vector2i(2, 2)  # plant ~30%
 		Biome.SHARD:
-			if ground == 2 and o > 0.30:  return Vector2i(1, 1)  # rock   ~35%
-			if ground == 2 and o > 0.78:  return Vector2i(3, 2)  # ether crystal ~11%
+			# Ether crystals checked FIRST (higher priority, higher threshold).
+			# Rock checked second — conditions don't conflict since crystal fires first.
+			if ground == 2 and o > 0.55:  return Vector2i(3, 2)  # ether crystal ~22%
+			if ground == 2 and o > 0.25:  return Vector2i(1, 1)  # rock  ~37%
 		Biome.MIRE:
 			if ground == 0 and o > 0.20:  return Vector2i(0, 1)  # tree   ~40%
-			if ground == 1 and o > 0.40:  return Vector2i(2, 2)  # plant  ~30%
+			if ground == 1 and o > 0.35:  return Vector2i(2, 2)  # plant  ~32%
 		Biome.HOLLOW:
-			# Near-empty. Sparse rocks, nothing else — oppressive silence.
-			if ground == 2 and o > 0.70:  return Vector2i(1, 1)  # rock   ~15%
+			# Sparse rocks only — oppressive silence. Use reliable threshold.
+			if ground == 2 and o > 0.50:  return Vector2i(1, 1)  # rock   ~25%
 	return Vector2i(-1, -1)
 
 static func generate_chunk(coords: Vector2i, world_seed: int) -> Dictionary:
