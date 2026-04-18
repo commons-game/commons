@@ -146,6 +146,7 @@ func _build_ui() -> void:
 	_expanded_bg.position = Vector2(_hotbar_start_x - 4, _hotbar_y - exp_rows_height - 8)
 	_expanded_bg.size = Vector2(hotbar_width + 8, exp_rows_height + 8)
 	_expanded_bg.color = COLOR_EXPANDED_BG
+	_expanded_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_expanded_bg.visible = false
 	add_child(_expanded_bg)
 
@@ -231,7 +232,7 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	panel.position = Vector2(x, y)
 	panel.size = Vector2(SLOT_SIZE, SLOT_SIZE)
 	panel.color = COLOR_BG_EMPTY
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(panel)
 	_panels.append(panel)
 	_slots.append(desc)
@@ -240,6 +241,7 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	border.position = Vector2(0, SLOT_SIZE - 3)
 	border.size = Vector2(SLOT_SIZE, 3)
 	border.color = border_color
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(border)
 	_borders.append(border)
 
@@ -249,6 +251,7 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	icon_bg.position = Vector2(4, 2)
 	icon_bg.size = Vector2(SLOT_SIZE - 8, 20)
 	icon_bg.color = Color.TRANSPARENT
+	icon_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(icon_bg)
 	_icon_bgs.append(icon_bg)
 
@@ -257,6 +260,7 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	icon_tex.size = Vector2(SLOT_SIZE - 8, 20)
 	icon_tex.stretch_mode = TextureRect.STRETCH_SCALE
 	icon_tex.texture = null
+	icon_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(icon_tex)
 	_icon_textures.append(icon_tex)
 
