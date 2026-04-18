@@ -68,6 +68,7 @@ var _slots: Array = []  # Array of Dictionaries
 var _panels:        Array = []
 var _icon_bgs:      Array = []   # ColorRect — solid icon colour (category/item)
 var _icon_textures: Array = []   # TextureRect — atlas crop (when item has icon_atlas)
+var _name_labels:   Array = []   # Label — abbreviated item name below icon
 var _count_labels:  Array = []
 var _borders:       Array = []
 
@@ -242,27 +243,40 @@ func _add_slot(desc: Dictionary, x: int, y: int, border_color: Color) -> void:
 	panel.add_child(border)
 	_borders.append(border)
 
-	# Icon background — filled with item's icon_color when occupied
+	# Icon background — filled with item's icon_color when occupied.
+	# Shorter than before to leave room for the name label at the bottom.
 	var icon_bg := ColorRect.new()
-	icon_bg.position = Vector2(4, 4)
-	icon_bg.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	icon_bg.position = Vector2(4, 2)
+	icon_bg.size = Vector2(SLOT_SIZE - 8, 20)
 	icon_bg.color = Color.TRANSPARENT
 	panel.add_child(icon_bg)
 	_icon_bgs.append(icon_bg)
 
-	# Icon texture overlay — shows atlas crop when item has icon_atlas
 	var icon_tex := TextureRect.new()
-	icon_tex.position = Vector2(4, 4)
-	icon_tex.size = Vector2(SLOT_SIZE - 8, SLOT_SIZE - 12)
+	icon_tex.position = Vector2(4, 2)
+	icon_tex.size = Vector2(SLOT_SIZE - 8, 20)
 	icon_tex.stretch_mode = TextureRect.STRETCH_SCALE
 	icon_tex.texture = null
 	panel.add_child(icon_tex)
 	_icon_textures.append(icon_tex)
 
+	# Item name — small, below the icon
+	var name_lbl := Label.new()
+	name_lbl.position = Vector2(1, 23)
+	name_lbl.size = Vector2(SLOT_SIZE - 2, 11)
+	name_lbl.add_theme_font_size_override("font_size", 7)
+	name_lbl.add_theme_color_override("font_color", COLOR_LABEL)
+	name_lbl.text = ""
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.clip_contents = true
+	panel.add_child(name_lbl)
+	_name_labels.append(name_lbl)
+
+	# Stack count — bottom-right corner, overlaps name for multi-stack items
 	var cnt_lbl := Label.new()
-	cnt_lbl.position = Vector2(SLOT_SIZE - 18, SLOT_SIZE - 14)
-	cnt_lbl.size = Vector2(16, 12)
-	cnt_lbl.add_theme_font_size_override("font_size", 8)
+	cnt_lbl.position = Vector2(SLOT_SIZE - 16, 24)
+	cnt_lbl.size = Vector2(14, 10)
+	cnt_lbl.add_theme_font_size_override("font_size", 7)
 	cnt_lbl.add_theme_color_override("font_color", COLOR_COUNT)
 	cnt_lbl.text = ""
 	cnt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -329,27 +343,29 @@ func refresh() -> void:
 func _update_slot(i: int, stack: Dictionary) -> void:
 	if i >= _panels.size():
 		return
-	var panel: ColorRect    = _panels[i]
-	var icon_bg: ColorRect  = _icon_bgs[i]
+	var panel: ColorRect      = _panels[i]
+	var icon_bg: ColorRect    = _icon_bgs[i]
 	var icon_tex: TextureRect = _icon_textures[i]
-	var cnt_lbl: Label      = _count_labels[i]
-	var border: ColorRect   = _borders[i]
-	var desc: Dictionary    = _slots[i]
-	var is_hotbar: bool     = (str(desc.get("type", "")) == "hotbar")
-	var is_active: bool     = (is_hotbar and int(desc.get("index", -1)) == active_index)
+	var name_lbl: Label       = _name_labels[i]
+	var cnt_lbl: Label        = _count_labels[i]
+	var border: ColorRect     = _borders[i]
+	var desc: Dictionary      = _slots[i]
+	var is_hotbar: bool       = (str(desc.get("type", "")) == "hotbar")
+	var is_active: bool       = (is_hotbar and int(desc.get("index", -1)) == active_index)
 
 	if stack.is_empty():
 		panel.color        = COLOR_ACTIVE if is_active else COLOR_BG_EMPTY
 		icon_bg.color      = Color.TRANSPARENT
 		icon_tex.texture   = null
+		name_lbl.text      = ""
 		cnt_lbl.text       = ""
 	else:
 		panel.color = COLOR_ACTIVE if is_active else COLOR_BG_FILLED
 		var item_id: String = str(stack.get("id", ""))
 		var def = ItemRegistry.resolve(item_id)
 		if def != null and def.icon_atlas != Vector2i(-1, -1):
-			icon_bg.color = Color.TRANSPARENT
-			var atlas_tex := AtlasTexture.new()
+			icon_bg.color    = Color.TRANSPARENT
+			var atlas_tex    := AtlasTexture.new()
 			atlas_tex.atlas  = ITEM_ICON_ATLAS
 			atlas_tex.region = Rect2(
 				def.icon_atlas.x * ICON_TILE_PX,
@@ -357,11 +373,14 @@ func _update_slot(i: int, stack: Dictionary) -> void:
 				ICON_TILE_PX, ICON_TILE_PX)
 			icon_tex.texture = atlas_tex
 		elif def != null:
-			icon_bg.color  = def.icon_color
+			icon_bg.color    = def.icon_color
 			icon_tex.texture = null
 		else:
-			icon_bg.color  = Color(0.35, 0.35, 0.35)
+			icon_bg.color    = Color(0.35, 0.35, 0.35)
 			icon_tex.texture = null
+		# Name: use display_name, truncated to fit. Show first word if long.
+		var display: String = def.display_name if def != null else item_id
+		name_lbl.text = display
 		var cnt: int = int(stack.get("count", 1))
 		cnt_lbl.text = str(cnt) if cnt > 1 else ""
 
