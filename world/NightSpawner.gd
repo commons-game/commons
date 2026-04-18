@@ -89,7 +89,7 @@ func _on_dusk() -> void:
 		var candidate_pos := Vector2i(tx, ty)
 		var near_campfire: bool = false
 		for cf_pos in CampfireRegistry.get_campfire_positions():
-			if (cf_pos - candidate_pos).length() <= 6.0:
+			if (cf_pos - candidate_pos).length() <= 10.0:
 				near_campfire = true
 				break
 		if near_campfire:

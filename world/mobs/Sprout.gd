@@ -107,7 +107,7 @@ func _tick_chase(_delta: float) -> void:
 		var my_tile := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 		                        int(floorf(position.y / Constants.TILE_SIZE)))
 		var nearest_cf: Vector2i = CampfireRegistry.nearest_campfire_tile(my_tile)
-		const AVOID_RADIUS := 6  # tiles (LIGHT_RADIUS * 0.8 rounded)
+		const AVOID_RADIUS := 10  # tiles — matches Campfire.LIGHT_RADIUS
 		if nearest_cf != Vector2i(-9999, -9999):
 			var cf_dist: float = (nearest_cf - my_tile).length()
 			if cf_dist < AVOID_RADIUS:

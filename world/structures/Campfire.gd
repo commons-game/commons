@@ -9,7 +9,7 @@ extends Node2D
 
 const NightDarknessScript := preload("res://world/NightDarkness.gd")
 
-const LIGHT_RADIUS := 6  # tiles
+const LIGHT_RADIUS := 10  # tiles — also update Sprout.AVOID_RADIUS and NightSpawner check to match
 
 ## The world-tile position this campfire occupies. Set by Player after instantiating.
 var world_tile_pos: Vector2i = Vector2i.ZERO
@@ -27,8 +27,8 @@ func _attach_light() -> void:
 	_light = PointLight2D.new()
 	# Warm orange campfire glow, covers ~6-tile radius.
 	_light.texture       = NightDarknessScript._make_radial_texture(128)
-	_light.texture_scale = 1.5
-	_light.energy        = 1.2
+	_light.texture_scale = 2.5
+	_light.energy        = 1.3
 	_light.color         = Color(1.0, 0.65, 0.25)
 	_light.shadow_enabled = false
 	add_child(_light)
