@@ -623,7 +623,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _dead:
 		return
 	# Handle right-click place/use (mouse button events bypass the key filter below)
-	if event is InputEventMouseButton and event.pressed and not event.echo:
+	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			_do_place_use()
 			return

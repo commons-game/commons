@@ -35,7 +35,7 @@ func _ready() -> void:
 	# If the game launched mid-night, phase_changed never fires for dusk.
 	# Apply night state immediately if it's already dark.
 	await get_tree().process_frame
-	if not DayClock.is_day():
+	if not DayClock.is_daytime():
 		_modulate.color = COLOR_NIGHT
 		if player != null and _player_light == null:
 			_attach_player_light()
