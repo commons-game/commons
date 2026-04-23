@@ -39,6 +39,8 @@ ship_back() {
   stamp="$(date -u +%Y%m%d-%H%M%S)"
   local dest="$REMOTE_DIR/playtest-reports/$stamp"
   echo "=> Shipping session to $SERVER:$dest ..."
+  # Create the target dir remotely — rsync can't mkdir more than one level.
+  ssh "$SERVER" "mkdir -p '$dest/logs' '$dest/screenshots'" || true
   if [[ -d "$userdata/logs" ]]; then
     rsync -azh "$userdata/logs/" "$SERVER:$dest/logs/" || true
   fi
