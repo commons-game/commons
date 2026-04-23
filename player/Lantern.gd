@@ -21,14 +21,20 @@ const LANTERN_TILE_RADIUS := 8
 
 const NightDarknessScript := preload("res://world/NightDarkness.gd")
 
+## Size of the visible daytime-bulb sprite in pixels. Radial gradient gives
+## a soft edge so it doesn't look like a flat overlay.
+const BULB_TEXTURE_PX := 48
+
 var is_on: bool = false
 
 var _light: PointLight2D = null
+var _bulb_texture: Texture2D = null
 
 func _ready() -> void:
 	# Draw the bulb on top of the player so the toggle has obvious feedback
 	# even in daylight (where the PointLight2D alone would be invisible).
 	z_index = 3
+	_bulb_texture = NightDarknessScript._make_radial_texture(BULB_TEXTURE_PX)
 	_light = PointLight2D.new()
 	_light.name = "LanternLight"
 	_light.texture = NightDarknessScript._make_radial_texture(128)
@@ -38,17 +44,16 @@ func _ready() -> void:
 	add_child(_light)
 	_apply_state()
 
-## Visible "bulb" sprite — always drawn, but only filled when lit. This gives
-## the player a clear on/off signal at any time of day; the PointLight2D
-## above only cuts through the darkness at night.
+## Visible bulb — drawn only when lit. Uses the shared radial-gradient
+## texture so the glow has a soft edge (not a hard-edged overlay).
 func _draw() -> void:
-	if not is_on:
+	if not is_on or _bulb_texture == null:
 		return
-	# Big obvious halo around the player so the toggle is unmistakable at any
-	# zoom. Multiple radii create a soft gradient.
-	draw_circle(Vector2.ZERO, 28.0, Color(1.0, 0.85, 0.35, 0.30))
-	draw_circle(Vector2.ZERO, 18.0, Color(1.0, 0.85, 0.35, 0.55))
-	draw_circle(Vector2.ZERO, 10.0, Color(1.0, 1.0,  0.80, 0.95))
+	var sz := Vector2(BULB_TEXTURE_PX, BULB_TEXTURE_PX)
+	# Modulate alpha at draw time — the texture is full-white with quadratic
+	# alpha falloff, so this tints it warm yellow without compounding the alpha.
+	draw_texture_rect(_bulb_texture, Rect2(-sz * 0.5, sz), false,
+		Color(1.0, 0.85, 0.35, 0.85))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
