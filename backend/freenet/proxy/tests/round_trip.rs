@@ -93,6 +93,7 @@ mod integration {
             pairing_contract_path(),
             player_delegate_path(),
             None, // error contract optional; integration tests don't exercise telemetry
+            None, // version manifest contract optional; integration tests don't exercise it
         )
         .await
         .expect("Proxy failed to start");
@@ -198,6 +199,7 @@ mod integration {
             ip: "127.0.0.1".into(),
             enet_port: 7777,
             timestamp: ts,
+            protocol_version: 0, // integration test doesn't exercise version gating
         };
 
         // LOBBY PUT
