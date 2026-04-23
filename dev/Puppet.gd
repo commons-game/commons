@@ -68,6 +68,12 @@ func wait_frames(n: int) -> void:
 	for _i in range(n):
 		await get_tree().process_frame
 
+## Wait real wall-clock seconds. Prefer this over wait_frames when the
+## scenario cares about in-game timers (cooldowns, decay windows) because
+## frame duration is non-deterministic under headless perf spikes.
+func wait_seconds(sec: float) -> void:
+	await get_tree().create_timer(sec).timeout
+
 ## Wait until a specific event type appears in the EventLog, or timeout.
 ## Returns the event dict, or {} if the timeout elapsed.
 func wait_for_event(event_type: String, timeout_sec: float = 5.0) -> Dictionary:

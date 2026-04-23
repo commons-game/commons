@@ -10,14 +10,16 @@
 ##     Right click : place structure tile on object layer (layer 1) at the
 ##                   clicked tile position if it is empty. Removes the item
 ##                   from the active tool slot.
+##     Left click  : falls through to fist melee (see below).
 ##
-##   wooden_axe / wooden_pickaxe / stone_axe / stone_pickaxe / fist (no tool)
+##   wooden_axe / wooden_pickaxe / stone_axe / stone_pickaxe / fist (no tool) /
+##   lantern / any other tool without its own left-click behaviour
 ##     Left click  : swing at object-layer tile (tree/rock).
 ##                   wooden_axe: 2 vs trees, 1 vs rocks.
 ##                   wooden_pickaxe: 2 vs rocks, 1 vs trees.
 ##                   stone_axe: 3 vs trees, 1 vs rocks.
 ##                   stone_pickaxe: 3 vs rocks, 1 vs trees.
-##                   Fist deals 1 damage to either.
+##                   Fist / lantern / held structure: 1 damage to either.
 ##                   On tile death: removes tile via CRDT, drops resources into bag.
 ##                   Ephemeral damage resets after DAMAGE_RESET_S of inactivity.
 ##
@@ -108,18 +110,16 @@ func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 		_handle_shovel(button, tile_pos, player, inventory)
 		return
 
-	# Structure placement: right-click places the held structure tile.
-	if STRUCTURE_TILES.has(tool_id):
-		if button == MOUSE_BUTTON_RIGHT:
-			_handle_structure_place(tile_pos, player, inventory, tool_id)
+	# Structure placement: right-click places the held structure tile, then we're
+	# done. Left-click falls through to the fist-melee branch below so the player
+	# can harvest while holding a campfire/workbench.
+	if STRUCTURE_TILES.has(tool_id) and button == MOUSE_BUTTON_RIGHT:
+		_handle_structure_place(tile_pos, player, inventory, tool_id)
 		return
 
-	# Non-interactive tools: lantern is a light source, not a weapon. Click is a no-op.
-	# (Toggle is on KEY_L; the tool doesn't damage tiles.)
-	if tool_id == "lantern":
-		return
-
-	# Fist or melee tool (axe / pickaxe / etc.) — left click swings at tiles.
+	# Fist / melee tool / lantern / held structure on left-click.
+	# _tool_damage() returns 1 for any id it doesn't recognise, so lantern and
+	# held structures hit for fist damage.
 	if button == MOUSE_BUTTON_LEFT:
 		_handle_melee(tile_pos, player, inventory, tool_id)
 

@@ -52,7 +52,7 @@ is passed via `--` to Godot (user-cmdline-args). Production builds pay zero cost
 ### Run a scenario
 
 ```bash
-godot4 --path . -- --puppet-scenario=res://tests/scenarios/lantern_no_delete.gd
+godot4 --path . -- --puppet-scenario=res://tests/scenarios/lantern_fist_fallback.gd
 ```
 
 Puppet exits with code 0 on pass, 1 on fail. The event log path is printed
@@ -67,10 +67,12 @@ func _run(p: Node) -> void:
     await p.wait_ready()          # chunks loaded, player exists
     p.select_tool(0)
     p.check(p.active_tool_id() == "lantern", "tool select failed")
-    p.click_tile(Vector2i(5, 3), MOUSE_BUTTON_LEFT)
-    await p.wait_frames(2)
-    p.check(p.has_object_at(Vector2i(5, 3)), "tile was removed unexpectedly")
-    p.pass_scenario("lantern is inert")
+    p.teleport(Vector2i(4, 3))
+    for i in range(3):
+        p.click_tile(Vector2i(5, 3), MOUSE_BUTTON_LEFT)
+        await p.wait_frames(2)
+    p.check(not p.has_object_at(Vector2i(5, 3)), "expected fist fallback to clear tile")
+    p.pass_scenario("lantern fist-fallback harvests in 3 hits")
 ```
 
 If the scenario returns without calling `pass_scenario` or `fail`, Puppet
