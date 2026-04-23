@@ -10,19 +10,26 @@ class_name CRDTTileStore
 
 var _data: Dictionary = {}
 
+## Set or update a tile. `ts` defaults to wall-clock time for local writes;
+## remote-originated writes MUST pass their original timestamp so LWW ordering
+## matches across peers.
 func set_tile(layer: int, local: Vector2i, tile_id: int,
-              atlas: Vector2i, alt: int, author: String) -> void:
+              atlas: Vector2i, alt: int, author: String, ts: float = -1.0) -> void:
 	var key := CoordUtils.make_crdt_key(layer, local.x, local.y)
-	var ts := Time.get_unix_time_from_system()
+	if ts < 0.0:
+		ts = Time.get_unix_time_from_system()
 	var existing = _data.get(key, null)
 	if existing == null or ts > existing["timestamp"]:
 		_data[key] = {"tile_id": tile_id, "atlas_x": atlas.x, "atlas_y": atlas.y,
 		              "alt_tile": alt, "timestamp": ts, "author_id": author}
 
-func remove_tile(layer: int, local: Vector2i, author: String) -> void:
-	## Tombstone: tile_id = -1. Higher timestamp wins on merge.
+## Tombstone the tile. Same LWW rules as set_tile — pass remote timestamps
+## when applying remote mutations so a late-arriving local write can't
+## clobber a newer remote tombstone.
+func remove_tile(layer: int, local: Vector2i, author: String, ts: float = -1.0) -> void:
 	var key := CoordUtils.make_crdt_key(layer, local.x, local.y)
-	var ts := Time.get_unix_time_from_system()
+	if ts < 0.0:
+		ts = Time.get_unix_time_from_system()
 	var existing = _data.get(key, null)
 	if existing == null or ts > existing["timestamp"]:
 		_data[key] = {"tile_id": -1, "atlas_x": 0, "atlas_y": 0,

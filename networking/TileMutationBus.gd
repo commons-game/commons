@@ -61,13 +61,17 @@ func apply_remote_mutation(record: Dictionary) -> void:
 	var coords: Vector2i = record["world_coords"]
 	var layer: int = record["layer"]
 	var author: String = record.get("author_id", "")
+	# Remote timestamp must be preserved so LWW ordering matches across peers.
+	# Missing / non-numeric → -1 sentinel lets tile_store fall back to wall-clock
+	# (safe for tests that don't care about LWW but not what real remote peers do).
+	var ts: float = float(record.get("timestamp", -1.0))
 	match record.get("type", ""):
 		"place":
 			var tile_id_str: String = record.get("tile_id", "")
-			tile_store.set_tile(coords, layer, tile_id_str, author)
+			tile_store.set_tile(coords, layer, tile_id_str, author, ts)
 			tile_placed.emit(coords, layer, tile_id_str)
 		"remove":
-			tile_store.remove_tile(coords, layer, author)
+			tile_store.remove_tile(coords, layer, author, ts)
 			tile_removed.emit(coords, layer)
 
 ## Broadcast a mutation to all connected peers via RPC.

@@ -98,23 +98,33 @@ func update_player_last_visited(world_tile_pos: Vector2i) -> void:
 
 ## set_tile satisfies the TileMutationBus tile_store interface.
 ## Resolves a string tile_id via TileRegistry then delegates to place_tile().
-func set_tile(world_coords: Vector2i, layer: int, tile_id: String, author_id: String) -> void:
+## `ts` is forwarded through so remote mutations preserve their original
+## LWW timestamp instead of being restamped with local wall-clock time.
+func set_tile(world_coords: Vector2i, layer: int, tile_id: String,
+              author_id: String, ts: float = -1.0) -> void:
 	var entry := TileRegistry.resolve(tile_id)
 	if entry.is_empty():
 		push_warning("ChunkManager.set_tile: unknown tile_id '%s'" % tile_id)
 		return
-	place_tile(world_coords, layer, entry["tile_id"], entry["atlas"], entry["alt"], author_id)
+	place_tile(world_coords, layer, entry["tile_id"], entry["atlas"], entry["alt"], author_id, ts)
 
 func place_tile(world_coords: Vector2i, layer: int, tile_id: int,
-                atlas: Vector2i, alt: int, author: String) -> void:
+                atlas: Vector2i, alt: int, author: String, ts: float = -1.0) -> void:
 	var cc := CoordUtils.world_to_chunk(world_coords)
 	var local := CoordUtils.world_to_local(world_coords)
 	var chunk := get_chunk(cc)
 	if chunk == null:
 		push_warning("place_tile on unloaded chunk %s" % cc)
 		return
-	chunk.crdt.set_tile(layer, local, tile_id, atlas, alt, author)
-	chunk.apply_mutation(layer, local, chunk.crdt.get_tile(layer, local))
+	var before := chunk.crdt.get_tile(layer, local)
+	chunk.crdt.set_tile(layer, local, tile_id, atlas, alt, author, ts)
+	var after := chunk.crdt.get_tile(layer, local)
+	# Only re-render / re-spawn if the CRDT actually accepted the write.
+	# Remote mutations with stale timestamps are a no-op at the store level,
+	# and we must not override the visible tile with a ghost from a loser.
+	if after == before:
+		return
+	chunk.apply_mutation(layer, local, after)
 	chunk.modification_count += 1
 	# Spawn the structure scene immediately so the player sees it this frame.
 	# On chunk reload, _spawn_structures_for_chunk handles the same work from
@@ -122,16 +132,21 @@ func place_tile(world_coords: Vector2i, layer: int, tile_id: int,
 	if layer == 1 and StructureRegistry.is_structure(atlas):
 		_spawn_structure_at(chunk, world_coords, atlas)
 
-func remove_tile(world_coords: Vector2i, layer: int, author: String) -> void:
+func remove_tile(world_coords: Vector2i, layer: int, author: String, ts: float = -1.0) -> void:
 	var cc := CoordUtils.world_to_chunk(world_coords)
 	var local := CoordUtils.world_to_local(world_coords)
 	var chunk := get_chunk(cc)
 	if chunk == null:
 		return
+	var before := chunk.crdt.get_tile(layer, local)
+	chunk.crdt.remove_tile(layer, local, author, ts)
+	var after := chunk.crdt.get_tile(layer, local)
+	# Stale remove — ignore (don't despawn scenes or modify the chunk).
+	if after == before:
+		return
 	# Despawn any structure scene at this tile before the CRDT entry disappears.
 	if layer == 1:
 		_despawn_structure_at(world_coords)
-	chunk.crdt.remove_tile(layer, local, author)
 	chunk.apply_mutation(layer, local, {"tile_id": -1})
 	chunk.modification_count += 1
 
