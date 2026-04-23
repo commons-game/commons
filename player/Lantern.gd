@@ -31,9 +31,12 @@ var _light: PointLight2D = null
 var _bulb_texture: Texture2D = null
 
 func _ready() -> void:
-	# Draw the bulb on top of the player so the toggle has obvious feedback
-	# even in daylight (where the PointLight2D alone would be invisible).
-	z_index = 3
+	# Render between the tile object layer (z=1) and the player (z=2) — so
+	# the player's body occludes the bright centre of the glow and only the
+	# halo around them is visible. z_as_relative=false means our z_index is
+	# absolute, not added to the parent's.
+	z_as_relative = false
+	z_index = 1
 	_bulb_texture = NightDarknessScript._make_radial_texture(BULB_TEXTURE_PX)
 	_light = PointLight2D.new()
 	_light.name = "LanternLight"
