@@ -1,5 +1,17 @@
 # Known Issues
 
+## Test suite
+
+### 8 pre-existing errors in unit suite (non-blocking)
+**Status:** Tracked; do not count against new work.
+**Symptoms:** `godot4 --headless ... -a tests/unit` reports `8 errors | 0 failures` at the summary. Breakdown:
+- `test_webrtc_api.gd` — 4 tests call `.free()` on WebRTCPeerConnection / WebRTCMultiplayerPeer instances, which are RefCounted. Godot rejects with "Attempted to free a RefCounted object". Tests need to drop the `.free()` calls (RefCounted cleans up automatically).
+- `test_harvest_loop.gd` + `test_harvest_range.gd` — Player is instantiated in isolation without a parent World, so `@onready var _tile_mutation := $"../TileMutationBus"` resolves to null and the tests hit "Node not found". Fix: wrap in a minimal host scene or stub the path.
+
+**Why it lit up now:** earlier runs this session reported `0 errors` because `.godot/` import cache was stale; a headless export (`godot4 --export-release`) regenerated the cache and the real parse state surfaced. Also fixed an untyped-`:=` parse error in `test_harvest_range.gd:81-82` as part of this surfacing.
+
+**How to apply:** Don't block new features on these; file a cleanup commit when touching the webrtc/harvest tests for other reasons.
+
 ## CI / GitHub Actions
 
 ### Godot parse job was failing on every push (FIXED)

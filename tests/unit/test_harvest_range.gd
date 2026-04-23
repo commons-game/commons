@@ -78,6 +78,6 @@ func test_tile_dist_is_symmetric() -> void:
 
 func test_tile_dist_is_translation_invariant() -> void:
 	var offset := Vector2i(100, -200)
-	var base   := _player._tile_dist(Vector2i(0, 0), Vector2i(1, 1))
-	var moved  := _player._tile_dist(offset, offset + Vector2i(1, 1))
+	var base: float  = _player._tile_dist(Vector2i(0, 0), Vector2i(1, 1))
+	var moved: float = _player._tile_dist(offset, offset + Vector2i(1, 1))
 	assert_float(moved).is_equal(base)

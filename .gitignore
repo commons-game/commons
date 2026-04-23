@@ -26,6 +26,10 @@ desktop.ini
 
 # Build output (if exporting)
 export/
+build/
+
+# Playtest reports shipped back from laptop sessions (dev/play.sh)
+playtest-reports/
 
 # Game binary (built by Godot export)
 *.x86_64

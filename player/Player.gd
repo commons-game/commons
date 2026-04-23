@@ -170,6 +170,21 @@ func _shake_camera(intensity: float, duration: float) -> void:
 		tween.tween_property(_camera, "offset", offset, step_time)
 	tween.tween_property(_camera, "offset", Vector2.ZERO, step_time)
 
+## Save a timestamped PNG of the current viewport to user://screenshots/.
+## Used by the laptop playtest loop (dev/play.sh) to ship visual state back
+## to the dev server.
+func _save_screenshot() -> void:
+	var dir := DirAccess.open("user://")
+	if dir != null and not dir.dir_exists("screenshots"):
+		dir.make_dir("screenshots")
+	var img := get_viewport().get_texture().get_image()
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
+	var path := "user://screenshots/%s.png" % stamp
+	img.save_png(path)
+	print("[SCREENSHOT] saved %s" % path)
+	if is_instance_valid(EventLog):
+		EventLog.record("screenshot", {"path": path})
+
 ## Per-frame guard: if the lantern is lit but no longer sitting in a tool slot
 ## (e.g. the player dragged it to the bag or dropped it on death), force it off.
 ## This keeps the rule "lit only while held" invariant without having to hook
@@ -679,6 +694,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Toggle lantern — mirrors whether lantern tool is in action bar.
 			if _lantern != null:
 				_lantern.toggle()
+		KEY_F12:
+			# Save a screenshot to user://screenshots/ so the laptop's
+			# dev/play.sh can rsync it back to the dev server for review.
+			_save_screenshot()
 		KEY_T:
 			# Open chat input. CanvasLayer has no is_visible_in_tree(); use .visible.
 			var chat_input := get_node_or_null("../ChatInput")
