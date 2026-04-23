@@ -185,16 +185,31 @@ func _save_screenshot() -> void:
 	if is_instance_valid(EventLog):
 		EventLog.record("screenshot", {"path": path})
 
-## Per-frame guard: if the lantern is lit but no longer sitting in a tool slot
-## (e.g. the player dragged it to the bag or dropped it on death), force it off.
-## This keeps the rule "lit only while held" invariant without having to hook
-## every inventory-mutation path.
+## Returns the id of the item the player is currently wielding. Prefers the
+## hotbar's active bag slot (what the user sees highlighted on the bottom bar),
+## falls back to the tool_slot at active_tool_index. Empty string if nothing.
+##
+## Shared by TileInteraction (to route clicks) and _auto_off_lantern_if_not_wielded.
+func wielded_item_id() -> String:
+	var hotbar := get_parent().get_node_or_null("Hotbar") if get_parent() != null else null
+	if hotbar != null:
+		var stack: Dictionary = hotbar.call("get_active_stack") as Dictionary
+		var id: String = str(stack.get("id", ""))
+		if id != "":
+			return id
+	if inventory != null:
+		var active: Dictionary = inventory.get_active_tool()
+		return str(active.get("id", ""))
+	return ""
+
+## Per-frame guard: lantern stays lit only while the player is actively
+## wielding it. Switching to a different hotbar slot or dragging the lantern
+## anywhere the wielded-item lookup no longer returns "lantern" extinguishes it.
 func _auto_off_lantern_if_dropped() -> void:
-	if _lantern == null or not _lantern.is_on or inventory == null:
+	if _lantern == null or not _lantern.is_on:
 		return
-	for i in range(inventory.TOOL_SLOT_COUNT):
-		if str((inventory.tool_slots[i] as Dictionary).get("id", "")) == "lantern":
-			return
+	if wielded_item_id() == "lantern":
+		return
 	_lantern.set_on(false)
 
 func _on_player_died() -> void:

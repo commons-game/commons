@@ -101,8 +101,14 @@ func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 	var player := get_parent()
 	var inventory: Object = player.get("inventory")
 
+	# Use Player.wielded_item_id() — prefers the hotbar's active bag slot,
+	# falls back to tool_slots. Needed because the user can drag tools
+	# between bag and tool_slots and inventory.get_active_tool() only reads
+	# the tool_slot path.
 	var tool_id := ""
-	if inventory != null:
+	if player.has_method("wielded_item_id"):
+		tool_id = str(player.call("wielded_item_id"))
+	elif inventory != null:
 		var active_tool: Dictionary = inventory.get_active_tool()
 		tool_id = str(active_tool.get("id", ""))
 
