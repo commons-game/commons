@@ -1,0 +1,8 @@
+unpinned
+# Freenet node version we've verified the proxy / contracts work against.
+# Update via: scripts/update_freenet_pin.sh (runs Tier-2 round-trip tests,
+# writes the current node's --version if they pass).
+#
+# Anything other than "unpinned" on the first line means Tier-2 has been
+# verified against that version. Anything else means the pin hasn't been
+# established yet — flip Backend.use_freenet=true at your own risk.
