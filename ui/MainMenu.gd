@@ -28,6 +28,12 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless":
 		get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
 		return
+	# Puppet scenarios (headless or under xvfb) must bypass the menu so
+	# the scenario can drive World directly.
+	for a in args:
+		if typeof(a) == TYPE_STRING and (a as String).begins_with("--puppet-scenario="):
+			get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
+			return
 	_build_ui()
 	# Connect ProcessManager signals
 	ProcessManager.backend_ready.connect(_on_backend_ready)
