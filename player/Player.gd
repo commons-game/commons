@@ -57,10 +57,8 @@ const CharacterRendererScript      := preload("res://player/CharacterRenderer.gd
 const AssetPackScript              := preload("res://player/AssetPack.gd")
 const InventoryScript              := preload("res://items/Inventory.gd")
 const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd")
-const CampfireScript               := preload("res://world/structures/Campfire.gd")
-const BedrollScript                := preload("res://world/structures/Bedroll.gd")
-const TetherScript                 := preload("res://world/structures/Tether.gd")
-const ShrineScript                 := preload("res://world/structures/Shrine.gd")
+# Structure scenes are no longer preloaded here — they're instantiated by
+# ChunkManager via StructureRegistry after their CRDT tiles are placed.
 
 ## Atlas coords for harvestable tiles (layer 1 object layer).
 ## Tree: atlas (0, 1) on grass ground.
@@ -78,7 +76,6 @@ var _has_home: bool = false
 var _home_tile_pos: Vector2i = Vector2i(-2147483647, -2147483647)
 
 ## Placed structure nodes (campfires/bedrolls) owned by this player.
-var _placed_structures: Array = []
 
 @onready var chunk_manager: ChunkManager    = $"../ChunkManager"
 @onready var shrine_manager: ShrineManagerScript = $"../ShrineManager"
@@ -540,10 +537,6 @@ func _place_structure(item_id: String) -> void:
 
 	# Unknown structure id — nothing to do.
 	print("Player: no structure handler for %s" % item_id)
-
-func _on_home_set(world_pos: Vector2) -> void:
-	home_pos = world_pos
-	_has_home = true
 
 ## Shrines are ownerless — any shrine breaking anywhere shows the banner to
 ## anyone nearby via a future proximity check. For now, no per-player react.

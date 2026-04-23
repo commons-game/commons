@@ -1,6 +1,6 @@
 ## TileInteraction — mouse-driven tile interaction, tool-aware.
 ##
-## Active tool (from Player.inventory.get_active_tool()) determines behavior:
+## Active tool (from Player.wielded_item_id()) determines behavior:
 ##
 ##   shovel
 ##     Left click  : dig ground tile (layer 0), adds 1 "dirt" to bag.
@@ -10,11 +10,9 @@
 ##     Right click : toggle the held lantern on/off (Player.Lantern.toggle()).
 ##     Left click  : falls through to fist melee (see below).
 ##
-##   campfire / workbench (structure items)
-##     Right click : place structure tile on object layer (layer 1) at the
-##                   clicked tile position if it is empty. Removes the item
-##                   from the active tool slot.
-##     Left click  : falls through to fist melee (see below).
+## Structure placement (campfire/bedroll/tether/shrine) is NOT handled here —
+## Player._do_place_use owns right-click placement so it routes through
+## TileMutationBus once. See Player.gd:_place_structure.
 ##
 ##   wooden_axe / wooden_pickaxe / stone_axe / stone_pickaxe / fist (no tool) /
 ##   lantern / any other tool without its own left-click behaviour
@@ -34,13 +32,6 @@
 ##
 ## Audio stub: _play_hit_sound() is silent until .ogg assets are wired up.
 extends Node
-
-## Structure item IDs that can be placed in the world via right-click.
-## Key: item id → tile_id string used with TileMutationBus.request_place_tile()
-const STRUCTURE_TILES := {
-	"campfire":  "campfire",
-	"workbench": "workbench",
-}
 
 const DIG_RANGE_TILES := 5
 const DAMAGE_RESET_S  := 2.0  # inactivity window before ephemeral HP resets
@@ -129,12 +120,9 @@ func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 			EventLog.record("lantern_toggle", {"is_on": bool(lantern.is_on)})
 		return
 
-	# Structure placement is handled by Player._do_place_use (triggered by the
-	# same right-click event plus KEY_F). We intentionally do NOT place from
-	# TileInteraction — having both paths fire on one click resulted in two
-	# campfires being placed at neighbouring tiles. Left-click still falls
-	# through to the fist-melee branch below so players can harvest while
-	# holding a campfire/workbench.
+	# Structure placement is owned by Player._do_place_use so right-click
+	# routes through a single path; having both fire placed two campfires on
+	# edge clicks. Left-click falls through to fist-melee below.
 
 	# Fist / melee tool / lantern / held structure on left-click.
 	# _tool_damage() returns 1 for any id it doesn't recognise, so lantern and
@@ -210,26 +198,6 @@ func _tool_damage(atlas: Vector2i, tool_id: String) -> int:
 			return 3 if atlas == Vector2i(1, 1) else 1
 		_:
 			return 1  # fist or unrecognised tool
-
-# ---------------------------------------------------------------------------
-# Structure placement
-# ---------------------------------------------------------------------------
-
-## Place a structure item (campfire/workbench) on the object layer at tile_pos.
-## Requires the tile to be empty on layer 1 and within DIG_RANGE_TILES.
-func _handle_structure_place(tile_pos: Vector2i, player: Node,
-		inventory: Object, tool_id: String) -> void:
-	if not _in_range(tile_pos, player):
-		return
-	# Do not place on an occupied object-layer tile.
-	if _chunk_mgr.has_tile_at(tile_pos, 1):
-		return
-	var tile_id: String = STRUCTURE_TILES[tool_id]
-	_bus.request_place_tile(tile_pos, 1, tile_id)
-	# Remove the structure item from the active tool slot.
-	var active_idx: int = int(inventory.get("active_tool_index"))
-	inventory.clear_tool_slot(active_idx)
-	print("[PLACE] placed %s at %s" % [tile_id, tile_pos])
 
 func _give_drops(spec: Dictionary, inventory: Object) -> void:
 	if inventory == null:
