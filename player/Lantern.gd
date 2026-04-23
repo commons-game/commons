@@ -26,6 +26,9 @@ var is_on: bool = false
 var _light: PointLight2D = null
 
 func _ready() -> void:
+	# Draw the bulb on top of the player so the toggle has obvious feedback
+	# even in daylight (where the PointLight2D alone would be invisible).
+	z_index = 3
 	_light = PointLight2D.new()
 	_light.name = "LanternLight"
 	_light.texture = NightDarknessScript._make_radial_texture(128)
@@ -34,6 +37,16 @@ func _ready() -> void:
 	_light.shadow_enabled = false
 	add_child(_light)
 	_apply_state()
+
+## Visible "bulb" sprite — always drawn, but only filled when lit. This gives
+## the player a clear on/off signal at any time of day; the PointLight2D
+## above only cuts through the darkness at night.
+func _draw() -> void:
+	if not is_on:
+		return
+	# Small warm glow centered on the player.
+	draw_circle(Vector2.ZERO, 9.0, Color(1.0, 0.85, 0.35, 0.55))
+	draw_circle(Vector2.ZERO, 5.0, Color(1.0, 1.0, 0.80, 0.95))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -55,3 +68,4 @@ func _apply_state() -> void:
 		return
 	_light.enabled = is_on
 	_light.energy  = 0.85 if is_on else 0.0
+	queue_redraw()   # refresh the visible bulb
