@@ -282,6 +282,103 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "commons-chunk-contract"
+version = "0.1.0"
+dependencies = [
+ "commons-core",
+ "freenet-stdlib",
+ "proptest",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-error-contract"
+version = "0.1.0"
+dependencies = [
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-lobby-contract"
+version = "0.1.0"
+dependencies = [
+ "commons-core",
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-pairing-contract"
+version = "0.1.0"
+dependencies = [
+ "commons-core",
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-player-delegate"
+version = "0.1.0"
+dependencies = [
+ "commons-core",
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "commons-proxy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "commons-core",
+ "freenet-stdlib",
+ "futures",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "commons-report"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "commons-error-contract",
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
+name = "commons-version-manifest"
+version = "0.1.0"
+dependencies = [
+ "freenet-stdlib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -465,103 +562,6 @@ name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
-
-[[package]]
-name = "freeland-chunk-contract"
-version = "0.1.0"
-dependencies = [
- "freeland-common",
- "freenet-stdlib",
- "proptest",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-common"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-error-contract"
-version = "0.1.0"
-dependencies = [
- "freenet-stdlib",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-lobby-contract"
-version = "0.1.0"
-dependencies = [
- "freeland-common",
- "freenet-stdlib",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-pairing-contract"
-version = "0.1.0"
-dependencies = [
- "freeland-common",
- "freenet-stdlib",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-player-delegate"
-version = "0.1.0"
-dependencies = [
- "freeland-common",
- "freenet-stdlib",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freeland-proxy"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "freeland-common",
- "freenet-stdlib",
- "futures",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "freeland-report"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "freeland-error-contract",
- "freenet-stdlib",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
-]
-
-[[package]]
-name = "freeland-version-manifest"
-version = "0.1.0"
-dependencies = [
- "freenet-stdlib",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "freenet-macros"

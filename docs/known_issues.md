@@ -103,10 +103,10 @@ cd ../lobby-contract
 CARGO_TARGET_DIR=../../target fdev build
 # 4. Build and run proxy (both contracts in working dir):
 cd backend/freenet
-cargo build -p freeland-proxy --release
-cp contracts/chunk-contract/build/freenet/freeland_chunk_contract .
-cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
-./target/release/freeland-proxy
+cargo build -p commons-proxy --release
+cp contracts/chunk-contract/build/freenet/commons_chunk_contract .
+cp contracts/lobby-contract/build/freenet/commons_lobby_contract .
+./target/release/commons-proxy
 # 5. In Backend.gd: use_freenet = true
 # 6. FreenetPresenceService is now the default presence backend in World.gd
 ```
@@ -130,7 +130,7 @@ cp contracts/lobby-contract/build/freenet/freeland_lobby_contract .
 **Run it (use fdev-built packages, not raw .wasm):**
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
-BASE=/path/to/freeland/backend/freenet
+BASE=/path/to/commons/backend/freenet
 # Build contract + delegate packages first (once, or after code changes):
 (cd $BASE/contracts/chunk-contract   && CARGO_TARGET_DIR=../../target fdev build)
 (cd $BASE/contracts/lobby-contract   && CARGO_TARGET_DIR=../../target fdev build)
@@ -138,11 +138,11 @@ BASE=/path/to/freeland/backend/freenet
 (cd $BASE/delegates/player-delegate  && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
 # Run tests:
 FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native \
-FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
-FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
-FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
-FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/freeland_player_delegate \
-  cargo test --features integration -p freeland-proxy -- --nocapture
+COMMONS_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/commons_chunk_contract \
+COMMONS_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/commons_lobby_contract \
+COMMONS_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/commons_pairing_contract \
+COMMONS_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/commons_player_delegate \
+  cargo test --features integration -p commons-proxy -- --nocapture
 ```
 **IMPORTANT:** Always use `fdev build` output (in `build/freenet/`), never raw `.wasm` from `target/wasm32-unknown-unknown/`. The fdev package includes version metadata; raw WASM gives `unsupported incremental API version` error.
 **Also note:** `fdev` must have `~/.cargo/bin` in PATH (`cargo` not on default system PATH).
@@ -154,34 +154,34 @@ FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/free
 **Action:** File upstream issue on freenet/freenet-core.
 
 ### Freenet node returns UpdateResponse instead of PutResponse for existing contracts (FIXED)
-**Status:** Fixed in `freeland-proxy`.
+**Status:** Fixed in `commons-proxy`.
 **Detail:** Freenet 0.2.45 returns `ContractResponse::UpdateResponse` when a PUT is applied to an already-existing contract rather than `PutResponse`. The proxy now accepts both as success in all PUT handlers (chunk, lobby, pairing).
 
 ### Reputation and equipment now on Freenet via player delegate
-**Status:** Implemented — `freeland-player-delegate` crate added in `delegates/player-delegate/`.
+**Status:** Implemented — `commons-player-delegate` crate added in `delegates/player-delegate/`.
 **Detail:** `FreenetBackend.gd` now routes reputation/equipment through the proxy using `PlayerSave`/`PlayerLoad` ops, which call the player delegate on the Freenet node. Data is stored in the node's encrypted secret store under keys `rep:local_player` and `equip:local_player`. Caching is in-memory; `player_data_received(kind, data)` signal fires when a background load completes.
 **Build delegate:** `cd delegates/player-delegate && CARGO_TARGET_DIR=../../target PATH="$HOME/.cargo/bin:$PATH" fdev build --package-type delegate`
 **Note:** `freenet-stdlib` must have `features = ["contract"]` in the delegate's `Cargo.toml` — the `#[delegate]` macro generates code that calls `bytes_written()` and `into_raw()` which are gated behind `#[cfg(feature = "contract")]` in stdlib. This is a freenet-macros 0.2.0 / freenet-stdlib 0.6.0 quirk.
-**Env var:** `FREELAND_PLAYER_DELEGATE_PATH` — path to the fdev-built delegate package (default: `./freeland_player_delegate`).
-**Integration tests:** Pass `FREELAND_PLAYER_DELEGATE_PATH` when running with `LIVE=1`.
+**Env var:** `COMMONS_PLAYER_DELEGATE_PATH` — path to the fdev-built delegate package (default: `./commons_player_delegate`).
+**Integration tests:** Pass `COMMONS_PLAYER_DELEGATE_PATH` when running with `LIVE=1`.
 
 ### `#[delegate]` macro generates dead_code warnings (expected)
 **Status:** Known, harmless.
 **Detail:** The `#[delegate]` macro (like `#[contract]`) consumes the impl and struct to generate WASM entry points. Rust's analysis on the non-WASM target sees the struct and helper function as unused. Both warnings are expected and can be suppressed with `#[allow(dead_code)]` if desired, but are left as-is for symmetry with the contracts. The `unexpected_cfg` warning about `freenet-main-delegate` is also from the macro and is harmless.
 
 ### No proxy integration smoke test for player delegate
-**Status:** Integration test structure updated — round_trip.rs accepts `FREELAND_PLAYER_DELEGATE_PATH`. No dedicated player save/load test yet (delegate requires a built WASM package to exercise).
+**Status:** Integration test structure updated — round_trip.rs accepts `COMMONS_PLAYER_DELEGATE_PATH`. No dedicated player save/load test yet (delegate requires a built WASM package to exercise).
 **Run it:**
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
-BASE=/path/to/freeland/backend/freenet
+BASE=/path/to/commons/backend/freenet
 (cd $BASE/delegates/player-delegate && CARGO_TARGET_DIR=../../target fdev build --package-type delegate)
 FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native \
-FREELAND_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/freeland_chunk_contract \
-FREELAND_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/freeland_lobby_contract \
-FREELAND_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/freeland_pairing_contract \
-FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/freeland_player_delegate \
-  cargo test --features integration -p freeland-proxy -- --nocapture
+COMMONS_CONTRACT_PATH=$BASE/contracts/chunk-contract/build/freenet/commons_chunk_contract \
+COMMONS_LOBBY_CONTRACT_PATH=$BASE/contracts/lobby-contract/build/freenet/commons_lobby_contract \
+COMMONS_PAIRING_CONTRACT_PATH=$BASE/contracts/pairing-contract/build/freenet/commons_pairing_contract \
+COMMONS_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/commons_player_delegate \
+  cargo test --features integration -p commons-proxy -- --nocapture
 ```
 
 ## Performance
@@ -206,17 +206,17 @@ FREELAND_PLAYER_DELEGATE_PATH=$BASE/delegates/player-delegate/build/freenet/free
 
 **Key finding:** 200 mobs stays above 30fps on the RTX 3060. Physics broadphase spike (~100ms peak) is the chunk_thrash ceiling on both renderers — it's CPU physics work, not rendering.
 
-**Re-run (CPU/llvmpipe):** `freeland-perf-cpu` alias, or:
+**Re-run (CPU/llvmpipe):** `commons-perf-cpu` alias, or:
 ```bash
-DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture
+DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/commons -- --perf-torture
 ```
-**Re-run (GPU/RTX 3060):** `freeland-perf-gpu` alias, or:
+**Re-run (GPU/RTX 3060):** `commons-perf-gpu` alias, or:
 ```bash
-__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --perf-torture
+__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia DISPLAY=:200 ~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/commons -- --perf-torture
 ```
 **Notes:**
 - Use `:200` (Xvfb, managed by `xvfb-test.service`) not `:100` (xpra) — xpra adds ~33ms/frame encoding overhead that pollutes all frame-time measurements
-- Use `godot4 --path`, NOT `./freeland.x86_64` — the binary has an embedded PCK with old scripts
+- Use `godot4 --path`, NOT `./commons.x86_64` — the binary has an embedded PCK with old scripts
 - chunk_flood and tile_flood are CPU-bound; GPU makes no difference there
 - chunk_thrash and mob_ramp reflect physics+AI cost, which IS affected by GPU frame budget
 Results saved to `user://perf_baselines/`.
@@ -250,11 +250,11 @@ Results saved to `user://perf_baselines/`.
 **Symptom:** `Agent` tool with `isolation: "worktree"` fails with "Failed to create worktree" because the `WorktreeCreate` hook receives a JSON payload that doesn't include a `worktree_path` key in the current Claude Code version.
 **Workaround:** Create the worktree manually before spawning the agent:
 ```bash
-git worktree add /home/adam/development/freeland-<branch-name> -b <branch-name>
+git worktree add /home/adam/development/commons-<branch-name> -b <branch-name>
 ```
 Then point the agent at that directory explicitly in the prompt. Remove with:
 ```bash
-git worktree remove /home/adam/development/freeland-<branch-name>
+git worktree remove /home/adam/development/commons-<branch-name>
 git branch -d <branch-name>
 ```
 
@@ -262,11 +262,11 @@ git branch -d <branch-name>
 
 ### --dev-health-check requires -- separator and cannot use --headless
 **Status:** Pattern established.
-**Symptom:** Running `./freeland.x86_64 --dev-health-check` hangs silently (arg not seen). Running with `--headless` segfaults in `get_viewport().get_texture().get_image()`.
+**Symptom:** Running `./commons.x86_64 --dev-health-check` hangs silently (arg not seen). Running with `--headless` segfaults in `get_viewport().get_texture().get_image()`.
 **Root cause:** `OS.get_cmdline_user_args()` only returns args after `--`. Without `--`, `--dev-health-check` is treated as an engine arg and ignored. `--headless` uses a dummy renderer with no texture, so viewport image capture segfaults.
 **Correct invocation:**
 ```bash
-DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-health-check
+DISPLAY=:100 ./commons.x86_64 --rendering-driver opengl3 -- --dev-health-check
 ```
 **Applies to:** All `--dev-*` args (health-check, screenshot-cycle, frame-log).
 
@@ -275,7 +275,7 @@ DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-health-check
 **Correct invocation:**
 ```bash
 DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
-  --path /home/adam/development/freeland \
+  --path /home/adam/development/commons \
   --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
   -a res://tests/ -c --ignoreHeadlessMode
 ```
@@ -330,13 +330,13 @@ DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 \
 
 ### Freenet lobby contract requires fdev build before proxy starts
 **Status:** Expected — same as chunk contract.
-**Detail:** `freeland_lobby_contract` package must be built before running the proxy:
+**Detail:** `commons_lobby_contract` package must be built before running the proxy:
 ```bash
 cd backend/freenet/contracts/lobby-contract
 CARGO_TARGET_DIR=../../target fdev build
-cp build/freenet/freeland_lobby_contract /path/to/proxy/working/dir/
+cp build/freenet/commons_lobby_contract /path/to/proxy/working/dir/
 ```
-Then set `FREELAND_LOBBY_CONTRACT_PATH` or place the file alongside `freeland_chunk_contract`.
+Then set `COMMONS_LOBBY_CONTRACT_PATH` or place the file alongside `commons_chunk_contract`.
 
 ### Pairing contract requires fdev build before proxy starts
 **Status:** Expected — same as chunk and lobby contracts.
@@ -344,9 +344,9 @@ Then set `FREELAND_LOBBY_CONTRACT_PATH` or place the file alongside `freeland_ch
 ```bash
 cd backend/freenet/contracts/pairing-contract
 CARGO_TARGET_DIR=../../target fdev build
-cp build/freenet/freeland_pairing_contract /path/to/proxy/working/dir/
+cp build/freenet/commons_pairing_contract /path/to/proxy/working/dir/
 ```
-Set `FREELAND_PAIRING_CONTRACT_PATH` or place alongside the other contract artifacts.
+Set `COMMONS_PAIRING_CONTRACT_PATH` or place alongside the other contract artifacts.
 
 ### FreenetPresenceService uses LAN IP, not external IP
 **Status:** Known limitation — deferred to step 2 (WebRTC).
@@ -371,11 +371,11 @@ Set `FREELAND_PAIRING_CONTRACT_PATH` or place alongside the other contract artif
 - Auto-restarts (`Restart=always`); exposes web client on port 14600
 
 **Aliases** (in `~/.bashrc`):
-- `freeland-xpra` — `systemctl --user start xpra.service`
-- `freeland-xpra-stop` — stop the service
-- `freeland-xpra-log` — follow service logs
-- `freeland-editor` — launch Godot editor in xpra
-- `freeland-vt` — shortcut for `scripts/visual_test.sh`
+- `commons-xpra` — `systemctl --user start xpra.service`
+- `commons-xpra-stop` — stop the service
+- `commons-xpra-log` — follow service logs
+- `commons-editor` — launch Godot editor in xpra
+- `commons-vt` — shortcut for `scripts/visual_test.sh`
 
 **Connect from laptop:** `http://server:14600`
 
@@ -681,11 +681,11 @@ a.active_buff_ids.append("undead_resilience")
 **CLI invocation pattern** (args must follow `--` separator for `OS.get_cmdline_user_args()`):
 ```bash
 # Host
-~/bin/godot4 --path /home/adam/development/freeland -- --host --port 7778
+~/bin/godot4 --path /home/adam/development/commons -- --host --port 7778
 # Join
-~/bin/godot4 --path /home/adam/development/freeland -- --join 192.168.1.5 --port 7778
+~/bin/godot4 --path /home/adam/development/commons -- --join 192.168.1.5 --port 7778
 # Skip menu (solo, dev)
-~/bin/godot4 --path /home/adam/development/freeland -- --skip-menu
+~/bin/godot4 --path /home/adam/development/commons -- --skip-menu
 ```
 
 ## Shifting Lands
@@ -704,9 +704,9 @@ chunk is immune — you can stand in grass and watch the world shift around you.
 **How to trigger a split manually for testing:**
 ```bash
 # Run two instances — they will auto-discover via UDP and merge:
-~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --dev-instant-merge
+~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/commons -- --dev-instant-merge
 # Second instance in another terminal:
-~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/freeland -- --dev-instant-merge
+~/bin/godot4 --rendering-driver opengl3 --path /home/adam/development/commons -- --dev-instant-merge
 # Walk them apart to trigger split, then watch unloaded chunks shift.
 # --dev-instant-merge collapses merge pressure to 1.0 so discovery is near-instant.
 ```
@@ -726,12 +726,12 @@ chunk is immune — you can stand in grass and watch the world shift around you.
 
 ## Multiplayer — Dev Proxy
 
-### freeland-dev-proxy: in-memory proxy for local multiplayer without Freenet
+### commons-dev-proxy: in-memory proxy for local multiplayer without Freenet
 **Status:** Built and tested.
 **Detail:** `backend/freenet/proxy/src/bin/dev_proxy.rs` — handles all WebSocket ops (LobbyPut/Get, PairingPublishOffer/Answer/Get, chunk Put/Get/Delete, PlayerSave/Load) with state in a shared in-memory HashMap. No Freenet node or contract builds required.
-**Build:** `cd backend/freenet && ~/.cargo/bin/cargo build --bin freeland-dev-proxy`
-**Run:** `./backend/freenet/target/debug/freeland-dev-proxy [addr:port]` (default: 127.0.0.1:7510)
+**Build:** `cd backend/freenet && ~/.cargo/bin/cargo build --bin commons-dev-proxy`
+**Run:** `./backend/freenet/target/debug/commons-dev-proxy [addr:port]` (default: 127.0.0.1:7510)
 **Two-player local test:** `./scripts/run_multiplayer_local.sh` (uses `--headless` — game instances must run headless for stdout to be captured in log files)
 **Integration tests:** `res://tests/integration/test_dev_proxy.gd` — pairing round-trip + two-player discovery. Run with gdUnit4.
-**State is not persisted** — state is lost when the proxy exits. For persistence, use the real `freeland-proxy` with a Freenet node.
-**Port conflict:** If port 7510 is in use, pass a custom address: `./freeland-dev-proxy 127.0.0.1:7511`. The integration test uses port 7511 to avoid colliding with a dev instance on 7510.
+**State is not persisted** — state is lost when the proxy exits. For persistence, use the real `commons-proxy` with a Freenet node.
+**Port conflict:** If port 7510 is in use, pass a custom address: `./commons-dev-proxy 127.0.0.1:7511`. The integration test uses port 7511 to avoid colliding with a dev instance on 7510.

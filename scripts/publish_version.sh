@@ -5,11 +5,11 @@
 #   ./scripts/publish_version.sh <version> <download_url> [min_protocol_version]
 #
 # Examples:
-#   ./scripts/publish_version.sh 0.3.0 https://github.com/you/freeland/releases/tag/v0.3.0
-#   ./scripts/publish_version.sh 0.4.0 https://github.com/you/freeland/releases/tag/v0.4.0 2
+#   ./scripts/publish_version.sh 0.3.0 https://github.com/you/commons/releases/tag/v0.3.0
+#   ./scripts/publish_version.sh 0.4.0 https://github.com/you/commons/releases/tag/v0.4.0 2
 #
 # Requires:
-#   - freenet network running and freeland-proxy running on ws://127.0.0.1:7510
+#   - freenet network running and commons-proxy running on ws://127.0.0.1:7510
 #   - version-manifest contract built:
 #       cd backend/freenet/contracts/version-manifest
 #       CARGO_TARGET_DIR=../../target fdev build
@@ -27,7 +27,7 @@ MIN_PROTO="${3:-1}"
 
 if [ -z "$VERSION" ] || [ -z "$DOWNLOAD_URL" ]; then
     echo "Usage: $0 <version> <download_url> [min_protocol_version]"
-    echo "Example: $0 0.3.0 https://github.com/you/freeland/releases/tag/v0.3.0"
+    echo "Example: $0 0.3.0 https://github.com/you/commons/releases/tag/v0.3.0"
     exit 1
 fi
 
@@ -36,7 +36,7 @@ if [[ "$DOWNLOAD_URL" != https://github.com/* ]]; then
     exit 1
 fi
 
-PROXY_URL="${FREELAND_PROXY_URL:-ws://127.0.0.1:7510}"
+PROXY_URL="${COMMONS_PROXY_URL:-ws://127.0.0.1:7510}"
 COMMIT=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 TS=$(date +%s)
 

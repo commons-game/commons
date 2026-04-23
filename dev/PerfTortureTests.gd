@@ -1,4 +1,4 @@
-## PerfTortureTests — performance torture suite for Freeland.
+## PerfTortureTests — performance torture suite for Commons.
 ## Instantiated by World._run_perf_torture() when --perf-torture is passed.
 ## Tests run sequentially; each cleans up before the next.
 ## Results are saved to user://perf_baselines/<timestamp>.json and printed to stdout.

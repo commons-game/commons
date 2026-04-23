@@ -5,7 +5,7 @@
 ## solid block, invisible) you know the atlas or TileSet setup is broken.
 ##
 ## Run:
-##   DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-render-gym
+##   DISPLAY=:100 ./commons.x86_64 --rendering-driver opengl3 -- --dev-render-gym
 ##
 ## Layout (left to right, each tile 16px):
 ##   [0] grass  (0,0)  ground only

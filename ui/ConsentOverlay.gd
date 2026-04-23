@@ -25,7 +25,7 @@ func _build_ui() -> void:
 	add_child(panel)
 
 	var title := Label.new()
-	title.text = "Help improve Freeland?"
+	title.text = "Help improve Commons?"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	panel.add_child(title)
 

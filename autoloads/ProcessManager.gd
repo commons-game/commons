@@ -3,14 +3,14 @@
 ## Launch sequence:
 ##   1. Check if port 7510 is already open (dev mode — skip everything)
 ##   2. Find freenet binary (bundled → ~/.local/bin → PATH)
-##   3. Find freeland-proxy binary (bundled → exe dir)
+##   3. Find commons-proxy binary (bundled → exe dir)
 ##   4. Start freenet network, wait up to 8s for port 7509
-##   5. Start freeland-proxy, wait up to 5s for port 7510
+##   5. Start commons-proxy, wait up to 5s for port 7510
 ##   6. Emit backend_ready or backend_failed(reason)
 ##
 ## Export layout expected:
 ##   <exe>/bin/freenet          (Linux) or bin/freenet.exe (Windows)
-##   <exe>/bin/freeland-proxy   (Linux) or bin/freeland-proxy.exe (Windows)
+##   <exe>/bin/commons-proxy   (Linux) or bin/commons-proxy.exe (Windows)
 ##
 ## Headless mode: skips startup (CI / dedicated server).
 extends Node
@@ -88,12 +88,12 @@ func _port_open(port: int) -> bool:
 
 func _start_proxy(proxy_bin: String) -> int:
 	var exe_dir := OS.get_executable_path().get_base_dir()
-	var contract_path := exe_dir.path_join("bin").path_join("freeland_chunk_contract")
-	var lobby_path    := exe_dir.path_join("bin").path_join("freeland_lobby_contract")
-	var pairing_path  := exe_dir.path_join("bin").path_join("freeland_pairing_contract")
-	var delegate_path := exe_dir.path_join("bin").path_join("freeland_player_delegate")
-	var error_path    := exe_dir.path_join("bin").path_join("freeland_error_contract")
-	var version_path  := exe_dir.path_join("bin").path_join("freeland_version_manifest")
+	var contract_path := exe_dir.path_join("bin").path_join("commons_chunk_contract")
+	var lobby_path    := exe_dir.path_join("bin").path_join("commons_lobby_contract")
+	var pairing_path  := exe_dir.path_join("bin").path_join("commons_pairing_contract")
+	var delegate_path := exe_dir.path_join("bin").path_join("commons_player_delegate")
+	var error_path    := exe_dir.path_join("bin").path_join("commons_error_contract")
+	var version_path  := exe_dir.path_join("bin").path_join("commons_version_manifest")
 
 	if OS.get_name() == "Windows":
 		# Windows: env var support TODO — launch directly for now
@@ -102,16 +102,16 @@ func _start_proxy(proxy_bin: String) -> int:
 		# Linux/macOS: use env(1) to pass variables
 		var args := [
 			"FREENET_NODE_URL=ws://[::1]:7509/v1/contract/command?encodingProtocol=native",
-			"FREELAND_PROXY_ADDR=127.0.0.1:7510",
+			"COMMONS_PROXY_ADDR=127.0.0.1:7510",
 		]
 		# Only add contract paths if the files exist
 		for pair in [
-			["FREELAND_CONTRACT_PATH",         contract_path],
-			["FREELAND_LOBBY_CONTRACT_PATH",    lobby_path],
-			["FREELAND_PAIRING_CONTRACT_PATH",  pairing_path],
-			["FREELAND_PLAYER_DELEGATE_PATH",   delegate_path],
-			["FREELAND_ERROR_CONTRACT_PATH",    error_path],
-			["FREELAND_VERSION_CONTRACT_PATH",  version_path],
+			["COMMONS_CONTRACT_PATH",         contract_path],
+			["COMMONS_LOBBY_CONTRACT_PATH",    lobby_path],
+			["COMMONS_PAIRING_CONTRACT_PATH",  pairing_path],
+			["COMMONS_PLAYER_DELEGATE_PATH",   delegate_path],
+			["COMMONS_ERROR_CONTRACT_PATH",    error_path],
+			["COMMONS_VERSION_CONTRACT_PATH",  version_path],
 		]:
 			if FileAccess.file_exists(pair[1]):
 				args.append("%s=%s" % [pair[0], pair[1]])
@@ -136,9 +136,9 @@ func _start_backend() -> void:
 		backend_failed.emit("Freenet not found. Run: curl -fsSL https://freenet.org/install.sh | sh")
 		return
 
-	var proxy_bin := _find_binary("freeland-proxy")
+	var proxy_bin := _find_binary("commons-proxy")
 	if proxy_bin.is_empty():
-		backend_failed.emit("freeland-proxy not found alongside game executable.")
+		backend_failed.emit("commons-proxy not found alongside game executable.")
 		return
 
 	status_changed.emit("Starting Freenet...")
@@ -159,7 +159,7 @@ func _start_backend() -> void:
 	status_changed.emit("Starting proxy...")
 	_proxy_pid = _start_proxy(proxy_bin)
 	if _proxy_pid <= 0:
-		backend_failed.emit("Failed to start freeland-proxy.")
+		backend_failed.emit("Failed to start commons-proxy.")
 		return
 
 	# Wait up to 5s for proxy to bind port 7510

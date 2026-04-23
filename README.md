@@ -24,7 +24,7 @@ Each player runs a local Freenet node. The game world is stored as Freenet contr
 
 ```bash
 cd backend/freenet
-cargo build --bin freeland-proxy
+cargo build --bin commons-proxy
 ```
 
 ### Play

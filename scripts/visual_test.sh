@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# visual_test.sh — helpers for xpra-based visual testing of Freeland
+# visual_test.sh — helpers for xpra-based visual testing of Commons
 #
 # Usage:
 #   visual_test.sh start-host [port]              Start Godot as host (default port 7777)
@@ -26,7 +26,7 @@
 set -euo pipefail
 
 GODOT="${GODOT:-$HOME/bin/godot4}"
-PROJECT="/home/adam/development/freeland"
+PROJECT="/home/adam/development/commons"
 DISPLAY_NUM="${DISPLAY_NUM:-:100}"
 RENDERING="opengl3"
 # Side-by-side layout: host at left, client at right (960px each in a 1920x1080 desktop)
@@ -59,9 +59,9 @@ case "$cmd" in
       --position "$HOST_POS" \
       --resolution "$WIN_RES" \
       -- --host "$port" \
-      > /tmp/freeland-host.log 2>&1 &
+      > /tmp/commons-host.log 2>&1 &
     echo "Host PID: $!"
-    echo "$!" > /tmp/freeland-host.pid
+    echo "$!" > /tmp/commons-host.pid
     ;;
 
   start-client)
@@ -74,9 +74,9 @@ case "$cmd" in
       --position "$CLIENT_POS" \
       --resolution "$WIN_RES" \
       -- --join "$ip" "$port" \
-      > /tmp/freeland-client.log 2>&1 &
+      > /tmp/commons-client.log 2>&1 &
     echo "Client PID: $!"
-    echo "$!" > /tmp/freeland-client.pid
+    echo "$!" > /tmp/commons-client.pid
     ;;
 
   # Dev variants with --dev-instant-merge: pressure starts at 1.0, broadcast every 1s.
@@ -91,9 +91,9 @@ case "$cmd" in
       --position "$HOST_POS" \
       --resolution "$WIN_RES" \
       -- --host "$port" --dev-instant-merge \
-      > /tmp/freeland-host.log 2>&1 &
+      > /tmp/commons-host.log 2>&1 &
     echo "Host PID: $!"
-    echo "$!" > /tmp/freeland-host.pid
+    echo "$!" > /tmp/commons-host.pid
     ;;
 
   start-client-dev)
@@ -106,26 +106,26 @@ case "$cmd" in
       --position "$CLIENT_POS" \
       --resolution "$WIN_RES" \
       -- --join "$ip" "$port" --dev-instant-merge \
-      > /tmp/freeland-client.log 2>&1 &
+      > /tmp/commons-client.log 2>&1 &
     echo "Client PID: $!"
-    echo "$!" > /tmp/freeland-client.pid
+    echo "$!" > /tmp/commons-client.pid
     ;;
 
   stop-all)
     echo "Stopping all Godot instances..."
-    pkill -f "godot4.*freeland" 2>/dev/null && echo "killed" || echo "none running"
-    rm -f /tmp/freeland-host.pid /tmp/freeland-client.pid
+    pkill -f "godot4.*commons" 2>/dev/null && echo "killed" || echo "none running"
+    rm -f /tmp/commons-host.pid /tmp/commons-client.pid
     ;;
 
   status)
     echo "=== Running Godot processes ==="
-    pgrep -a -f "godot4.*freeland" || echo "none"
+    pgrep -a -f "godot4.*commons" || echo "none"
     echo ""
     echo "=== Logs: host ==="
-    tail -20 /tmp/freeland-host.log 2>/dev/null || echo "(no log)"
+    tail -20 /tmp/commons-host.log 2>/dev/null || echo "(no log)"
     echo ""
     echo "=== Logs: client ==="
-    tail -20 /tmp/freeland-client.log 2>/dev/null || echo "(no log)"
+    tail -20 /tmp/commons-client.log 2>/dev/null || echo "(no log)"
     ;;
 
   # Print a JS snippet that dispatches a single keydown+keyup event to the focused window.

@@ -1,4 +1,4 @@
-/// Freeland proxy library — core listen/handle logic, extracted so integration tests can use it.
+/// Commons proxy library — core listen/handle logic, extracted so integration tests can use it.
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 
 use freenet_stdlib::{
@@ -10,7 +10,7 @@ use freenet_stdlib::{
         InboundDelegateMsg, OutboundDelegateMsg, Parameters, RelatedContracts, WrappedState,
     },
 };
-use freeland_common::{
+use commons_core::{
     ChunkParameters, ChunkState, LobbyEntry, LobbyParameters, LobbyState,
     PairingParameters, PairingState, PairingSide,
     PlayerDelegateRequest, PlayerDelegateResponse,

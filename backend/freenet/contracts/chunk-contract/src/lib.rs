@@ -1,4 +1,4 @@
-/// Freeland chunk contract.
+/// Commons chunk contract.
 ///
 /// Each chunk (x, y) is a separate contract instance.
 /// State = LWW-map of tile entries (JSON-encoded ChunkState).
@@ -7,7 +7,7 @@
 /// Contract key = hash(this_wasm || ChunkParameters{x, y})
 /// so each chunk coordinate maps to a unique, independently-evictable contract.
 use freenet_stdlib::prelude::*;
-use freeland_common::{ChunkDelta, ChunkState, ChunkSummary};
+use commons_core::{ChunkDelta, ChunkState, ChunkSummary};
 
 /// Tracks breaking changes to the chunk contract WASM.
 /// Incrementing this changes the contract instance IDs, making old world data
@@ -156,7 +156,7 @@ impl ContractInterface for ChunkContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use freeland_common::TileEntry;
+    use commons_core::TileEntry;
 
     fn tile(timestamp: f64, author: &str) -> TileEntry {
         TileEntry {

@@ -5,7 +5,7 @@
 ## ESC or F5 to quit.
 ##
 ## Run from exported binary:
-##   DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-gym
+##   DISPLAY=:100 ./commons.x86_64 --rendering-driver opengl3 -- --dev-gym
 ## Run from editor:
 ##   DISPLAY=:100 ~/bin/godot4 --rendering-driver opengl3 --path . -- --dev-gym
 extends Node2D

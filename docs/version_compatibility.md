@@ -61,11 +61,11 @@ the banner is red and says "Update required to join multiplayer games."
 cd backend/freenet/contracts/version-manifest
 CARGO_TARGET_DIR=../../target PATH="$HOME/.cargo/bin:$PATH" fdev build
 
-# Start freenet network + freeland-proxy (with version contract path set)
+# Start freenet network + commons-proxy (with version contract path set)
 ./scripts/run_multiplayer_local.sh --freenet
 
 # Publish the manifest (in another terminal)
-./scripts/publish_version.sh 0.3.0 https://github.com/you/freeland/releases/tag/v0.3.0
+./scripts/publish_version.sh 0.3.0 https://github.com/you/commons/releases/tag/v0.3.0
 # For a breaking release:
-./scripts/publish_version.sh 0.4.0 https://github.com/you/freeland/releases/tag/v0.4.0 2
+./scripts/publish_version.sh 0.4.0 https://github.com/you/commons/releases/tag/v0.4.0 2
 ```

@@ -1,4 +1,4 @@
-/// Freeland pairing contract — WebRTC signaling exchange for NAT traversal.
+/// Commons pairing contract — WebRTC signaling exchange for NAT traversal.
 ///
 /// One contract instance per player pair, keyed by PairingParameters { pairing_key }.
 /// The pairing key is "{min_sid}:{max_sid}" — both players compute the same key.
@@ -12,7 +12,7 @@
 /// Contract is ephemeral: entries older than PAIRING_TTL_SECS are evicted.
 use freenet_stdlib::prelude::*;
 #[allow(unused_imports)] // PAIRING_TTL_SECS used in #[cfg(test)] only
-use freeland_common::{PairingState, PairingSummary, PAIRING_TTL_SECS};
+use commons_core::{PairingState, PairingSummary, PAIRING_TTL_SECS};
 
 struct PairingContract;
 
@@ -146,7 +146,7 @@ impl ContractInterface for PairingContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use freeland_common::PairingSide;
+    use commons_core::PairingSide;
 
     fn side(sdp: &str, ts: f64) -> PairingSide {
         PairingSide {

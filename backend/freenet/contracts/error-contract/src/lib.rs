@@ -1,4 +1,4 @@
-/// Freeland error-report contract.
+/// Commons error-report contract.
 ///
 /// A global contract that accumulates opt-in crash/error telemetry.
 /// State = LWW-map of "session_id:error_hash" → ErrorReport.

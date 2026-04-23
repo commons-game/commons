@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "common",
+    "core",
     "contracts/chunk-contract",
     "contracts/error-contract",
     "contracts/version-manifest",

@@ -1,15 +1,15 @@
 [package]
-name = "freeland-report"
+name = "commons-report"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "freeland-report"
+name = "commons-report"
 path = "src/main.rs"
 
 [dependencies]
 freenet-stdlib = { version = "0.6.0", features = ["net"] }
-freeland-error-contract = { path = "../contracts/error-contract" }
+commons-error-contract = { path = "../contracts/error-contract" }
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.27.0"
 serde = { version = "1", features = ["derive"] }

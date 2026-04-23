@@ -1,4 +1,4 @@
-/// Freeland player delegate — stores reputation and equipment per player.
+/// Commons player delegate — stores reputation and equipment per player.
 ///
 /// Each player's delegate is local to them. Secrets are keyed by:
 ///   rep:{player_id}   — JSON-encoded reputation data
@@ -8,9 +8,9 @@
 /// in the `ApplicationMessage.payload` field, and returns `PlayerDelegateResponse`
 /// payloads in the outbound `ApplicationMessage`.
 use freenet_stdlib::prelude::*;
-use freeland_common::{PlayerDelegateRequest, PlayerDelegateResponse};
+use commons_core::{PlayerDelegateRequest, PlayerDelegateResponse};
 
-pub use freeland_common::{PlayerDelegateRequest as Request, PlayerDelegateResponse as Response};
+pub use commons_core::{PlayerDelegateRequest as Request, PlayerDelegateResponse as Response};
 
 #[allow(dead_code)]
 struct PlayerDelegate;

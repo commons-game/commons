@@ -1,4 +1,4 @@
-# Freeland — Modding System Design
+# Commons — Modding System Design
 _Working document — April 2026_
 
 ## Core Philosophy
@@ -255,7 +255,7 @@ These can expand over time by extending the primitive vocabulary — never by ad
 
 ## Open Questions
 
-1. **Format pipeline**: YAML source (human-authored) → compiled binary (Freenet storage). Need a `freeland-mod-compiler` tool. Part of the in-game editor's "publish" action.
+1. **Format pipeline**: YAML source (human-authored) → compiled binary (Freenet storage). Need a `commons-mod-compiler` tool. Part of the in-game editor's "publish" action.
 2. **Versioning**: Pinned. A shrine always runs the exact mod bundle version it was built with (content-addressed). To update, a player must physically go to the shrine in-game and select the new version — the shrine then stores the new content hash. This is intentional: updates require presence and intent, not background auto-apply.
 3. **Performance budget on triggers**: Max active effect listeners per chunk. No way to know without testing — design the system with a configurable cap, tune from data.
 4. **Shrine territory size and expansion mechanics**: Fixed radius vs buildable? What's the UX for seeing territory boundaries?

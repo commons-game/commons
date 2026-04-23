@@ -1,4 +1,4 @@
-# Freeland — Research Synthesis
+# Commons — Research Synthesis
 _April 2026_
 
 ## Stack Under Evaluation

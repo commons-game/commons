@@ -38,7 +38,7 @@ backend/freenet/contracts/*/build/
 backend/freenet/delegates/*/build/
 
 # User data (generated at runtime, not tracked)
-# user:// maps to ~/.local/share/godot/app_userdata/Freeland/ on Linux
+# user:// maps to ~/.local/share/godot/app_userdata/Commons/ on Linux
 # Not in the project directory, so no gitignore needed for user:// data
 
 # Python cache (from tileset generator script)

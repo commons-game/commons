@@ -1,4 +1,4 @@
-# Freeland — Design Decisions Log
+# Commons — Design Decisions Log
 _Last updated: April 2026_
 
 This doc captures design decisions and their reasoning as they're made. Kept separate from the research synthesis so we can track the "why" over time.

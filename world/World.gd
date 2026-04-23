@@ -14,7 +14,7 @@
 ##
 ## In-game dev keys:
 ##   F1    Toggle debug overlay (FPS, phase, chunk weight, vibe, tool, merge pressure)
-##   F12   Save numbered screenshot to /tmp/freeland_screenshot_NNN.png
+##   F12   Save numbered screenshot to /tmp/commons_screenshot_NNN.png
 ##
 ## Merge lifecycle:
 ##   FreenetPresenceService publishes presence to Freenet lobby contract →
@@ -537,7 +537,7 @@ func _register_wasd() -> void:
 			InputMap.action_add_event(action, ev)
 
 ## Auto-place a necromancer shrine at spawn for visual dev testing.
-## Run with: DISPLAY=:100 ./freeland.x86_64 --rendering-driver opengl3 -- --dev-necro-shrine --dev-health-check
+## Run with: DISPLAY=:100 ./commons.x86_64 --rendering-driver opengl3 -- --dev-necro-shrine --dev-health-check
 func _place_necro_shrine_at_spawn() -> void:
 	var json := FileAccess.get_file_as_string("res://mods/bundles/necromancer.json")
 	if json.is_empty():
@@ -647,11 +647,11 @@ func _process(delta: float) -> void:
 		if expected_shot > _health_check_counter:
 			_health_check_counter = expected_shot
 			var img := get_viewport().get_texture().get_image()
-			var path := "/tmp/freeland_health_%02d_t%.0fs.png" % [_health_check_counter, _health_check_timer]
+			var path := "/tmp/commons_health_%02d_t%.0fs.png" % [_health_check_counter, _health_check_timer]
 			img.save_png(path)
 			print("HealthCheck [%d/6] t=%.1fs → %s" % [_health_check_counter, _health_check_timer, path])
 		if _health_check_timer >= total:
-			print("HealthCheck complete — %d screenshots in /tmp/freeland_health_*.png" % _health_check_counter)
+			print("HealthCheck complete — %d screenshots in /tmp/commons_health_*.png" % _health_check_counter)
 			get_tree().quit()
 
 ## For each active Shrine, count how many player nodes (local + remote) are
@@ -700,10 +700,10 @@ func _input(event: InputEvent) -> void:
 			# Clean quit for testing via xpra JS keyboard injection
 			_notification(NOTIFICATION_WM_CLOSE_REQUEST)
 		KEY_F12:
-			# Save screenshot to /tmp/freeland_screenshot_NNN.png
+			# Save screenshot to /tmp/commons_screenshot_NNN.png
 			_screenshot_counter += 1
 			var img := get_viewport().get_texture().get_image()
-			var path := "/tmp/freeland_screenshot_%03d.png" % _screenshot_counter
+			var path := "/tmp/commons_screenshot_%03d.png" % _screenshot_counter
 			img.save_png(path)
 			_merge_label.text = "[Screenshot %03d]" % _screenshot_counter
 			print("Screenshot: %s" % path)
@@ -720,7 +720,7 @@ func _input(event: InputEvent) -> void:
 					print("World: reported peer %s" % remote_sid)
 
 ## --dev-screenshot-cycle: step DayClock through a full cycle, capture one
-## screenshot per step, then quit. Output: /tmp/freeland_cycle_NN_phaseX.XXX.png
+## screenshot per step, then quit. Output: /tmp/commons_cycle_NN_phaseX.XXX.png
 ## Steps = 24 gives one shot per "game hour" (each phase-increment = 1/24).
 func _run_screenshot_cycle() -> void:
 	const STEPS := 24
@@ -732,7 +732,7 @@ func _run_screenshot_cycle() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var img := get_viewport().get_texture().get_image()
-		var path := "/tmp/freeland_cycle_%02d_phase%.3f.png" % [i, phase]
+		var path := "/tmp/commons_cycle_%02d_phase%.3f.png" % [i, phase]
 		img.save_png(path)
 		print("  [%02d/24] phase=%.3f → %s" % [i, phase, path])
 	print("Screenshot cycle complete.")

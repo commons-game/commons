@@ -1,4 +1,4 @@
-/// Freeland version manifest contract.
+/// Commons version manifest contract.
 ///
 /// A single global record updated by the developer on each release.
 /// Merge keeps whichever record has the higher `published_at` timestamp.

@@ -1,4 +1,4 @@
-## Integration test: FreenetPresenceService + FreenetSignaling → freeland-dev-proxy.
+## Integration test: FreenetPresenceService + FreenetSignaling → commons-dev-proxy.
 ##
 ## Starts the dev proxy as a subprocess, then drives real WebSocket connections
 ## through it to verify:
@@ -6,7 +6,7 @@
 ##   2. Pairing round-trip (PairingPublishOffer + PairingPublishAnswer → pairing_received)
 ##
 ## Prerequisites: build the dev proxy once before running:
-##   cd backend/freenet && ~/.cargo/bin/cargo build --bin freeland-dev-proxy
+##   cd backend/freenet && ~/.cargo/bin/cargo build --bin commons-dev-proxy
 ##
 ## The proxy binary path is inferred from the project root.
 extends GdUnitTestSuite
@@ -19,7 +19,7 @@ var _proxy_pid: int = -1
 ## Nodes to free after each test.
 var _nodes: Array = []
 
-const PROXY_BINARY := "backend/freenet/target/debug/freeland-dev-proxy"
+const PROXY_BINARY := "backend/freenet/target/debug/commons-dev-proxy"
 const PROXY_PORT   := 7511   ## Use 7511 so we don't collide with a real proxy on 7510
 const WS_URL       := "ws://127.0.0.1:7511"
 const CONNECT_WAIT := 1.5    ## seconds to wait for proxy to start accepting connections
@@ -33,7 +33,7 @@ func before_test() -> void:
 	var project_root := ProjectSettings.globalize_path("res://")
 	var binary := project_root + PROXY_BINARY
 	if not FileAccess.file_exists(binary):
-		push_error("Dev proxy not built. Run: cd backend/freenet && ~/.cargo/bin/cargo build --bin freeland-dev-proxy")
+		push_error("Dev proxy not built. Run: cd backend/freenet && ~/.cargo/bin/cargo build --bin commons-dev-proxy")
 		return
 
 	## Pass listen address as first arg so we don't collide with a running real proxy.
@@ -83,7 +83,7 @@ func _wait_until(condition: Callable, timeout: float) -> bool:
 func test_pairing_roundtrip() -> void:
 	if _proxy_pid < 0:
 		# Dev proxy not built — skip gracefully (test requires pre-built binary).
-		# Build with: cd backend/freenet && cargo build --bin freeland-dev-proxy
+		# Build with: cd backend/freenet && cargo build --bin commons-dev-proxy
 		return
 
 	await get_tree().create_timer(CONNECT_WAIT).timeout
@@ -145,7 +145,7 @@ func test_pairing_roundtrip() -> void:
 func test_two_players_discover_each_other() -> void:
 	if _proxy_pid < 0:
 		# Dev proxy not built — skip gracefully (test requires pre-built binary).
-		# Build with: cd backend/freenet && cargo build --bin freeland-dev-proxy
+		# Build with: cd backend/freenet && cargo build --bin commons-dev-proxy
 		return
 
 	await get_tree().create_timer(CONNECT_WAIT).timeout

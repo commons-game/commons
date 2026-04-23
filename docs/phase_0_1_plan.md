@@ -1,4 +1,4 @@
-# Freeland — Phase 0 & 1 Implementation Plan
+# Commons — Phase 0 & 1 Implementation Plan
 _April 2026_
 
 ## Coordinate System (Define Once, Use Everywhere)

@@ -2,29 +2,29 @@
 ///
 /// Requires:
 ///   FREENET_NODE_URL               — ws://...:7509/v1/contract/command?encodingProtocol=native
-///   FREELAND_CONTRACT_PATH         — path to the fdev-built chunk contract package
-///   FREELAND_LOBBY_CONTRACT_PATH   — path to the fdev-built lobby contract package
-///   FREELAND_PAIRING_CONTRACT_PATH — path to the fdev-built pairing contract package
-///   FREELAND_PLAYER_DELEGATE_PATH  — path to the fdev-built player delegate package
+///   COMMONS_CONTRACT_PATH         — path to the fdev-built chunk contract package
+///   COMMONS_LOBBY_CONTRACT_PATH   — path to the fdev-built lobby contract package
+///   COMMONS_PAIRING_CONTRACT_PATH — path to the fdev-built pairing contract package
+///   COMMONS_PLAYER_DELEGATE_PATH  — path to the fdev-built player delegate package
 ///
 /// Run with:
-///   FREENET_NODE_URL=... FREELAND_CONTRACT_PATH=... FREELAND_LOBBY_CONTRACT_PATH=... \
-///   FREELAND_PAIRING_CONTRACT_PATH=... FREELAND_PLAYER_DELEGATE_PATH=... \
-///     cargo test --features integration -p freeland-proxy -- --nocapture
+///   FREENET_NODE_URL=... COMMONS_CONTRACT_PATH=... COMMONS_LOBBY_CONTRACT_PATH=... \
+///   COMMONS_PAIRING_CONTRACT_PATH=... COMMONS_PLAYER_DELEGATE_PATH=... \
+///     cargo test --features integration -p commons-proxy -- --nocapture
 ///
 /// The tests are gated behind `cfg(feature = "integration")` so they never run in
 /// normal `cargo test` without the flag. This keeps CI green without a live node.
 #[cfg(feature = "integration")]
 mod integration {
-    use freeland_common::{ChunkState, LobbyEntry, LobbyState, ProxyResponse, TileEntry};
+    use commons_core::{ChunkState, LobbyEntry, LobbyState, ProxyResponse, TileEntry};
     use futures::{SinkExt, StreamExt};
     use std::{collections::HashMap, path::PathBuf};
     use tokio_tungstenite::{connect_async, tungstenite::Message};
 
     fn chunk_contract_path() -> PathBuf {
         let p = PathBuf::from(
-            std::env::var("FREELAND_CONTRACT_PATH")
-                .expect("FREELAND_CONTRACT_PATH must point to the fdev-built chunk contract package"),
+            std::env::var("COMMONS_CONTRACT_PATH")
+                .expect("COMMONS_CONTRACT_PATH must point to the fdev-built chunk contract package"),
         );
         assert!(
             p.exists(),
@@ -37,8 +37,8 @@ mod integration {
 
     fn lobby_contract_path() -> PathBuf {
         let p = PathBuf::from(
-            std::env::var("FREELAND_LOBBY_CONTRACT_PATH")
-                .expect("FREELAND_LOBBY_CONTRACT_PATH must point to the fdev-built lobby contract package"),
+            std::env::var("COMMONS_LOBBY_CONTRACT_PATH")
+                .expect("COMMONS_LOBBY_CONTRACT_PATH must point to the fdev-built lobby contract package"),
         );
         assert!(
             p.exists(),
@@ -51,8 +51,8 @@ mod integration {
 
     fn pairing_contract_path() -> PathBuf {
         let p = PathBuf::from(
-            std::env::var("FREELAND_PAIRING_CONTRACT_PATH")
-                .expect("FREELAND_PAIRING_CONTRACT_PATH must point to the fdev-built pairing contract package"),
+            std::env::var("COMMONS_PAIRING_CONTRACT_PATH")
+                .expect("COMMONS_PAIRING_CONTRACT_PATH must point to the fdev-built pairing contract package"),
         );
         assert!(
             p.exists(),
@@ -65,8 +65,8 @@ mod integration {
 
     fn player_delegate_path() -> PathBuf {
         let p = PathBuf::from(
-            std::env::var("FREELAND_PLAYER_DELEGATE_PATH")
-                .expect("FREELAND_PLAYER_DELEGATE_PATH must point to the fdev-built player delegate package"),
+            std::env::var("COMMONS_PLAYER_DELEGATE_PATH")
+                .expect("COMMONS_PLAYER_DELEGATE_PATH must point to the fdev-built player delegate package"),
         );
         assert!(
             p.exists(),
@@ -85,7 +85,7 @@ mod integration {
     }
 
     async fn connect_proxy() -> (tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, std::net::SocketAddr) {
-        let bound = freeland_proxy::run_listener(
+        let bound = commons_proxy::run_listener(
             "127.0.0.1:0".parse().unwrap(),
             node_url(),
             chunk_contract_path(),

@@ -5,10 +5,10 @@
 #   scripts/build_contracts.sh
 #
 # Outputs:
-#   backend/freenet/contracts/chunk-contract/build/freenet/freeland_chunk_contract
-#   backend/freenet/contracts/lobby-contract/build/freenet/freeland_lobby_contract
-#   backend/freenet/contracts/pairing-contract/build/freenet/freeland_pairing_contract
-#   backend/freenet/delegates/player-delegate/build/freenet/freeland_player_delegate
+#   backend/freenet/contracts/chunk-contract/build/freenet/commons_chunk_contract
+#   backend/freenet/contracts/lobby-contract/build/freenet/commons_lobby_contract
+#   backend/freenet/contracts/pairing-contract/build/freenet/commons_pairing_contract
+#   backend/freenet/delegates/player-delegate/build/freenet/commons_player_delegate
 #
 # NOTE: Always use these fdev-built packages, never the raw
 # target/wasm32-unknown-unknown/*.wasm files. The raw WASM files are missing
@@ -49,8 +49,8 @@ echo ""
 echo "Contract packages written to:"
 for contract in "${CONTRACTS[@]}"; do
     name="${contract//-/_}"          # chunk-contract → chunk_contract
-    name="${name/freeland_/}"        # strip any existing prefix
-    pkg="$FREENET_DIR/contracts/$contract/build/freenet/freeland_${name//-/_}"
+    name="${name/commons_/}"        # strip any existing prefix
+    pkg="$FREENET_DIR/contracts/$contract/build/freenet/commons_${name//-/_}"
     echo "  $pkg"
 done
 
@@ -58,6 +58,6 @@ echo ""
 echo "Delegate packages written to:"
 for delegate in "${DELEGATES[@]}"; do
     name="${delegate//-/_}"          # player-delegate → player_delegate
-    pkg="$FREENET_DIR/delegates/$delegate/build/freenet/freeland_${name}"
+    pkg="$FREENET_DIR/delegates/$delegate/build/freenet/commons_${name}"
     echo "  $pkg"
 done

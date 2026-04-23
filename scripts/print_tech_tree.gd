@@ -1,7 +1,7 @@
 ## print_tech_tree.gd — headless script that prints the full crafting tech tree.
 ##
 ## Run with:
-##   ~/bin/godot4 --headless --path /home/adam/development/freeland \
+##   ~/bin/godot4 --headless --path /home/adam/development/commons \
 ##       -s scripts/print_tech_tree.gd
 ##
 ## Output is grouped by tier (hand / workbench) and category (structure / tool).
@@ -24,7 +24,7 @@ func _init() -> void:
 
 	print("")
 	print("═══════════════════════════════════════")
-	print("  FREELAND TECH TREE")
+	print("  COMMONS TECH TREE")
 	print("═══════════════════════════════════════")
 
 	print("")

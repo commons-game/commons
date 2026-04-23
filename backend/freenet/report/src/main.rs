@@ -1,4 +1,4 @@
-/// freeland-report — CLI tool for reading Freeland error telemetry from a Freenet error contract.
+/// commons-report — CLI tool for reading Commons error telemetry from a Freenet error contract.
 ///
 /// Connects to a Freenet node WebSocket, GETs the error contract, and prints
 /// a formatted table of crash/error reports. Supports filtering and raw JSON output.
@@ -11,7 +11,7 @@ use freenet_stdlib::{
     client_api::{ClientRequest, ContractRequest, ContractResponse, HostResponse, WebApi},
     prelude::{ContractContainer, ContractInstanceId, Parameters},
 };
-use freeland_error_contract::ErrorContractState;
+use commons_error_contract::ErrorContractState;
 
 // ---------------------------------------------------------------------------
 // CLI arguments
@@ -19,8 +19,8 @@ use freeland_error_contract::ErrorContractState;
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "freeland-report",
-    about = "Read Freeland error telemetry from a Freenet error contract"
+    name = "commons-report",
+    about = "Read Commons error telemetry from a Freenet error contract"
 )]
 struct Args {
     /// Freenet node WebSocket URL
@@ -30,7 +30,7 @@ struct Args {
     )]
     node: String,
 
-    /// Path to the freeland_error_contract package file
+    /// Path to the commons_error_contract package file
     #[arg(long)]
     contract: Option<PathBuf>,
 
@@ -130,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
     let now_secs = Utc::now().timestamp() as f64;
 
     // Apply filters.
-    let mut reports: Vec<(&String, &freeland_error_contract::ErrorReport)> = contract_state
+    let mut reports: Vec<(&String, &commons_error_contract::ErrorReport)> = contract_state
         .reports
         .iter()
         .filter(|(_, r)| {
@@ -186,7 +186,7 @@ async fn main() -> anyhow::Result<()> {
     // Print header.
     let sep = "─".repeat(78);
     println!(
-        "Freeland Error Reports  ({total} total, {filtered} filtered)"
+        "Commons Error Reports  ({total} total, {filtered} filtered)"
     );
     println!("{sep}");
     println!(
@@ -254,12 +254,12 @@ fn resolve_contract_path(override_path: Option<PathBuf>) -> anyhow::Result<PathB
     // or from the repo root directly).
     let candidates = [
         PathBuf::from(
-            "backend/freenet/contracts/error-contract/build/freenet/freeland_error_contract",
+            "backend/freenet/contracts/error-contract/build/freenet/commons_error_contract",
         ),
         // Also try relative to the binary's directory (useful when installed).
         std::env::current_exe()
             .ok()
-            .and_then(|p| p.parent().map(|d| d.join("freeland_error_contract")))
+            .and_then(|p| p.parent().map(|d| d.join("commons_error_contract")))
             .unwrap_or_default(),
     ];
 

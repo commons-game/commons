@@ -1,14 +1,14 @@
-/// freeland-dev-proxy — in-memory stand-in for the Freenet proxy.
+/// commons-dev-proxy — in-memory stand-in for the Freenet proxy.
 ///
-/// Speaks the exact same WebSocket JSON protocol as freeland-proxy so GDScript
+/// Speaks the exact same WebSocket JSON protocol as commons-proxy so GDScript
 /// needs zero changes. No Freenet node or contract binaries required.
 ///
 /// Usage:
-///   cargo run --bin freeland-dev-proxy
+///   cargo run --bin commons-dev-proxy
 ///   # or after cargo build --release:
-///   ./target/release/freeland-dev-proxy
+///   ./target/release/commons-dev-proxy
 ///
-/// Listens on ws://127.0.0.1:7510 by default (FREELAND_PROXY_ADDR to override).
+/// Listens on ws://127.0.0.1:7510 by default (COMMONS_PROXY_ADDR to override).
 /// State is shared in-process across all connected GDScript clients — suitable
 /// for running two game instances on the same machine.
 use std::{
@@ -17,7 +17,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use freeland_common::{ProxyRequest, ProxyResponse};
+use commons_core::{ProxyRequest, ProxyResponse};
 use futures::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
@@ -52,17 +52,17 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "freeland_dev_proxy=info,info".into()),
+                .unwrap_or_else(|_| "commons_dev_proxy=info,info".into()),
         )
         .init();
 
     // Accept address as first CLI arg, then env var, then default.
     let listen_addr: SocketAddr = std::env::args()
         .nth(1)
-        .or_else(|| std::env::var("FREELAND_PROXY_ADDR").ok())
+        .or_else(|| std::env::var("COMMONS_PROXY_ADDR").ok())
         .unwrap_or_else(|| "127.0.0.1:7510".into())
         .parse()
-        .expect("Invalid listen address (pass as first arg or FREELAND_PROXY_ADDR env var)");
+        .expect("Invalid listen address (pass as first arg or COMMONS_PROXY_ADDR env var)");
 
     let state: State = Arc::new(RwLock::new(DevState::default()));
     let listener = TcpListener::bind(listen_addr)

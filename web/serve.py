@@ -25,5 +25,5 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-print(f"Freeland → http://192.168.8.189:{PORT}/")
+print(f"Commons → http://192.168.8.189:{PORT}/")
 http.server.HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

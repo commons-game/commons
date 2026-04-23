@@ -1,4 +1,4 @@
-/// Freeland lobby contract.
+/// Commons lobby contract.
 ///
 /// Single global contract instance (LobbyParameters { lobby_id: GLOBAL_LOBBY_ID }).
 /// State = LWW-map of session_id → LobbyEntry (player presence).
@@ -7,10 +7,10 @@
 /// Stale entries (older than LOBBY_TTL_SECS) are evicted on every update_state
 /// call so the contract size stays bounded regardless of churn.
 ///
-/// Contract key = hash(this_wasm || LobbyParameters{lobby_id: "freeland-global-v1"})
+/// Contract key = hash(this_wasm || LobbyParameters{lobby_id: "commons-global-v1"})
 /// All players worldwide share the same contract key → same Freenet DHT slot.
 use freenet_stdlib::prelude::*;
-use freeland_common::{LobbyDelta, LobbyState, LobbySummary, LOBBY_TTL_SECS};
+use commons_core::{LobbyDelta, LobbyState, LobbySummary, LOBBY_TTL_SECS};
 
 struct LobbyContract;
 
@@ -149,7 +149,7 @@ impl ContractInterface for LobbyContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use freeland_common::LobbyEntry;
+    use commons_core::LobbyEntry;
 
     fn entry(session_id: &str, timestamp: f64) -> LobbyEntry {
         LobbyEntry {

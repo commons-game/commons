@@ -1,7 +1,7 @@
 ## FreenetBackend — IBackend implementation over Freenet P2P network.
 ##
 ## Architecture:
-##   GDScript → JSON WebSocket (port 7510) → freeland-proxy (Rust)
+##   GDScript → JSON WebSocket (port 7510) → commons-proxy (Rust)
 ##                                          → Freenet node (binary protocol)
 ##
 ## Chunk CRDT state is stored as a Freenet contract (one per chunk coord).

@@ -8,8 +8,8 @@
 ## What We Built
 
 A full end-to-end path from GDScript → Rust proxy → Freenet node:
-- `freeland-chunk-contract`: Freenet contract with LWW-CRDT merge semantics, 6 unit tests
-- `freeland-proxy`: JSON-WebSocket ↔ Freenet binary protocol bridge
+- `commons-chunk-contract`: Freenet contract with LWW-CRDT merge semantics, 6 unit tests
+- `commons-proxy`: JSON-WebSocket ↔ Freenet binary protocol bridge
 - `FreenetBackend.gd`: Drop-in IBackend with write-through cache and async signal delivery
 
 Verified: Put chunk (3,7) → GetOk round-trip through a live local Freenet node.
@@ -146,7 +146,7 @@ Commit `backend/freenet/Cargo.lock`. This pins `freenet-stdlib` to an exact vers
 
 **Layer 3 — Commit the packaged contract artifact**
 
-The `fdev build` output (versioned WASM package) is deterministic for a given source + `freenet-stdlib` version. Commit it to `backend/freenet/artifacts/freeland_chunk_contract_v<version>`. The proxy loads from this path. This decouples the runtime from `fdev` being installed or the build succeeding.
+The `fdev build` output (versioned WASM package) is deterministic for a given source + `freenet-stdlib` version. Commit it to `backend/freenet/artifacts/commons_chunk_contract_v<version>`. The proxy loads from this path. This decouples the runtime from `fdev` being installed or the build succeeding.
 
 **Layer 4 — Monitor the upstream changelog**
 
@@ -162,7 +162,7 @@ The "dirty build" finding means we could build from source with a no-op modifica
 
 **Better approach:** Accept that the user's local node will auto-update. Protect the game by:
 1. The proxy version assertion (Layer 1) will refuse to start if the node has incompatibly updated
-2. The player sees a clear error: "Node updated, please update Freeland proxy"
+2. The player sees a clear error: "Node updated, please update Commons proxy"
 3. We ship a script: `scripts/update_freenet_backend.sh` that runs the round-trip test and updates `FREENET_VERSION` if it passes
 
 This is honest about the tradeoff: Freenet auto-update is a feature of their decentralized network's health. We accommodate it rather than fight it, but we make the breakage loud and fast instead of silent and confusing.

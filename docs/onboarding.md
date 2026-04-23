@@ -2,12 +2,12 @@
 
 ## How it works
 
-Freeland is peer-to-peer. There's no central server. Each player's game
+Commons is peer-to-peer. There's no central server. Each player's game
 automatically manages the local Freenet node and proxy — no setup required.
 
 On first launch, the game:
 1. Starts `freenet network` (your local P2P node)
-2. Starts `freeland-proxy` (local bridge between the game and Freenet)
+2. Starts `commons-proxy` (local bridge between the game and Freenet)
 3. Shows "Connected" when ready
 
 Both processes are shut down when you close the game.
@@ -16,21 +16,21 @@ Both processes are shut down when you close the game.
 
 Nothing is installed to your system. The `freenet` binary updates itself
 to `~/.local/bin/freenet` on first run (Freenet's standard install location).
-`freeland-proxy` runs from the game directory and leaves no traces.
+`commons-proxy` runs from the game directory and leaves no traces.
 
 ## Distribution layout
 
 ```
-freeland.x86_64          <- game binary
+commons.x86_64          <- game binary
 bin/
   freenet                <- Freenet node binary
-  freeland-proxy         <- local proxy bridge
-  freeland_chunk_contract
-  freeland_lobby_contract
-  freeland_pairing_contract
-  freeland_player_delegate
-  freeland_error_contract
-  freeland_version_manifest
+  commons-proxy         <- local proxy bridge
+  commons_chunk_contract
+  commons_lobby_contract
+  commons_pairing_contract
+  commons_player_delegate
+  commons_error_contract
+  commons_version_manifest
 ```
 
 ## If Freenet isn't found

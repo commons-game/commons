@@ -1,14 +1,14 @@
-/// Freeland proxy — translates JSON WebSocket (GDScript) ↔ Freenet binary protocol.
+/// Commons proxy — translates JSON WebSocket (GDScript) ↔ Freenet binary protocol.
 ///
-/// Listens on ws://127.0.0.1:7510  (configurable via FREELAND_PROXY_ADDR)
+/// Listens on ws://127.0.0.1:7510  (configurable via COMMONS_PROXY_ADDR)
 /// Connects to   ws://localhost:7509/v1/contract/command?encodingProtocol=native  (configurable via FREENET_NODE_URL)
 ///
-/// Chunk contract:   FREELAND_CONTRACT_PATH        (default: ./freeland_chunk_contract)
-/// Lobby contract:   FREELAND_LOBBY_CONTRACT_PATH  (default: ./freeland_lobby_contract)
-/// Pairing contract: FREELAND_PAIRING_CONTRACT_PATH (default: ./freeland_pairing_contract)
-/// Player delegate:  FREELAND_PLAYER_DELEGATE_PATH  (default: ./freeland_player_delegate)
-/// Error contract:   FREELAND_ERROR_CONTRACT_PATH   (optional — telemetry dropped if unset)
-/// Version contract: FREELAND_VERSION_CONTRACT_PATH (optional — version manifest ops no-op if unset)
+/// Chunk contract:   COMMONS_CONTRACT_PATH        (default: ./commons_chunk_contract)
+/// Lobby contract:   COMMONS_LOBBY_CONTRACT_PATH  (default: ./commons_lobby_contract)
+/// Pairing contract: COMMONS_PAIRING_CONTRACT_PATH (default: ./commons_pairing_contract)
+/// Player delegate:  COMMONS_PLAYER_DELEGATE_PATH  (default: ./commons_player_delegate)
+/// Error contract:   COMMONS_ERROR_CONTRACT_PATH   (optional — telemetry dropped if unset)
+/// Version contract: COMMONS_VERSION_CONTRACT_PATH (optional — version manifest ops no-op if unset)
 ///
 /// All must be versioned packages produced by `fdev build`, NOT raw .wasm files.
 /// Build:
@@ -25,41 +25,41 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "freeland_proxy=info".into()),
+                .unwrap_or_else(|_| "commons_proxy=info".into()),
         )
         .init();
 
-    let listen_addr: std::net::SocketAddr = env::var("FREELAND_PROXY_ADDR")
+    let listen_addr: std::net::SocketAddr = env::var("COMMONS_PROXY_ADDR")
         .unwrap_or("127.0.0.1:7510".into())
         .parse()
-        .expect("Invalid FREELAND_PROXY_ADDR");
+        .expect("Invalid COMMONS_PROXY_ADDR");
 
     let node_url = env::var("FREENET_NODE_URL")
         .unwrap_or("ws://localhost:7509/v1/contract/command?encodingProtocol=native".into());
 
     let contract_path = PathBuf::from(
-        env::var("FREELAND_CONTRACT_PATH").unwrap_or("freeland_chunk_contract".into()),
+        env::var("COMMONS_CONTRACT_PATH").unwrap_or("commons_chunk_contract".into()),
     );
 
     let lobby_contract_path = PathBuf::from(
-        env::var("FREELAND_LOBBY_CONTRACT_PATH").unwrap_or("freeland_lobby_contract".into()),
+        env::var("COMMONS_LOBBY_CONTRACT_PATH").unwrap_or("commons_lobby_contract".into()),
     );
 
     let pairing_contract_path = PathBuf::from(
-        env::var("FREELAND_PAIRING_CONTRACT_PATH").unwrap_or("freeland_pairing_contract".into()),
+        env::var("COMMONS_PAIRING_CONTRACT_PATH").unwrap_or("commons_pairing_contract".into()),
     );
 
     let delegate_path = PathBuf::from(
-        env::var("FREELAND_PLAYER_DELEGATE_PATH").unwrap_or("freeland_player_delegate".into()),
+        env::var("COMMONS_PLAYER_DELEGATE_PATH").unwrap_or("commons_player_delegate".into()),
     );
 
     let error_contract_path: Option<PathBuf> =
-        env::var("FREELAND_ERROR_CONTRACT_PATH").ok().map(PathBuf::from);
+        env::var("COMMONS_ERROR_CONTRACT_PATH").ok().map(PathBuf::from);
 
     let version_contract_path: Option<PathBuf> =
-        env::var("FREELAND_VERSION_CONTRACT_PATH").ok().map(PathBuf::from);
+        env::var("COMMONS_VERSION_CONTRACT_PATH").ok().map(PathBuf::from);
 
-    freeland_proxy::run_listener(
+    commons_proxy::run_listener(
         listen_addr,
         node_url,
         contract_path,

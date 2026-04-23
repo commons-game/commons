@@ -1,4 +1,4 @@
-# Freeland — High-Level Architecture
+# Commons — High-Level Architecture
 _April 2026_
 
 The design held together unusually well because the core mechanics (CRDT world state, shrine territory, loneliness pressure, equal P2P) all pull in the same direction. This document describes how those ideas translate into buildable layers, their interfaces, and the order to build them.
@@ -346,7 +346,7 @@ _Milestone: Modified chunks persist. Unmodified wilderness fades and regenerates
 _Goal: You can define a custom tile in YAML, place a shrine, and walk into the mod area._
 
 1. Primitive vocabulary spec — tile, entity, item, buff definitions
-2. YAML → binary compiler (`freeland-mod-compiler`, standalone tool)
+2. YAML → binary compiler (`commons-mod-compiler`, standalone tool)
 3. `ModBundle` parser
 4. `ModRuntime` — trigger evaluation, effect application
 5. `ShrineObject` entity — place in world, registers with `ShrineTerritory`
