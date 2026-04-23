@@ -25,6 +25,14 @@ var local_author_id: String = "local"
 
 var _outbound: Array = []
 
+## Test-only: in-process mirrors for PuppetCluster. When a local request fires,
+## every bus in this list also receives apply_remote_mutation synchronously.
+## Production always leaves this empty.
+var _test_peer_buses: Array = []
+
+func add_test_peer(bus: Object) -> void:
+	_test_peer_buses.append(bus)
+
 func request_place_tile(world_coords: Vector2i, layer: int, tile_id: String) -> void:
 	tile_store.set_tile(world_coords, layer, tile_id, local_author_id)
 	var record := _make_record("place", world_coords, layer, tile_id, local_author_id)
@@ -65,6 +73,12 @@ func apply_remote_mutation(record: Dictionary) -> void:
 ## Broadcast a mutation to all connected peers via RPC.
 ## No-op when not in the scene tree (unit tests) or no multiplayer peer is active.
 func broadcast_mutation(record: Dictionary) -> void:
+	# Test-harness mirror: in-process direct delivery to sibling Worlds.
+	# Each mirrored bus sees the mutation through its normal apply_remote_mutation
+	# path — same code the RPC receiver uses — so scenarios exercise the real
+	# code path without needing a network layer. Production leaves this empty.
+	for peer_bus in _test_peer_buses:
+		peer_bus.apply_remote_mutation(record.duplicate())
 	if not is_inside_tree():
 		return
 	if not multiplayer.has_multiplayer_peer():

@@ -22,18 +22,22 @@ var _update_url: String = ""
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
+	# Puppet-cluster flag dispatches to the multi-World harness. Check BEFORE
+	# the headless / skip-menu branches because those unconditionally send us
+	# to World.tscn, hiding the cluster flag.
+	for a in args:
+		if typeof(a) == TYPE_STRING and (a as String).begins_with("--puppet-cluster-scenario="):
+			get_tree().change_scene_to_file.call_deferred("res://dev/PuppetCluster.tscn")
+			return
+		if typeof(a) == TYPE_STRING and (a as String).begins_with("--puppet-scenario="):
+			get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
+			return
 	if "--skip-menu" in args:
 		get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
 		return
 	if DisplayServer.get_name() == "headless":
 		get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
 		return
-	# Puppet scenarios (headless or under xvfb) must bypass the menu so
-	# the scenario can drive World directly.
-	for a in args:
-		if typeof(a) == TYPE_STRING and (a as String).begins_with("--puppet-scenario="):
-			get_tree().change_scene_to_file.call_deferred("res://world/World.tscn")
-			return
 	_build_ui()
 	# Connect ProcessManager signals
 	ProcessManager.backend_ready.connect(_on_backend_ready)

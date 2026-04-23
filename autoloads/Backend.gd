@@ -22,6 +22,13 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	_backend.poll()
 
+## Test-only: replace the active backend with one supplied by a test harness
+## (e.g. PuppetCluster swapping in an InMemoryBackend so two peers share
+## isolated in-process storage). Production code never calls this.
+func override(backend: IBackend) -> void:
+	_backend = backend
+	_backend.initialize()
+
 func store_chunk(coords: Vector2i, data: PackedByteArray) -> void:
 	_backend.store_chunk(coords, data)
 

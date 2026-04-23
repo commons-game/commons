@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1mpuppetcluster0"]
+
+[ext_resource type="Script" path="res://dev/PuppetCluster.gd" id="1_cluster"]
+
+[node name="PuppetCluster" type="Node"]
+script = ExtResource("1_cluster")

@@ -30,12 +30,31 @@ var _ready_fired: bool = false
 var _scenario_path: String = ""
 var _outcome_reported: bool = false
 
+## When running inside a PuppetCluster, points at the cluster so outcome calls
+## (pass/fail) delegate to it. null in the single-peer harness.
+var _cluster: Node = null
+## Peer index within the cluster (0, 1, ...). -1 when standalone.
+var _peer_index: int = -1
+
 ## Attach to the world. Called once by World after its own _ready completes.
 func attach(world: Node, scenario_path: String) -> void:
 	_world = world
 	_scenario_path = scenario_path
 	# Defer a frame so World has fully resolved @onready fields.
 	call_deferred("_start")
+
+## Cluster variant: PuppetCluster handles scenario dispatch centrally.
+## This just marks the Puppet ready once its World is settled.
+func attach_cluster(world: Node, cluster: Node, peer_index: int) -> void:
+	_world = world
+	_cluster = cluster
+	_peer_index = peer_index
+	call_deferred("_start_cluster_member")
+
+func _start_cluster_member() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_ready_fired = true
 
 func _start() -> void:
 	await get_tree().process_frame
@@ -55,6 +74,10 @@ func _start() -> void:
 	await scenario._run(self)
 	# If the scenario returns without calling pass/fail, treat as pass.
 	pass_scenario("scenario returned normally")
+
+## Identity helper for cluster scenarios: which peer is this puppet?
+func peer_index() -> int:
+	return _peer_index
 
 # ---------------------------------------------------------------------------
 # Lifecycle controls
@@ -168,6 +191,12 @@ func snapshot_objects(top_left: Vector2i, bottom_right: Vector2i) -> Dictionary:
 func pass_scenario(msg: String = "") -> void:
 	if _outcome_reported: return
 	_outcome_reported = true
+	# Cluster members delegate to the cluster so a single pass/fail tears down
+	# the whole process cleanly (each peer has its own puppet, only one should
+	# quit the tree).
+	if _cluster != null:
+		_cluster.call("pass_scenario", msg)
+		return
 	print("Puppet: PASS — %s" % msg)
 	print("Puppet: event log at %s" % EventLog.log_file_path())
 	get_tree().quit(0)
@@ -175,6 +204,9 @@ func pass_scenario(msg: String = "") -> void:
 func fail(msg: String) -> void:
 	if _outcome_reported: return
 	_outcome_reported = true
+	if _cluster != null:
+		_cluster.call("fail", msg)
+		return
 	push_error("Puppet: FAIL — %s" % msg)
 	print("Puppet: event log at %s" % EventLog.log_file_path())
 	get_tree().quit(1)
