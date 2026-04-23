@@ -1,36 +1,35 @@
-## TetherRegistry — autoload singleton tracking one active Tether per player.
+## TetherRegistry — autoload view over placed Tether scenes, keyed by world
+## tile position.
 ##
-## Each player can have at most one Tether in the world at a time.
-## When a second Tether is placed by the same player, the first is removed.
+## Indexed by tile coord rather than owner id because Tether tiles are
+## ownerless — each Player tracks which tile is their home anchor locally
+## (see Player._home_tile_pos). The registry exists so callers can answer
+## "is there a Tether at this tile?" without scanning the chunk tree.
 ##
 ## Pattern mirrors CampfireRegistry.
 extends Node
 
-## Maps player_id (String) → Tether Node2D reference.
-var _tethers: Dictionary = {}  # String -> Node2D (Tether)
+var _tethers: Dictionary = {}  # Vector2i tile_pos → Node2D (Tether)
 
-## Register a Tether for a player. If one already exists it is removed first.
-func register_tether(player_id: String, tether_node: Node2D) -> void:
-	if _tethers.has(player_id):
-		var old: Node2D = _tethers[player_id] as Node2D
-		if is_instance_valid(old):
-			old.queue_free()
-	_tethers[player_id] = tether_node
+func register_tether(tile_pos: Vector2i, tether_node: Node2D) -> void:
+	_tethers[tile_pos] = tether_node
 
-## Unregister a Tether. Called when the Tether node is freed.
-func unregister_tether(player_id: String) -> void:
-	_tethers.erase(player_id)
+func unregister_tether(tile_pos: Vector2i) -> void:
+	_tethers.erase(tile_pos)
 
-## Return the active Tether node for player_id, or null if none.
-func get_tether(player_id: String) -> Node2D:
-	if not _tethers.has(player_id):
-		return null
-	var node: Node2D = _tethers[player_id] as Node2D
-	if not is_instance_valid(node):
-		_tethers.erase(player_id)
+func tether_at(tile_pos: Vector2i) -> Node2D:
+	var node: Node2D = _tethers.get(tile_pos, null) as Node2D
+	if node != null and not is_instance_valid(node):
+		_tethers.erase(tile_pos)
 		return null
 	return node
 
-## Return true if player_id currently has a live Tether in the world.
-func has_tether(player_id: String) -> bool:
-	return get_tether(player_id) != null
+func has_tether_at(tile_pos: Vector2i) -> bool:
+	return tether_at(tile_pos) != null
+
+func get_all() -> Array:
+	# Prune stale entries on read.
+	for k in _tethers.keys():
+		if not is_instance_valid(_tethers[k]):
+			_tethers.erase(k)
+	return _tethers.values()

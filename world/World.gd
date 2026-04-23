@@ -695,9 +695,9 @@ func _update_shrine_proximity() -> void:
 	for shrine in shrines:
 		if not is_instance_valid(shrine):
 			continue
-		var shrine_tile := Vector2i(
-			int(floorf(shrine.position.x / Constants.TILE_SIZE)),
-			int(floorf(shrine.position.y / Constants.TILE_SIZE)))
+		# Shrines now live as children of Chunk nodes, so shrine.position is
+		# chunk-local. Use world_tile_pos which the spawner sets directly.
+		var shrine_tile: Vector2i = shrine.world_tile_pos
 		var territory_r: int = shrine.get("TERRITORY_RADIUS") if shrine.get("TERRITORY_RADIUS") != null else 8
 		var nearby_count: int = 0
 		for ppos in player_positions:

@@ -1,4 +1,4 @@
-## Shrine — territory anchor. The most important structure in the game.
+## Shrine — territory anchor. An independent world entity; no player owns it.
 ##
 ## Visual: a large crystalline hexagonal spike (Still, pale blue/white) at the
 ## center, plus 3 Bloom tendrils (yellow-green arcs) that rotate around it.
@@ -6,22 +6,16 @@
 ## they spin visibly.
 ##
 ## Mechanics:
-##   - owner_id must be set immediately after instantiation.
 ##   - TERRITORY_RADIUS (8 tiles) defines the Shrine's area of influence.
 ##   - power (0.0–1.0) grows when players are present, drains when absent.
 ##   - hp = 100; requires flint_knife to damage.
-##   - On hp <= 0: emits shrine_broken(owner_id) and queue_frees.
-##   - On _ready: registers with ShrineRegistry (removing any previous Shrine
-##     for this owner). On predelete: unregisters.
-##
-## One per player. Persists after player death (independent of player).
+##   - On hp <= 0: requests the tile be removed via TileMutationBus. The bus
+##     fires tile_removed and ChunkManager frees this scene.
+##   - Registers with ShrineRegistry keyed by world_tile_pos.
 extends Node2D
 
-## Emitted when the Shrine's HP reaches zero.
-signal shrine_broken(owner_id: String)
-
-## The PlayerIdentity.id of the player who placed this Shrine.
-var owner_id: String = ""
+## World-tile position. Set by ChunkManager when spawning from CRDT.
+var world_tile_pos: Vector2i = Vector2i.ZERO
 
 ## Hit points. Reduced only by flint_knife or better.
 var hp: int = 100
@@ -58,13 +52,11 @@ func _ready() -> void:
 	_light.texture_scale = LIGHT_RANGE_MIN_PX / 64.0
 	add_child(_light)
 
-	if owner_id != "":
-		ShrineRegistry.register_shrine(owner_id, self)
+	ShrineRegistry.register_shrine(world_tile_pos, self)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		if owner_id != "":
-			ShrineRegistry.unregister_shrine(owner_id)
+		ShrineRegistry.unregister_shrine(world_tile_pos)
 
 func _process(delta: float) -> void:
 	_anim_time += delta
@@ -108,8 +100,11 @@ func take_damage(amount: int, attacker_tool: String) -> bool:
 	hp = max(0, hp - amount)
 	print("Shrine: took %d damage, hp=%d" % [amount, hp])
 	if hp <= 0:
-		emit_signal("shrine_broken", owner_id)
-		queue_free()
+		var bus: Node = get_tree().root.find_child("TileMutationBus", true, false)
+		if bus != null:
+			bus.request_remove_tile(world_tile_pos, 1)
+		else:
+			queue_free()  # isolation fallback
 	return true
 
 func _draw() -> void:

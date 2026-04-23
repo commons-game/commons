@@ -14,6 +14,12 @@
 class_name TileMutationBus
 extends Node
 
+## Fired after a tile is placed — whether by local request or remote RPC.
+## Systems that care about specific tile coords (e.g. Player's home-anchor
+## tracker) can listen here instead of polling.
+signal tile_placed(world_coords: Vector2i, layer: int, tile_id: String)
+signal tile_removed(world_coords: Vector2i, layer: int)
+
 var tile_store: Object = null
 var local_author_id: String = "local"
 
@@ -25,6 +31,7 @@ func request_place_tile(world_coords: Vector2i, layer: int, tile_id: String) -> 
 	_outbound.append(record)
 	broadcast_mutation(record)
 	_log_event("tile_place", {"coords": world_coords, "layer": layer, "tile_id": tile_id})
+	tile_placed.emit(world_coords, layer, tile_id)
 
 func request_remove_tile(world_coords: Vector2i, layer: int) -> void:
 	tile_store.remove_tile(world_coords, layer, local_author_id)
@@ -32,6 +39,7 @@ func request_remove_tile(world_coords: Vector2i, layer: int) -> void:
 	_outbound.append(record)
 	broadcast_mutation(record)
 	_log_event("tile_remove", {"coords": world_coords, "layer": layer})
+	tile_removed.emit(world_coords, layer)
 
 ## EventLog is an autoload and is always in scope, but in unit tests the
 ## node may not be fully ready when this bus fires. Guard with a validity check.
@@ -47,9 +55,12 @@ func apply_remote_mutation(record: Dictionary) -> void:
 	var author: String = record.get("author_id", "")
 	match record.get("type", ""):
 		"place":
-			tile_store.set_tile(coords, layer, record.get("tile_id", ""), author)
+			var tile_id_str: String = record.get("tile_id", "")
+			tile_store.set_tile(coords, layer, tile_id_str, author)
+			tile_placed.emit(coords, layer, tile_id_str)
 		"remove":
 			tile_store.remove_tile(coords, layer, author)
+			tile_removed.emit(coords, layer)
 
 ## Broadcast a mutation to all connected peers via RPC.
 ## No-op when not in the scene tree (unit tests) or no multiplayer peer is active.

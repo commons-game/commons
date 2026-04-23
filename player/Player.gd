@@ -116,6 +116,30 @@ func _ready() -> void:
 	if Engine.get_main_loop() != null:
 		ChatSystem.message_received.connect(_on_chat_message)
 
+	# Listen for tile removals so we notice when our Tether is broken by
+	# anyone (local or remote peer). Connects deferred because the bus may
+	# not be in the scene tree yet during Player._ready.
+	call_deferred("_connect_tile_bus")
+
+func _connect_tile_bus() -> void:
+	var bus: Node = get_node_or_null("../TileMutationBus")
+	if bus == null:
+		return
+	if not bus.is_connected("tile_removed", _on_tile_removed):
+		bus.tile_removed.connect(_on_tile_removed)
+
+## Reacts to any tile removal in the world. We only care about our own home
+## tile — if the Tether we rely on was destroyed, clear the anchor and show
+## the life-event message.
+func _on_tile_removed(world_coords: Vector2i, layer: int) -> void:
+	if layer != 1 or not _has_home or world_coords != _home_tile_pos:
+		return
+	_has_home = false
+	home_pos = Vector2.ZERO
+	_home_tile_pos = Vector2i(-2147483647, -2147483647)
+	print("Player: Tether broken — home anchor lost.")
+	_show_tether_broken_message()
+
 func _draw() -> void:
 	var has_sprites: bool = _renderer != null and _renderer.has_visible_sprites()
 	if has_sprites:
@@ -428,19 +452,10 @@ func _do_place_use() -> void:
 	# Check for a bedroll in range first (walk onto / activate).
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
-	for structure in _placed_structures:
-		if not is_instance_valid(structure):
-			continue
-		if not structure.get_script():
-			continue
-		if not structure.has_method("activate"):
-			continue
-		var s_tile := Vector2i(
-			int(floorf(structure.position.x / Constants.TILE_SIZE)),
-			int(floorf(structure.position.y / Constants.TILE_SIZE)))
-		if (s_tile - tile_pos).length() <= 1.5:
-			structure.activate(position)
-			return
+	var activated: Node = _find_nearby_bedroll(tile_pos, 1.5)
+	if activated != null:
+		activated.call("activate", position)
+		return
 
 	# Check active hotbar slot.
 	var hotbar := get_node_or_null("../Hotbar")
@@ -499,72 +514,58 @@ func _place_structure(item_id: String) -> void:
 		print("Player: no %s in inventory" % item_id)
 		return
 
-	# Campfire is the first structure migrated to CRDT-tile persistence.
-	# Remaining structures (bedroll/tether/shrine) still use the legacy
-	# add_child path until their own migration commits.
-	if item_id == "campfire":
+	# Persisted structures go through TileMutationBus → CRDT → StructureRegistry.
+	if item_id == "campfire" or item_id == "bedroll" or item_id == "tether" or item_id == "shrine":
 		var bus: Node = get_node_or_null("../TileMutationBus")
 		if bus == null:
 			print("Player: no TileMutationBus — cannot place structure")
 			return
+		# One Tether per player: if we had one, remove the old tile first so the
+		# new placement replaces rather than coexists. Enforcement is local —
+		# other peers may have placed their own Tethers.
+		if item_id == "tether" and _has_home:
+			if chunk_manager != null and chunk_manager.has_tile_at(_home_tile_pos, 1):
+				bus.request_remove_tile(_home_tile_pos, 1)
 		bus.request_place_tile(place_tile_pos, 1, item_id)
+		if item_id == "tether":
+			var tether_world_pos := Vector2(
+				place_tile_pos.x * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
+				place_tile_pos.y * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
+			home_pos = tether_world_pos
+			_has_home = true
+			_home_tile_pos = place_tile_pos
+			print("Player: Tether placed — home anchor set at %s" % place_tile_pos)
 		print("Player: placed %s at %s (persisted)" % [item_id, place_tile_pos])
 		return
 
-	# Instantiate and add to world (legacy path — non-persistent).
-	var place_world_pos := Vector2(
-		place_tile_pos.x * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
-		place_tile_pos.y * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
-
-	var structure: Node2D = null
-	if item_id == "bedroll":
-		structure = BedrollScript.new()
-		structure.world_tile_pos = place_tile_pos
-	elif item_id == "tether":
-		structure = TetherScript.new()
-		structure.owner_id = PlayerIdentity.id
-		home_pos = place_world_pos
-		_has_home = true
-		_home_tile_pos = place_tile_pos
-		structure.tether_broken.connect(_on_tether_broken)
-		print("Player: Tether placed — home anchor set at %s" % place_tile_pos)
-	elif item_id == "shrine":
-		structure = ShrineScript.new()
-		structure.owner_id = PlayerIdentity.id
-		structure.shrine_broken.connect(_on_shrine_broken)
-		print("Player: Shrine placed at %s" % place_tile_pos)
-
-	if structure == null:
-		print("Player: no structure handler for %s" % item_id)
-		return
-
-	structure.position = place_world_pos
-	get_parent().add_child(structure)
-	_placed_structures.append(structure)
-	print("Player: placed %s at %s" % [item_id, place_tile_pos])
+	# Unknown structure id — nothing to do.
+	print("Player: no structure handler for %s" % item_id)
 
 func _on_home_set(world_pos: Vector2) -> void:
 	home_pos = world_pos
 	_has_home = true
 
-## Called when a Tether emits tether_broken. If the Tether was ours, show a
-## stark center-screen message and clear our home anchor.
-func _on_tether_broken(broken_owner_id: String) -> void:
-	if broken_owner_id != PlayerIdentity.id:
-		return
-	# Home is lost — player will spawn at random on next death.
-	_has_home = false
-	home_pos = Vector2.ZERO
-	print("Player: Tether broken — home anchor lost.")
-	_show_tether_broken_message()
+## Shrines are ownerless — any shrine breaking anywhere shows the banner to
+## anyone nearby via a future proximity check. For now, no per-player react.
 
-## Called when a Shrine emits shrine_broken. If the Shrine was ours, show a
-## center-screen message.
-func _on_shrine_broken(broken_owner_id: String) -> void:
-	if broken_owner_id != PlayerIdentity.id:
-		return
-	print("Player: Shrine broken — territory lost.")
-	_show_shrine_broken_message()
+## Scan loaded chunks around the player for a Bedroll scene within `range_tiles`.
+## Returns the first match or null. Used by _do_place_use so walking onto a
+## bedroll activates it.
+func _find_nearby_bedroll(from_tile: Vector2i, range_tiles: float) -> Node:
+	if chunk_manager == null:
+		return null
+	for chunk in chunk_manager.get_children():
+		if not (chunk is Node2D):
+			continue
+		for child in chunk.get_children():
+			if not child.has_method("activate"):
+				continue
+			if not "world_tile_pos" in child:
+				continue
+			var s_tile: Vector2i = child.world_tile_pos
+			if Vector2(s_tile - from_tile).length() <= range_tiles:
+				return child
+	return null
 
 ## Display "Your Shrine has been broken." in red at screen center for 3 seconds.
 func _show_shrine_broken_message() -> void:
