@@ -72,6 +72,10 @@ const ATLAS_ROCK  := Vector2i(1, 1)
 ## Home position for respawn (set by placing a bedroll).
 var home_pos: Vector2 = Vector2.ZERO
 var _has_home: bool = false
+## Local record of which tile holds our Tether, for spawn-anchor bookkeeping.
+## Ownership isn't stored on the Tether tile itself — each player tracks their
+## own home tile here. Cleared when that tile is removed (tile_remove event).
+var _home_tile_pos: Vector2i = Vector2i(-2147483647, -2147483647)
 
 ## Placed structure nodes (campfires/bedrolls) owned by this player.
 var _placed_structures: Array = []
@@ -495,33 +499,38 @@ func _place_structure(item_id: String) -> void:
 		print("Player: no %s in inventory" % item_id)
 		return
 
-	# Instantiate and add to world.
+	# Campfire is the first structure migrated to CRDT-tile persistence.
+	# Remaining structures (bedroll/tether/shrine) still use the legacy
+	# add_child path until their own migration commits.
+	if item_id == "campfire":
+		var bus: Node = get_node_or_null("../TileMutationBus")
+		if bus == null:
+			print("Player: no TileMutationBus — cannot place structure")
+			return
+		bus.request_place_tile(place_tile_pos, 1, item_id)
+		print("Player: placed %s at %s (persisted)" % [item_id, place_tile_pos])
+		return
+
+	# Instantiate and add to world (legacy path — non-persistent).
 	var place_world_pos := Vector2(
 		place_tile_pos.x * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
 		place_tile_pos.y * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
 
 	var structure: Node2D = null
-	if item_id == "campfire":
-		structure = CampfireScript.new()
-		structure.world_tile_pos = place_tile_pos
-	elif item_id == "bedroll":
+	if item_id == "bedroll":
 		structure = BedrollScript.new()
 		structure.world_tile_pos = place_tile_pos
-		# NOTE: Bedroll no longer sets home_pos. The Tether owns home spawn.
-		# The home_set signal connection is intentionally removed here.
 	elif item_id == "tether":
 		structure = TetherScript.new()
 		structure.owner_id = PlayerIdentity.id
-		# Set home spawn immediately on placement (before _ready so registry fires).
 		home_pos = place_world_pos
 		_has_home = true
-		# Connect tether_broken: if it's ours, show the broken message.
+		_home_tile_pos = place_tile_pos
 		structure.tether_broken.connect(_on_tether_broken)
 		print("Player: Tether placed — home anchor set at %s" % place_tile_pos)
 	elif item_id == "shrine":
 		structure = ShrineScript.new()
 		structure.owner_id = PlayerIdentity.id
-		# Connect shrine_broken: if it's ours, show the broken message.
 		structure.shrine_broken.connect(_on_shrine_broken)
 		print("Player: Shrine placed at %s" % place_tile_pos)
 

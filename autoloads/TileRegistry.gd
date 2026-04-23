@@ -21,6 +21,13 @@ func _ready() -> void:
 	register("tree",    0, Vector2i(0, 1), 0)
 	register("rock",    0, Vector2i(1, 1), 0)
 	register("ether_crystal", 0, Vector2i(3, 2), 0)
+	# Structure tiles. The visible scene is spawned by ChunkManager via
+	# StructureRegistry; the atlas entry exists so set_cell() accepts it,
+	# but the tile texture itself is blank — only the scene node renders.
+	register("campfire",  0, Vector2i(0, 3), 0)
+	register("bedroll",   0, Vector2i(1, 3), 0)
+	register("tether",    0, Vector2i(2, 3), 0)
+	register("shrine",    0, Vector2i(3, 3), 0)
 
 func register(tile_name: String, tile_id: int, atlas: Vector2i, alt: int = 0) -> void:
 	_entries[tile_name] = {"tile_id": tile_id, "atlas": atlas, "alt": alt}

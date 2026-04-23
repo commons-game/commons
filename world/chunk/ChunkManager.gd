@@ -46,6 +46,10 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(1, 2),  # marrow_drop
 		Vector2i(2, 2),  # moonstone_patch
 	]
+	# Row 3 is reserved for structure tiles. StructureRegistry owns the
+	# atlas→scene mapping; we just need the tileset to accept set_cell() calls.
+	for a in StructureRegistry.all_atlases():
+		needed.append(a)
 	for coords in needed:
 		if not source.has_tile(coords):
 			source.create_tile(coords)
@@ -112,6 +116,11 @@ func place_tile(world_coords: Vector2i, layer: int, tile_id: int,
 	chunk.crdt.set_tile(layer, local, tile_id, atlas, alt, author)
 	chunk.apply_mutation(layer, local, chunk.crdt.get_tile(layer, local))
 	chunk.modification_count += 1
+	# Spawn the structure scene immediately so the player sees it this frame.
+	# On chunk reload, _spawn_structures_for_chunk handles the same work from
+	# the persisted entries — keep the two paths consistent via _spawn_structure_at.
+	if layer == 1 and StructureRegistry.is_structure(atlas):
+		_spawn_structure_at(chunk, world_coords, atlas)
 
 func remove_tile(world_coords: Vector2i, layer: int, author: String) -> void:
 	var cc := CoordUtils.world_to_chunk(world_coords)
@@ -119,6 +128,9 @@ func remove_tile(world_coords: Vector2i, layer: int, author: String) -> void:
 	var chunk := get_chunk(cc)
 	if chunk == null:
 		return
+	# Despawn any structure scene at this tile before the CRDT entry disappears.
+	if layer == 1:
+		_despawn_structure_at(world_coords)
 	chunk.crdt.remove_tile(layer, local, author)
 	chunk.apply_mutation(layer, local, {"tile_id": -1})
 	chunk.modification_count += 1
@@ -267,6 +279,7 @@ func _load_chunk(coords: Vector2i) -> void:
 	add_child(chunk)  # _enter_tree() batches all physics here
 	chunk.last_visited = Time.get_unix_time_from_system()
 	_loaded_chunks[coords] = chunk
+	_spawn_structures_for_chunk(chunk, entries)
 	var t4 := Time.get_ticks_usec()
 	var total_ms := (t4 - t0) / 1000.0
 	if total_ms > 5.0:  # only log slow chunks
@@ -277,6 +290,59 @@ func _load_chunk(coords: Vector2i) -> void:
 			(t3 - t2) / 1000.0,
 			(t4 - t3) / 1000.0,
 		])
+
+## Walk the chunk's CRDT entries and instantiate a scene for every structure
+## atlas on load. Scenes become children of the Chunk so they're queue_free'd
+## automatically on unload.
+##
+## Keys are packed (layer << 16) | (lx << 8) | ly — we only care about layer 1.
+func _spawn_structures_for_chunk(chunk: ChunkData, entries: Dictionary) -> void:
+	var chunk_origin := Vector2i(chunk.chunk_coords.x * Constants.CHUNK_SIZE,
+		chunk.chunk_coords.y * Constants.CHUNK_SIZE)
+	for key in entries:
+		var k := int(key)
+		var layer := (k >> 16) & 0xFF
+		if layer != 1:
+			continue
+		var entry: Dictionary = entries[k]
+		var atlas := Vector2i(int(entry.get("atlas_x", -1)), int(entry.get("atlas_y", -1)))
+		if not StructureRegistry.is_structure(atlas):
+			continue
+		var lx := (k >> 8) & 0xFF
+		var ly := k & 0xFF
+		_spawn_structure_at(chunk, chunk_origin + Vector2i(lx, ly), atlas)
+
+## Instantiate a structure scene at the given world tile under the given chunk.
+## Used both by chunk load (bulk spawn) and place_tile (spawn immediately so
+## the player sees the result in the same frame as the placement).
+func _spawn_structure_at(chunk: ChunkData, world_tile: Vector2i, atlas: Vector2i) -> void:
+	var script: GDScript = StructureRegistry.script_for(atlas)
+	if script == null:
+		return
+	var node: Node2D = script.new()
+	node.world_tile_pos = world_tile
+	var lx: int = world_tile.x - chunk.chunk_coords.x * Constants.CHUNK_SIZE
+	var ly: int = world_tile.y - chunk.chunk_coords.y * Constants.CHUNK_SIZE
+	# Chunk is positioned at chunk_origin * TILE_SIZE; children are relative.
+	node.position = Vector2(
+		lx * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5,
+		ly * Constants.TILE_SIZE + Constants.TILE_SIZE * 0.5)
+	chunk.add_child(node)
+
+## Free structure scene nodes tied to a tile before its CRDT entry is removed.
+## Called by TileMutationBus (via ChunkManager.remove_tile) so the scene goes
+## away in the same frame as the tile. Without this, the scene would only
+## despawn on chunk unload and players would still see/interact with a
+## removed tether/shrine/campfire.
+func _despawn_structure_at(world_coords: Vector2i) -> void:
+	var cc := CoordUtils.world_to_chunk(world_coords)
+	var chunk := get_chunk(cc)
+	if chunk == null:
+		return
+	for child in chunk.get_children():
+		if child is Node2D and "world_tile_pos" in child and \
+				child.world_tile_pos == world_coords:
+			child.queue_free()
 
 ## Sanity-check a freshly-generated chunk's entries.
 ## Fires push_warning (non-fatal) so miscalibration is visible without crashing.
