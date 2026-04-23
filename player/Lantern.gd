@@ -44,9 +44,11 @@ func _ready() -> void:
 func _draw() -> void:
 	if not is_on:
 		return
-	# Small warm glow centered on the player.
-	draw_circle(Vector2.ZERO, 9.0, Color(1.0, 0.85, 0.35, 0.55))
-	draw_circle(Vector2.ZERO, 5.0, Color(1.0, 1.0, 0.80, 0.95))
+	# Big obvious halo around the player so the toggle is unmistakable at any
+	# zoom. Multiple radii create a soft gradient.
+	draw_circle(Vector2.ZERO, 28.0, Color(1.0, 0.85, 0.35, 0.30))
+	draw_circle(Vector2.ZERO, 18.0, Color(1.0, 0.85, 0.35, 0.55))
+	draw_circle(Vector2.ZERO, 10.0, Color(1.0, 1.0,  0.80, 0.95))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -56,6 +58,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Toggle the lantern on/off.
 func toggle() -> void:
 	is_on = not is_on
+	print("[LANTERN] toggle → is_on=%s z=%d pos=%s" % [is_on, z_index, position])
 	_apply_state()
 
 ## Force the lantern to a specific state.
