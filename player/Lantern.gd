@@ -1,7 +1,12 @@
 ## Lantern — toggleable PointLight2D carried by the player.
 ##
-## Toggle with L key. When on at night the player becomes a visible beacon —
+## Toggle with right-click while the lantern is the active tool, or with the L
+## key from anywhere. When on at night the player becomes a visible beacon —
 ## a deliberate risk/reward tradeoff (visibility vs. stealth).
+##
+## Auto-off: Player._auto_off_lantern_if_dropped() forces is_on=false each frame
+## if the lantern isn't held in a tool_slot, so dragging it to the bag or
+## dropping it on death extinguishes it.
 ##
 ## Attach as a child of Player. The owning scene must have a PointLight2D named
 ## "LanternLight" as a child of this node, or this script creates one.

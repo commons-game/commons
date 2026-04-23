@@ -170,6 +170,18 @@ func _shake_camera(intensity: float, duration: float) -> void:
 		tween.tween_property(_camera, "offset", offset, step_time)
 	tween.tween_property(_camera, "offset", Vector2.ZERO, step_time)
 
+## Per-frame guard: if the lantern is lit but no longer sitting in a tool slot
+## (e.g. the player dragged it to the bag or dropped it on death), force it off.
+## This keeps the rule "lit only while held" invariant without having to hook
+## every inventory-mutation path.
+func _auto_off_lantern_if_dropped() -> void:
+	if _lantern == null or not _lantern.is_on or inventory == null:
+		return
+	for i in range(inventory.TOOL_SLOT_COUNT):
+		if str((inventory.tool_slots[i] as Dictionary).get("id", "")) == "lantern":
+			return
+	_lantern.set_on(false)
+
 func _on_player_died() -> void:
 	_dead = true
 	print("Player: died — starting respawn sequence")
@@ -557,6 +569,7 @@ func _show_tether_broken_message() -> void:
 
 func _process(delta: float) -> void:
 	queue_redraw()
+	_auto_off_lantern_if_dropped()
 	if _attack_cooldown > 0.0:
 		_attack_cooldown -= delta
 	_damage_flash_timer = maxf(_damage_flash_timer - delta, 0.0)

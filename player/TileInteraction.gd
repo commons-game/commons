@@ -6,6 +6,10 @@
 ##     Left click  : dig ground tile (layer 0), adds 1 "dirt" to bag.
 ##     Right click : place "dirt" tile on ground layer if bag has dirt.
 ##
+##   lantern
+##     Right click : toggle the held lantern on/off (Player.Lantern.toggle()).
+##     Left click  : falls through to fist melee (see below).
+##
 ##   campfire / workbench (structure items)
 ##     Right click : place structure tile on object layer (layer 1) at the
 ##                   clicked tile position if it is empty. Removes the item
@@ -108,6 +112,15 @@ func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 
 	if tool_id == "shovel":
 		_handle_shovel(button, tile_pos, player, inventory)
+		return
+
+	# Lantern right-click: toggle the held light on/off. Left-click falls through
+	# to the fist-melee branch below so the player can harvest while holding it.
+	if tool_id == "lantern" and button == MOUSE_BUTTON_RIGHT:
+		var lantern: Node = player.get_node_or_null("Lantern")
+		if lantern != null:
+			lantern.toggle()
+			EventLog.record("lantern_toggle", {"is_on": bool(lantern.is_on)})
 		return
 
 	# Structure placement: right-click places the held structure tile, then we're
