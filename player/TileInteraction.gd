@@ -129,12 +129,12 @@ func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 			EventLog.record("lantern_toggle", {"is_on": bool(lantern.is_on)})
 		return
 
-	# Structure placement: right-click places the held structure tile, then we're
-	# done. Left-click falls through to the fist-melee branch below so the player
-	# can harvest while holding a campfire/workbench.
-	if STRUCTURE_TILES.has(tool_id) and button == MOUSE_BUTTON_RIGHT:
-		_handle_structure_place(tile_pos, player, inventory, tool_id)
-		return
+	# Structure placement is handled by Player._do_place_use (triggered by the
+	# same right-click event plus KEY_F). We intentionally do NOT place from
+	# TileInteraction — having both paths fire on one click resulted in two
+	# campfires being placed at neighbouring tiles. Left-click still falls
+	# through to the fist-melee branch below so players can harvest while
+	# holding a campfire/workbench.
 
 	# Fist / melee tool / lantern / held structure on left-click.
 	# _tool_damage() returns 1 for any id it doesn't recognise, so lantern and
