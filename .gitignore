@@ -32,6 +32,9 @@ export/
 *.exe
 *.app
 
+# Godot export template runtime libs (pulled in next to the binary)
+libwebrtc_native.*.so
+
 # Rust / Freenet backend build artifacts
 backend/freenet/target/
 backend/freenet/contracts/*/build/
