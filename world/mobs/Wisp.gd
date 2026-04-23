@@ -28,6 +28,9 @@ const OUTER_R     := 7.0
 var _light: PointLight2D = null
 var _pulse_t: float = 0.0  # drives glow pulse animation
 
+## Baseline energy; scales 0.75 (new) → 1.25 (full) with moon.
+var _light_energy_base: float = 0.75
+
 ## Bloom mob — reveal flash shows Still crystalline blue.
 func _reveal_color() -> Color:
 	return Color(0.60, 0.80, 0.98)
@@ -42,7 +45,8 @@ func _ready() -> void:
 
 func _attach_light() -> void:
 	_light = PointLight2D.new()
-	_light.energy = 0.9
+	_light_energy_base = lerp(0.55, 1.05, DayClock.moon_fullness())
+	_light.energy = _light_energy_base
 	_light.color = COLOR_GLOW
 	_light.texture = NightDarknessScript._make_radial_texture(64)
 	_light.texture_scale = 1.0
@@ -53,7 +57,7 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_pulse_t += delta * 2.2
 	if _light != null:
-		_light.energy = 0.75 + sin(_pulse_t) * 0.2
+		_light.energy = _light_energy_base + sin(_pulse_t) * 0.2
 
 func _draw() -> void:
 	var base_color: Color

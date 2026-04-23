@@ -104,7 +104,9 @@ The day pulls you out. The night terrifies you.
 
 The day/night cycle is the heartbeat of the game. It creates a natural session rhythm: push out during the day, survive the night, assess what you gathered, plan tomorrow.
 
-Night cannot be skipped — the clock is shared across all players. Everyone faces it.
+Night cannot be skipped from within an island. The clock advances in real time — you survive it or you don't. Fresh spawns without a Tether wake at dawn (see *Spawn timing* below), but once you're in the world, time moves at its own pace.
+
+*(Long-term: the clock is scoped per island, not globally — see `Per-island time of day (deferred)` in the Deferred Design section.)*
 
 ### Night serves three purposes
 
@@ -287,9 +289,9 @@ Night is one of the first enemies of the game. It takes away your vision, change
 
 ### Darkness
 
-The player has a tiny ambient glow — barely 2 tiles. Not enough to feel safe, enough to see what's touching you. The campfire is your intelligence radius. Everything beyond it is unknown.
+The player has a personal light — a lantern carried at all times — that lights roughly **8 tiles** around them. Enough to read the ground and see mobs approaching, not enough to see what's in the distance. The campfire is your intelligence radius — bigger and brighter, a place you can sit and watch the dark. Everything beyond the campfire is unknown.
 
-The **lantern** extends vision but makes you visible. In tier 1 biomes this is pure upside. In tier 3 biomes you're advertising your position to things that hunt by light.
+The lantern makes you visible. In tier 1 biomes this is pure upside — light repels the things that hunt there. In tier 3 biomes you're advertising your position to things that hunt by light. A deep-biome player learns to crouch-douse or drop the lantern before closing in on prey.
 
 ### Light and mob behavior — the gradient
 
@@ -324,6 +326,28 @@ Both vanish at dawn. Marrow does not drop from trees during the day. Moonstone d
 ### Merge pressure at night
 
 Merge pressure ramp rate doubles after dusk. The vibe cues hit hardest in the dark — distant lights on the horizon are visible in a way they aren't during the day. Night is when you first *see* evidence of another player. The paranoia of "is that a campfire I didn't build?" is a night experience specifically.
+
+### Moon phases
+
+The moon advances one phase per in-game day, cycling through **new → waxing → full → waning → new** over ~8 days. The current phase changes the night in ways you learn to read:
+
+| Phase | Night character |
+|-------|----------------|
+| **New moon** | Dread night. Near-total darkness beyond your lantern. Pale mobs more numerous, lower HP but more aggressive. Moonstone yield is highest — the Still is hungriest. |
+| **Waxing / waning** | Standard night. Baseline spawns, baseline yield. |
+| **Full moon** | Hunt night. Ambient light is enough to see the horizon. Pale mobs are fewer but stronger — high-HP, high-damage variants. Wisp glow is brighter. A good night to push into a deep biome if you can handle the bigger fish. |
+
+The moon is visible in the sky and its phase is the only "UI" — you glance up and know what you're in for. Experienced players plan raids around the cycle: new moon for Moonstone farming, full moon for Marrow hunting, standard nights for everything else.
+
+Moon phase is a second independent dimension layered on day/night — it collapses and blends across merges the same way time does (see deferred section).
+
+### Spawn timing
+
+When a player dies without a Tether anchor (fresh spawn, no home), they re-enter the world at **dawn** — local time for their island jumps forward if needed so the sunrise is waiting for them. This is non-negotiable: new players and the unanchored get a fair start. Every new reality begins in daylight.
+
+Players who die *with* a Tether respawn at the Tether anchor at **current local time** — if it's the middle of the night, you wake up in the dark at your home and deal with it. The Tether promises continuity, not protection.
+
+In effect: the Tether trades a fair respawn for a fixed location. The choice to build one is a choice to stop running from the clock.
 
 ---
 
@@ -368,6 +392,42 @@ The merge is an information asymmetry game. Both players share the same world bu
 ## Deferred Design (not forgotten)
 
 - **Light mechanics** — how mobs and the world respond to artificial light. Torches, campfires, shrine glow. Does light repel Sprouts? Does it attract Tendrils? Does Still territory extinguish flame? Revisit when mob system is built.
+
+### Per-island time of day *(deferred — do not remove this section)*
+
+**Status:** Not implemented. Currently `DayClock` is a global autoload — all players on all islands share one clock. Keeping this note because we've decided the direction and the architecture needs to evolve toward it.
+
+**The decision.** Time of day is a **per-island** property, not a global one. Each simulation island advances its own clock, and when islands merge, their clocks blend quickly into one. This makes time of day a *reality dimension* — another axis the multiverse varies along, alongside biome layout, faction, and force.
+
+**Why this is the right direction:**
+
+1. **Fair starts.** A player who respawns without a Tether needs the world to be survivable. If we can drop them into an island that's currently at dawn, the fairness problem solves itself without breaking the "night cannot be skipped" rule for anchored players.
+2. **Thematic fit.** Reality-merging is the core of the game. Two realities having different times is more interesting than two realities having the same time, and time blending across a merge is a signal the player can *read* — a second sun appearing on the horizon, a sudden gradient across the ground, the light shifting faster than it should. These are vibe cues we don't have to invent; they emerge from the mechanic.
+3. **Cheap dimension.** Time collapses faster than other dimensions (tiles, structures, factions). A brief blend of lighting is visually coherent and narratively meaningful. It doesn't require rewriting the world — just interpolating a single scalar.
+4. **Future hooks.** Moon phases, weather, seasonal effects can all piggyback on the same per-island clock. Any time-dependent system gets this for free once the clock is island-scoped.
+
+**What we're giving up:**
+
+- The ability to say "everyone faces night together." This was a coordination primitive — all players share a countdown. With per-island time, synchronized events have to be driven by something other than the clock (e.g., merge pressure, in-world signals).
+- Simplicity. One global `DayClock.now()` becomes `island.day_clock.now()`, which means passing an island context into every lighting/mob/weather system that reads the clock.
+
+**What the migration looks like when we eventually do it:**
+
+1. **Island object gains a `day_clock`.** Every island (including the implicit single-island state today) owns its own `DayClock` instance. The global `DayClock` autoload becomes a shim that resolves to "the current player's island clock" for single-player and solo sessions.
+2. **Time-reading code takes an island context.** Anything that currently calls `DayClock.is_daytime()` has to know *whose* daytime — almost always "the player's current island," which is always resolvable from the player's position. Signal connections have to move from the global autoload to the per-island clock.
+3. **Merges blend clocks.** When two islands merge, the resulting island picks a starting time (probably weighted by population, or the most-advanced clock, or the average — TBD from playtesting). Over a short window (~10 real seconds) the *visual* lighting interpolates from both sources to the merged value. Players cross the seam and see the sky color shift. Mob spawns and day-gated drops switch to the merged clock immediately — only the rendering blends. This is the "fast blend = sign of changing reality" feeling we want.
+4. **Fresh spawns pick an island.** The spawn system already has to pick *where* to place an unanchored player. With per-island time, the picker also prefers islands whose local clock is near dawn, ensuring the fair-start promise without a special case.
+5. **Moon phases go per-island too.** Moon phase is tied to the island's day count, so different islands can genuinely have different skies. This is where the dimension starts feeling thick.
+
+**Interim behavior (what ships now):**
+
+- Keep `DayClock` global. One clock for the whole session.
+- On fresh spawn without a Tether, **advance the global clock to dawn** if it's currently night. Solo sessions: this is the spec. Multiplayer sessions with other players mid-night: accept that fresh spawn yanks the whole session to dawn for now — it's a real cost but the fair-start promise is more important, and when per-island time lands this edge case vanishes. Document this tradeoff in release notes so multiplayer players know.
+- Moon phase is tracked on the global clock — one phase for everyone until per-island lands.
+
+**When we'd revisit:** when we're actively working on the island/merge system for other reasons. This is a natural graft onto that work — not worth opening up the clock architecture just for this, but very cheap to do *while* we're already in there.
+
+**Do not remove this section when the feature lands.** Convert it to a "how per-island time works" reference once implemented.
 
 ---
 

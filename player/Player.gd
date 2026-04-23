@@ -207,6 +207,13 @@ func _on_player_died() -> void:
 	food = max_food
 	position = home_pos if _has_home else Vector2.ZERO
 
+	# Fair-start promise: fresh spawns (no Tether) wake at dawn.
+	# Tethered players respawn at current time — the Tether trades fair timing for a fixed home.
+	# See docs/game_design.md § "Spawn timing".
+	if not _has_home and not DayClock.is_daytime():
+		DayClock.advance_to_phase(0.02)  # just past dawn so the world reads as "morning"
+		print("Player: fresh spawn mid-night — clock advanced to dawn")
+
 	# Fade back in.
 	_dead = false
 	var tween2 := create_tween()

@@ -100,6 +100,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_handle_structure_place(tile_pos, player, inventory, tool_id)
 		return
 
+	# Non-interactive tools: lantern is a light source, not a weapon. Click is a no-op.
+	# (Toggle is on KEY_L; the tool doesn't damage tiles.)
+	if tool_id == "lantern":
+		return
+
 	# Fist or melee tool (axe / pickaxe / etc.) — left click swings at tiles.
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_melee(tile_pos, player, inventory, tool_id)

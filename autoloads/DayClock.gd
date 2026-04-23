@@ -24,10 +24,25 @@ var _time_offset: float = 0.0
 
 ## Shift the clock so the cycle phase is `phase` right now, then let it run.
 func set_start_phase(phase: float) -> void:
-	var real_now := Time.get_unix_time_from_system()
-	var current_phase := fmod(real_now, Constants.DAY_CYCLE_SECONDS) / Constants.DAY_CYCLE_SECONDS
-	var delta_phase := phase - current_phase
-	_time_offset = delta_phase * Constants.DAY_CYCLE_SECONDS
+	var delta_phase := phase - phase_fraction()
+	_apply_time_delta(delta_phase * Constants.DAY_CYCLE_SECONDS)
+
+## Jump the clock *forward* until phase_fraction() == phase. Never rewinds.
+## Use for "respawn at dawn" — we want time to move, not unwind.
+## phase_changed will emit on the next tick if we crossed the day/night boundary.
+func advance_to_phase(phase: float) -> void:
+	var delta_phase := phase - phase_fraction()
+	if delta_phase < 0.0:
+		delta_phase += 1.0  # wrap forward to next cycle
+	_apply_time_delta(delta_phase * Constants.DAY_CYCLE_SECONDS)
+
+## Shifts the active time source by delta_sec. Honours _time_override when set
+## so tests using pinned clocks also see the clock advance.
+func _apply_time_delta(delta_sec: float) -> void:
+	if _time_override >= 0.0:
+		_time_override += delta_sec
+	else:
+		_time_offset += delta_sec
 
 var _last_is_day: bool = true
 
@@ -60,6 +75,30 @@ func sky_alpha() -> float:
 	# and the maximum (cos=-1→alpha=1) lands at midnight.
 	var angle := (phase_fraction() - 0.25) * TAU
 	return clampf((1.0 - cos(angle)) * 0.5, 0.0, 1.0)
+
+# --- Moon phases ---
+#
+# Moon advances one phase per in-game day; 8 phases cycle every ~16 hours real time
+# at DAY_CYCLE_SECONDS=7200. Phase index: 0=new, 4=full; moon_fullness() is symmetric
+# around phase 4 so you get new → waxing → full → waning → new as a triangle wave.
+
+const MOON_PHASE_COUNT := 8
+
+## Integer day count since unix epoch (offset-aware).
+func day_count() -> int:
+	return int(floor(_get_unix_time() / Constants.DAY_CYCLE_SECONDS))
+
+## Current moon phase index. 0=new, 4=full. Advances at each dawn.
+func moon_phase() -> int:
+	var c := day_count() % MOON_PHASE_COUNT
+	if c < 0: c += MOON_PHASE_COUNT
+	return c
+
+## Moon "fullness" in [0, 1]. 0 = new moon (pitch dark), 1 = full moon (bright).
+## Symmetric: phases 0..4 rise linearly to full, phases 4..8 fall back to new.
+func moon_fullness() -> float:
+	var p := moon_phase()
+	return 1.0 - abs(p - 4) / 4.0
 
 # --- Internal ---
 

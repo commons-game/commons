@@ -47,6 +47,7 @@ const GravestoneScatterScript     := preload("res://world/generation/GravestoneS
 const MobSpawnerScript            := preload("res://world/mobs/MobSpawner.gd")
 const NightSpawnerScript          := preload("res://world/NightSpawner.gd")
 const NightDarknessScript         := preload("res://world/NightDarkness.gd")
+const MoonHUDScript               := preload("res://ui/MoonHUD.gd")
 const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
 const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
@@ -322,6 +323,10 @@ func _setup_day_night_system() -> void:
 	night_darkness.name = "NightDarkness"
 	night_darkness.player = $Player
 	add_child(night_darkness)
+
+	var moon_hud := MoonHUDScript.new()
+	moon_hud.name = "MoonHUD"
+	add_child(moon_hud)
 
 func _spawn_remote_player(peer_id: int) -> void:
 	var remote := RemotePlayerScene.instantiate()

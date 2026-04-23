@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ba1s1e240b1fl"
-path="res://.godot/imported/freeland-3.png-1291e2b9c4b76ff9cf8cb4c29e744f0a.ctex"
+path="res://.godot/imported/commons-3.png-45459c0d98045a69530288f3c5abff41.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://freeland-3.png"
-dest_files=["res://.godot/imported/freeland-3.png-1291e2b9c4b76ff9cf8cb4c29e744f0a.ctex"]
+source_file="res://commons-3.png"
+dest_files=["res://.godot/imported/commons-3.png-45459c0d98045a69530288f3c5abff41.ctex"]
 
 [params]
 

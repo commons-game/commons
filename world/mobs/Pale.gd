@@ -16,8 +16,15 @@ const PALE_CHASE_SPEED  := 28.0
 const PALE_ATTACK_DMG   := 22
 
 ## How often (seconds) to try placing a Moonstone tile while moving.
+## Baseline — actual interval scales with moon fullness in _moonstone_interval().
 const MOONSTONE_DROP_INTERVAL := 4.0
 var _moonstone_timer: float = 0.0
+
+## Baked-in moon scaling captured at spawn so a single Pale is internally consistent
+## (HP and damage don't shift mid-night as the clock ticks).
+## Pale HP range: 50 (new moon, fragile but swarms) → 100 (full moon, formidable).
+## Damage range: 18 → 30.
+var _moon_scale: float = 0.0  # 0..1; set in _ready
 
 ## The Moonstone tiles this Pale has placed — cleared at dawn.
 var _moonstone_tiles: Array = []
@@ -28,11 +35,24 @@ func _reveal_color() -> Color:
 
 func _ready() -> void:
 	super._ready()
+	_moon_scale = DayClock.moon_fullness()
+	# HP scales 0.7x (new) → 1.4x (full). Damage scales 0.8x (new) → 1.4x (full).
+	var hp_scaled: int = int(round(PALE_HP * lerp(0.7, 1.4, _moon_scale)))
 	var h := get_node_or_null("Health")
 	if h != null:
-		h.max_hp = PALE_HP
-		h.current_hp = PALE_HP
+		h.max_hp = hp_scaled
+		h.current_hp = hp_scaled
 	DayClock.phase_changed.connect(_on_phase_changed)
+
+## Effective attack damage after moon scaling. Called from _tick_chase.
+func _scaled_attack_dmg() -> int:
+	return int(round(PALE_ATTACK_DMG * lerp(0.8, 1.4, _moon_scale)))
+
+## Moonstone drop interval scales inversely with fullness.
+## New moon (Still is hungriest): 1.8s — lots of Moonstone.
+## Full moon: 6.0s — rare.
+func _moonstone_interval() -> float:
+	return lerp(1.8, 6.0, _moon_scale)
 
 func _draw() -> void:
 	# Nearly invisible: very low alpha, cold grey-white.
@@ -87,13 +107,13 @@ func _tick_chase(delta: float) -> void:
 	if dist <= ATTACK_RANGE and _attack_cooldown <= 0.0:
 		_attack_cooldown = ATTACK_COOLDOWN
 		if player.has_method("take_damage"):
-			player.take_damage(PALE_ATTACK_DMG)
+			player.take_damage(_scaled_attack_dmg())
 
 func _try_drop_moonstone(delta: float) -> void:
 	if chunk_manager == null:
 		return
 	_moonstone_timer += delta
-	if _moonstone_timer < MOONSTONE_DROP_INTERVAL:
+	if _moonstone_timer < _moonstone_interval():
 		return
 	_moonstone_timer = 0.0
 	var tile := _tile_pos()

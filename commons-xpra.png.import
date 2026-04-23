@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5ht5fjsgqvo5"
-path="res://.godot/imported/freeland-xpra.png-b7de4565407c2fe706c872804223dfa7.ctex"
+path="res://.godot/imported/commons-xpra.png-cec357dc5d97aeb03f8070d76cc9734d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://freeland-xpra.png"
-dest_files=["res://.godot/imported/freeland-xpra.png-b7de4565407c2fe706c872804223dfa7.ctex"]
+source_file="res://commons-xpra.png"
+dest_files=["res://.godot/imported/commons-xpra.png-cec357dc5d97aeb03f8070d76cc9734d.ctex"]
 
 [params]
 

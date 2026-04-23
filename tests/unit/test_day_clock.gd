@@ -125,3 +125,71 @@ func test_phase_changed_does_not_fire_when_same_phase() -> void:
 	c.tick(0.1)
 	assert_int(calls[0]).is_equal(0)
 	remove_child(c)
+
+# --- advance_to_phase ---
+# Always moves the clock FORWARD to the next occurrence of the given phase.
+
+func test_advance_from_night_to_dawn_goes_forward() -> void:
+	# Pinned to 5400 = midnight (phase 0.75). advance_to_phase(0.0) should land at next dawn.
+	var c = _make_clock(5400.0)
+	c.advance_to_phase(0.0)
+	# After advance, current phase should be 0 (dawn). Time override doesn't move but offset does.
+	assert_float(c.phase_fraction()).is_equal_approx(0.0, 0.001)
+	assert_bool(c.is_daytime()).is_true()
+
+func test_advance_from_day_to_later_day_goes_forward() -> void:
+	# From early day (phase 0.1) advance to mid-day (0.25) — simple forward step
+	var c = _make_clock(720.0)  # phase = 0.1
+	c.advance_to_phase(0.25)
+	assert_float(c.phase_fraction()).is_equal_approx(0.25, 0.001)
+
+func test_advance_never_rewinds() -> void:
+	# From noon (0.25) ask for dawn (0.0) — should NOT go back, should wrap forward a full cycle.
+	var c = _make_clock(1800.0)  # phase 0.25
+	var before_time: float = c._get_unix_time()
+	c.advance_to_phase(0.0)
+	var after_time: float = c._get_unix_time()
+	assert_float(after_time).is_greater(before_time)
+	assert_float(c.phase_fraction()).is_equal_approx(0.0, 0.001)
+
+# --- Moon phases ---
+
+func test_moon_phase_zero_at_unix_zero() -> void:
+	var c = _make_clock(0.0)
+	assert_int(c.moon_phase()).is_equal(0)
+
+func test_moon_phase_advances_one_per_cycle() -> void:
+	# After one full day cycle we should be on moon phase 1.
+	var c = _make_clock(Constants.DAY_CYCLE_SECONDS)
+	assert_int(c.moon_phase()).is_equal(1)
+
+func test_moon_phase_cycles_every_8_days() -> void:
+	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 8.0)
+	assert_int(c.moon_phase()).is_equal(0)
+
+func test_moon_phase_four_is_full_moon() -> void:
+	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 4.0)
+	assert_int(c.moon_phase()).is_equal(4)
+
+func test_moon_fullness_zero_at_new_moon() -> void:
+	var c = _make_clock(0.0)
+	assert_float(c.moon_fullness()).is_equal_approx(0.0, 0.001)
+
+func test_moon_fullness_one_at_full_moon() -> void:
+	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 4.0)
+	assert_float(c.moon_fullness()).is_equal_approx(1.0, 0.001)
+
+func test_moon_fullness_symmetric_around_full() -> void:
+	# Phase 2 (waxing) and phase 6 (waning) should have equal fullness.
+	var c2 = _make_clock(Constants.DAY_CYCLE_SECONDS * 2.0)
+	var c6 = _make_clock(Constants.DAY_CYCLE_SECONDS * 6.0)
+	assert_float(c2.moon_fullness()).is_equal_approx(c6.moon_fullness(), 0.001)
+	assert_float(c2.moon_fullness()).is_equal_approx(0.5, 0.001)
+
+func test_day_count_zero_at_unix_zero() -> void:
+	var c = _make_clock(0.0)
+	assert_int(c.day_count()).is_equal(0)
+
+func test_day_count_advances_with_time() -> void:
+	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 3.5)
+	assert_int(c.day_count()).is_equal(3)

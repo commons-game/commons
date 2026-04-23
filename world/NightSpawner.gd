@@ -113,10 +113,17 @@ func _on_dusk() -> void:
 ##   Bloom biomes (Verdant/Tangle/Mire) → Wisp
 ##   Still biomes (Moraine/Shard/Hollow) → Pale
 ##   Tier 1 biomes → no night mobs (only Sprouts at tier 1)
+##
+## Wave size scales with the moon:
+##   New moon  (fullness=0): 3..6 mobs — Still is hungriest, swarm night
+##   Full moon (fullness=1): 1..3 mobs — fewer but stronger (individual HP scales inside Pale)
 func _spawn_night_mobs(origin: Vector2i, rng: RandomNumberGenerator) -> void:
 	var spawned_wisps := 0
 	var spawned_pales := 0
-	var target := rng.randi_range(2, 4)  # total night mobs per wave
+	var fullness := DayClock.moon_fullness()
+	var target_min := int(round(lerp(3.0, 1.0, fullness)))
+	var target_max := int(round(lerp(6.0, 3.0, fullness)))
+	var target := rng.randi_range(target_min, target_max)
 	var attempts := 0
 
 	while (spawned_wisps + spawned_pales) < target and attempts < target * 15:
