@@ -22,6 +22,26 @@ SERVER="${SERVER:?set SERVER to user@host of the dev server}"
 REMOTE_DIR="${REMOTE_DIR:-/home/adam/development/freeland}"
 LOCAL_DIR="${LOCAL_DIR:-$HOME/commons-playtest}"
 
+# ---------------------------------------------------------------------------
+# Self-update: pull the latest play.sh from the server and re-exec if it
+# differs from this copy. Avoids the "stale bootstrap" trap where the laptop
+# runs an old script and logs silently fail to sync back.
+# ---------------------------------------------------------------------------
+if [[ "${SELF_UPDATED:-0}" != "1" ]]; then
+  LATEST="$(mktemp)"
+  if ssh "$SERVER" "cat '$REMOTE_DIR/dev/play.sh'" > "$LATEST" 2>/dev/null \
+     && [[ -s "$LATEST" ]] \
+     && ! diff -q "$0" "$LATEST" > /dev/null 2>&1; then
+    echo "=> Updating play.sh from server ..."
+    cp "$LATEST" "$0"
+    chmod +x "$0"
+    rm -f "$LATEST"
+    export SELF_UPDATED=1
+    exec "$0" "$@"
+  fi
+  rm -f "$LATEST"
+fi
+
 mkdir -p "$LOCAL_DIR"
 
 echo "=> Pulling latest build from $SERVER ..."
