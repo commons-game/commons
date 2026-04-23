@@ -81,7 +81,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	                * get_viewport().get_mouse_position()
 	var tile_pos := Vector2i(int(floorf(world_px.x / Constants.TILE_SIZE)),
 	                         int(floorf(world_px.y / Constants.TILE_SIZE)))
+	_dispatch(event.button_index, tile_pos, "input")
 
+## Test-only entry point. Synthesizes a click at the given tile_pos.
+## Used by dev/Puppet.gd to drive interaction in headless scenarios without
+## mocking viewport/mouse. Production clicks flow through _unhandled_input.
+func puppet_click(tile_pos: Vector2i, button: int) -> void:
+	_dispatch(button, tile_pos, "puppet")
+
+## Shared click-dispatch used by both real input and the puppet harness.
+## `source` is logged as "input" or "puppet" so EventLog can distinguish.
+func _dispatch(button: int, tile_pos: Vector2i, source: String) -> void:
 	var player := get_parent()
 	var inventory: Object = player.get("inventory")
 
@@ -90,13 +100,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		var active_tool: Dictionary = inventory.get_active_tool()
 		tool_id = str(active_tool.get("id", ""))
 
+	EventLog.record("click", {
+		"tile": tile_pos, "button": button, "tool_id": tool_id, "source": source,
+	})
+
 	if tool_id == "shovel":
-		_handle_shovel(event.button_index, tile_pos, player, inventory)
+		_handle_shovel(button, tile_pos, player, inventory)
 		return
 
 	# Structure placement: right-click places the held structure tile.
 	if STRUCTURE_TILES.has(tool_id):
-		if event.button_index == MOUSE_BUTTON_RIGHT:
+		if button == MOUSE_BUTTON_RIGHT:
 			_handle_structure_place(tile_pos, player, inventory, tool_id)
 		return
 
@@ -106,7 +120,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	# Fist or melee tool (axe / pickaxe / etc.) — left click swings at tiles.
-	if event.button_index == MOUSE_BUTTON_LEFT:
+	if button == MOUSE_BUTTON_LEFT:
 		_handle_melee(tile_pos, player, inventory, tool_id)
 
 # ---------------------------------------------------------------------------

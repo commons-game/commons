@@ -24,12 +24,20 @@ func request_place_tile(world_coords: Vector2i, layer: int, tile_id: String) -> 
 	var record := _make_record("place", world_coords, layer, tile_id, local_author_id)
 	_outbound.append(record)
 	broadcast_mutation(record)
+	_log_event("tile_place", {"coords": world_coords, "layer": layer, "tile_id": tile_id})
 
 func request_remove_tile(world_coords: Vector2i, layer: int) -> void:
 	tile_store.remove_tile(world_coords, layer, local_author_id)
 	var record := _make_record("remove", world_coords, layer, "", local_author_id)
 	_outbound.append(record)
 	broadcast_mutation(record)
+	_log_event("tile_remove", {"coords": world_coords, "layer": layer})
+
+## EventLog is an autoload and is always in scope, but in unit tests the
+## node may not be fully ready when this bus fires. Guard with a validity check.
+func _log_event(event_type: String, data: Dictionary) -> void:
+	if is_instance_valid(EventLog):
+		EventLog.record(event_type, data)
 
 ## Apply a mutation received from a remote peer.
 ## Does NOT enqueue an outbound record (we received it, not originated it).

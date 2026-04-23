@@ -406,6 +406,9 @@ func _update_slot(i: int, stack: Dictionary) -> void:
 func _set_active(i: int) -> void:
 	i = clampi(i, 0, HOTBAR_SLOTS - 1)
 	active_index = i
+	if is_instance_valid(EventLog):
+		var stack: Dictionary = {} if inventory == null else inventory.bag[i] as Dictionary
+		EventLog.record("hotbar_select", {"index": i, "id": str(stack.get("id", ""))})
 	# Sync inventory.active_tool_index so Player.gd's get_active_tool() fallback
 	# and appearance update see the correct tool when bag[i] is a tool item.
 	if inventory != null:

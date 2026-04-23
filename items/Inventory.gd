@@ -176,6 +176,11 @@ func toggle_talisman() -> bool:
 func select_tool(index: int) -> void:
 	if index >= 0 and index < TOOL_SLOT_COUNT:
 		active_tool_index = index
+		if is_instance_valid(EventLog):
+			EventLog.record("tool_select", {
+				"index": index,
+				"id": str(tool_slots[index].get("id", "")),
+			})
 
 ## Return the ItemStack in the currently active tool slot, or {} if empty.
 func get_active_tool() -> Dictionary:

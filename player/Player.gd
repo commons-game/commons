@@ -173,6 +173,8 @@ func _shake_camera(intensity: float, duration: float) -> void:
 func _on_player_died() -> void:
 	_dead = true
 	print("Player: died — starting respawn sequence")
+	if is_instance_valid(EventLog):
+		EventLog.record("player_died", {"pos": position})
 
 	# Drop all inventory items as loot tiles at the death position before fading out.
 	_drop_inventory_as_loot()
@@ -210,9 +212,15 @@ func _on_player_died() -> void:
 	# Fair-start promise: fresh spawns (no Tether) wake at dawn.
 	# Tethered players respawn at current time — the Tether trades fair timing for a fixed home.
 	# See docs/game_design.md § "Spawn timing".
+	var advanced_to_dawn: bool = false
 	if not _has_home and not DayClock.is_daytime():
 		DayClock.advance_to_phase(0.02)  # just past dawn so the world reads as "morning"
+		advanced_to_dawn = true
 		print("Player: fresh spawn mid-night — clock advanced to dawn")
+	if is_instance_valid(EventLog):
+		EventLog.record("player_respawned", {
+			"pos": position, "has_home": _has_home, "advanced_to_dawn": advanced_to_dawn,
+		})
 
 	# Fade back in.
 	_dead = false

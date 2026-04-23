@@ -164,6 +164,24 @@ func _ready() -> void:
 		DayClock._time_override = Constants.DAY_CYCLE_SECONDS * 0.25  # pin to midday
 	if not is_web and "--force-dusk" in args:
 		DayClock.set_start_phase(0.45)  # golden hour, dusk imminent — clock keeps ticking
+	# Puppet test harness: if a scenario was passed via --puppet-scenario=res://...,
+	# spawn the puppet and let it drive the game. Used for agent-run regression tests.
+	_maybe_attach_puppet(args)
+
+const PuppetScript := preload("res://dev/Puppet.gd")
+
+func _maybe_attach_puppet(args: Array) -> void:
+	var scenario_path := ""
+	for a in args:
+		if typeof(a) == TYPE_STRING and (a as String).begins_with("--puppet-scenario="):
+			scenario_path = (a as String).trim_prefix("--puppet-scenario=")
+			break
+	if scenario_path == "":
+		return
+	var puppet: Node = PuppetScript.new()
+	puppet.name = "Puppet"
+	add_child(puppet)
+	puppet.attach(self, scenario_path)
 
 func _setup_merge_system(args: Array) -> void:
 	ErrorReporter.set_phase("connecting")
