@@ -17,14 +17,21 @@ set -euo pipefail
 SCENARIO="${1:?usage: $0 <scenario.gd path> [timeout_sec]}"
 TIMEOUT_SEC="${2:-60}"
 
+# Resolve the repo root from the script's own location so the path-strip
+# below works regardless of what the working tree directory is named.
+# Worktrees from `git worktree add` get directory names like
+# freeland-agent-XXX/ — the previous hard-coded /home/adam/development/freeland/
+# strip silently failed in those, leaving an unmounted res:// path.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Normalise to res:// form if a filesystem-relative path was passed.
 case "$SCENARIO" in
   res://*) RES_PATH="$SCENARIO" ;;
-  /*)      RES_PATH="res://${SCENARIO#/home/adam/development/freeland/}" ;;
+  /*)      RES_PATH="res://${SCENARIO#${REPO_ROOT}/}" ;;
   *)       RES_PATH="res://$SCENARIO" ;;
 esac
 
-cd "$(dirname "$0")/.."
+cd "$REPO_ROOT"
 
 exec timeout "$TIMEOUT_SEC" xvfb-run -a \
   godot4 --path . -- --puppet-scenario="$RES_PATH"
