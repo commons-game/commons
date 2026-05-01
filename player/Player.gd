@@ -759,18 +759,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F:
 			_do_place_use()
 		KEY_C:
-			# Open crafting menu or cycle to next recipe if already open.
-			var cs := get_node_or_null("../CraftingSystem")
-			if cs != null:
-				if cs.get("is_open"):
-					cs.call("_cycle", 1)
-				else:
-					cs.call("open_menu")
-			else:
-				# Fallback: open CraftingUI if present.
-				var cui := get_node_or_null("../CraftingUI")
-				if cui != null:
-					cui.call("toggle")
+			# Unified crafting flow: C is the only crafting key. CraftingUI.toggle()
+			# auto-detects workbench mode from is_near_workbench() at open-time,
+			# so the same key opens hand-recipes (2×2) or hand+workbench-recipes
+			# (3×3) depending on where the player is standing — no more
+			# "press E next to a workbench, C otherwise" two-key split.
+			var cui := get_node_or_null("../CraftingUI")
+			if cui != null:
+				cui.call("toggle")
 		KEY_L:
 			# Toggle lantern — mirrors whether lantern tool is in action bar.
 			if _lantern != null:
@@ -810,8 +806,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			if ui != null:
 				ui.call("toggle")
 		KEY_E:
-			# Open workbench if standing within 2 tiles of one.
-			_try_open_workbench()
+			# E aliases C — both go through the unified CraftingUI.toggle()
+			# proximity flow. Kept as an alias (not removed) so muscle memory
+			# from the pre-unification "E for workbench" keybind still opens
+			# the same UI; workbench mode is auto-detected.
+			var cui := get_node_or_null("../CraftingUI")
+			if cui != null:
+				cui.call("toggle")
 		KEY_ENTER, KEY_KP_ENTER:
 			# Enter is handled by ChatInput's LineEdit when chat is active.
 			pass
@@ -835,12 +836,21 @@ func _on_talisman_toggled(awakened: bool) -> void:
 	print("Player: talisman %s" % ("awakened" if awakened else "dormant"))
 	# Future: emit signal for HUD, VibeBus, visual effect.
 
-## Check tiles within 2-tile radius for a workbench (atlas 1,2 on object layer).
-## If found, opens the CraftingUI in workbench mode.
-func _try_open_workbench() -> void:
+## Chebyshev radius used by the unified crafting UI to decide whether to
+## unlock workbench recipes when the player opens it. Public-ish (also read
+## by CraftingUI.toggle via is_near_workbench()) so the constant lives in
+## one place.
+const WORKBENCH_RANGE := 2
+
+## True iff a workbench tile (atlas 1,2 on the object layer) sits within
+## WORKBENCH_RANGE Chebyshev tiles of the player. Used by CraftingUI.toggle
+## to auto-detect workbench mode at open-time, replacing the old "press E
+## to open workbench, press C for hand" two-key flow.
+func is_near_workbench() -> bool:
+	if chunk_manager == null:
+		return false
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
-	const WORKBENCH_RANGE := 2
 	for dy in range(-WORKBENCH_RANGE, WORKBENCH_RANGE + 1):
 		for dx in range(-WORKBENCH_RANGE, WORKBENCH_RANGE + 1):
 			var check_pos := tile_pos + Vector2i(dx, dy)
@@ -849,10 +859,8 @@ func _try_open_workbench() -> void:
 				continue
 			var atlas := Vector2i(int(tile.get("atlas_x", -1)), int(tile.get("atlas_y", -1)))
 			if atlas == Vector2i(1, 2):  # workbench
-				var cui := get_node_or_null("../CraftingUI")
-				if cui != null:
-					cui.call("open_workbench")
-				return
+				return true
+	return false
 
 ## Called by World when ShrineManager.buffs_changed fires.
 ## Updates appearance so CharacterRenderer switches to mod visuals.

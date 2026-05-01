@@ -217,16 +217,42 @@ func show_ui() -> void:
 func hide_ui() -> void:
 	visible = false
 
+## Open or close the crafting UI. When opening, auto-detect workbench mode by
+## asking the player whether a workbench is within WORKBENCH_RANGE — no more
+## "press E for workbench, C for hand" two-key split. Hand mode = 2×2 grid;
+## workbench mode = 3×3 grid with workbench-only recipes unlocked.
 func toggle() -> void:
 	if visible:
 		hide_ui()
+		return
+	_workbench_mode = _detect_workbench_proximity()
+	if _workbench_mode:
+		_grid = []
+		for i in range(9):
+			_grid.append({})
 	else:
-		_workbench_mode = false
 		_grid = [{}, {}, {}, {}]
-		_rebuild_panel()
-		show_ui()
+	_rebuild_panel()
+	show_ui()
 
-## Open in workbench mode (3×3 grid, all recipes available).
+## Asks the player node whether a workbench is within WORKBENCH_RANGE.
+## Falls back to false if the Player isn't reachable — keeps the UI open in
+## hand mode rather than crashing in headless tests with no World tree.
+func _detect_workbench_proximity() -> bool:
+	# CraftingUI is added as a sibling of Player under World, so go up one.
+	var parent := get_parent()
+	if parent == null:
+		return false
+	var player := parent.get_node_or_null("Player")
+	if player != null and player.has_method("is_near_workbench"):
+		return bool(player.call("is_near_workbench"))
+	return false
+
+## Open in workbench mode (3×3 grid, all recipes available). Kept as a
+## standalone entry point so unit tests (and any caller that wants to force
+## workbench mode without setting up world geometry) don't have to fake a
+## proximity query. Player input no longer calls this — it goes through
+## toggle() so the proximity check fires.
 func open_workbench() -> void:
 	_workbench_mode = true
 	_grid = []
