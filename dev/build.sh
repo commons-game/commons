@@ -18,6 +18,21 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build
 
+# Resolve godot4. Non-interactive ssh shells (which is how dev/play.sh invokes
+# this script) don't source ~/.bashrc, so $HOME/bin etc. aren't on PATH and a
+# bare `godot4` lookup fails. Honour an explicit GODOT4 override, then PATH,
+# then the common ~/bin install location, then bail loudly.
+GODOT4="${GODOT4:-$(command -v godot4 || true)}"
+if [[ -z "${GODOT4}" && -x "${HOME}/bin/godot4" ]]; then
+  GODOT4="${HOME}/bin/godot4"
+fi
+if [[ -z "${GODOT4}" || ! -x "${GODOT4}" ]]; then
+  echo "ERROR: godot4 not found. Set GODOT4=/path/to/godot4 or add it to PATH." >&2
+  echo "       Searched: \$GODOT4, \$PATH, \$HOME/bin/godot4" >&2
+  exit 1
+fi
+echo "=> Using godot4: ${GODOT4}"
+
 GV_FILE="autoloads/GameVersion.gd"
 SHA="$(git rev-parse --short HEAD)"
 ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -42,6 +57,6 @@ if ! grep -q "\"${STAMP}\"" "$GV_FILE"; then
   exit 1
 fi
 
-godot4 --headless --path . --export-release LinuxX11 build/commons.x86_64
+"${GODOT4}" --headless --path . --export-release LinuxX11 build/commons.x86_64
 
 echo "Built: build/commons.x86_64 ($(du -h build/commons.x86_64 | cut -f1))  stamp=${STAMP}"
