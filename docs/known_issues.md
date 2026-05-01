@@ -53,7 +53,7 @@
 
 ### CraftingSystem: recipe selection overlay (replaces auto-craft)
 **Status:** Implemented.
-**Detail:** `KEY_C` now opens a CanvasLayer overlay listing all hand recipes (affordable first, greyed-out unaffordable ones after). C / Up / Down cycle selection; Enter crafts; Escape closes. `CraftingSystem.try_craft()` has been removed — the new entry points are `open_menu()`, `close_menu()`, `_cycle(dir)`, `_confirm_craft()`. Workbench mode (`KEY_E`) is unchanged and still opens `CraftingUI`.
+**Detail:** `KEY_C` now opens a CanvasLayer overlay listing all hand recipes (affordable first, greyed-out unaffordable ones after). C / Up / Down cycle selection; Enter crafts; Escape closes. `CraftingSystem.try_craft()` has been removed — the new entry points are `open_menu()`, `close_menu()`, `_cycle(dir)`, `_confirm_craft()`. `KEY_E` aliases `KEY_C` and routes through the same overlay; workbench mode is auto-detected by proximity (Player.is_near_workbench()).
 
 ### RecipeRegistry: campfire recipe changed from 4 wood to 3 wood
 **Status:** Updated to match survival spine design doc.

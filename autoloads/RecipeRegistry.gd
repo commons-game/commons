@@ -67,8 +67,8 @@ func match_recipe(items: Dictionary, workbench_mode: bool = false) -> Dictionary
 			return (recipe["output"] as Dictionary).duplicate()
 	return {}
 
-## Returns all registered recipes (read-only copy). Used by CraftingUI to list
-## known recipes the player could work toward.
+## Returns all registered recipes (read-only copy). Used by CraftingSystem to
+## list known recipes the player could work toward.
 func all_recipes() -> Array:
 	return _recipes.duplicate()
 

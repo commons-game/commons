@@ -50,7 +50,6 @@ const NightDarknessScript         := preload("res://world/NightDarkness.gd")
 const MoonHUDScript               := preload("res://ui/MoonHUD.gd")
 const PerfTortureTestsScript      := preload("res://dev/PerfTortureTests.gd")
 const EquipmentUIScript           := preload("res://ui/EquipmentUI.gd")
-const CraftingUIScript            := preload("res://ui/CraftingUI.gd")
 const CampfireSystemScript        := preload("res://world/CampfireSystem.gd")
 const HotbarScript                := preload("res://ui/Hotbar.gd")
 const CraftingSystemScript2       := preload("res://items/CraftingSystem.gd")
@@ -133,7 +132,6 @@ func _ready() -> void:
 	_setup_day_night_system()
 	_setup_debug_overlay()
 	_setup_equipment_ui()
-	_setup_crafting_ui()
 	_setup_campfire_system()
 	_setup_hotbar()
 	_setup_crafting_system()
@@ -873,12 +871,6 @@ func _setup_equipment_ui() -> void:
 	ui.name = "EquipmentUI"
 	add_child(ui)
 	ui.call("init", $Player)
-
-func _setup_crafting_ui() -> void:
-	var cui := CraftingUIScript.new()
-	cui.name = "CraftingUI"
-	cui.inventory = $Player.inventory
-	add_child(cui)
 
 func _setup_campfire_system() -> void:
 	var cs := CampfireSystemScript.new()

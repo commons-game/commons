@@ -1,8 +1,9 @@
 ## Workbench — crafting station. Ownerless CRDT-persisted structure tile.
 ##
-## Standing within 2 tiles and pressing E opens the CraftingUI in workbench
-## mode (3×3 grid, workbench-required recipes unlocked). Proximity check lives
-## in Player._try_open_workbench, keyed on object-layer atlas (1,2).
+## Standing within WORKBENCH_RANGE tiles (Player.is_near_workbench) and pressing
+## E (or C) opens the list-style CraftingSystem overlay in workbench mode, which
+## unlocks workbench-required recipes (e.g. wooden_axe). Proximity is keyed on
+## object-layer atlas (1,2).
 ##
 ## Mirrors Bedroll.gd in shape: a passive ownerless structure with no internal
 ## state worth persisting beyond the tile itself.
