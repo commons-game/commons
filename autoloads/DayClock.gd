@@ -1,108 +1,119 @@
-## DayClock — autoload. Derives day/night phase from real unix time.
+## DayClock — autoload. Thin wrapper around a single DayClockInstance.
 ##
-## All clients share the same phase automatically because they all derive it
-## from the same wall clock with no network sync needed.
+## Phase 0a of the per-island clock refactor: the actual time-of-day logic
+## now lives in res://world/DayClockInstance.gd (a RefCounted value object).
+## This autoload owns one instance and delegates every public call to it.
+## External behaviour is unchanged — every call site can keep using
+## `DayClock.is_daytime()`, `DayClock.phase_changed`, `DayClock._time_override`,
+## etc., exactly as before.
 ##
-## Cycle: DAY_CYCLE_SECONDS = 7200 (60 min day + 60 min night)
+## Phase 0b will introduce Island, which owns its own DayClockInstance.
+## Phase 0c turns this autoload into a shim that resolves the active island's
+## clock instead of holding the instance directly.
+##
+## All clients still share the same phase automatically because the underlying
+## instance derives time from the wall clock (no network sync needed).
+##
+## Cycle: Constants.DAY_CYCLE_SECONDS (default 7200 = 60 min day + 60 min night)
 ##   Phase 0.00–0.50 = daytime  (phase_fraction 0 = dawn, 0.25 = midday)
 ##   Phase 0.50–1.00 = nighttime (0.50 = dusk, 0.75 = midnight)
 ##
-## sky_alpha(): darkness overlay opacity — 0.0 at midday, 1.0 at midnight.
-##
 ## Testability: set _time_override >= 0 to pin the clock to a fixed unix time.
+## (Forwards to the wrapped instance.)
 extends Node
 
+const DayClockInstanceScript := preload("res://world/DayClockInstance.gd")
+
+## Re-exported so existing callers reading `DayClock.MOON_PHASE_COUNT` keep working.
+const MOON_PHASE_COUNT := DayClockInstanceScript.MOON_PHASE_COUNT
+
 ## Emitted when the phase crosses the day/night boundary.
+## Re-emitted from the wrapped instance — connections established before
+## _ready() ran on this autoload still work because we only forward.
 signal phase_changed(is_day: bool)
 
-## Set to a non-negative value to pin the clock to a fixed unix time (tests only).
-var _time_override: float = -1.0
+## The wrapped instance. Held as Object so callers that import
+## DayClockInstanceScript don't have to (the class is intentionally not
+## globally registered — preload it where needed).
+var _instance: Object = null
 
-## Added to real unix time so the cycle starts at a desired phase.
-## Set via set_start_phase() — does not stop the clock ticking.
-var _time_offset: float = 0.0
+# --- Forwarded mutable state ---
+#
+# Some call sites (e.g. World.gd dev hooks, tests) write _time_override
+# directly. Expose a property that round-trips to the instance so the
+# attribute name stays identical post-extraction.
 
-## Shift the clock so the cycle phase is `phase` right now, then let it run.
-func set_start_phase(phase: float) -> void:
-	var delta_phase := phase - phase_fraction()
-	_apply_time_delta(delta_phase * Constants.DAY_CYCLE_SECONDS)
+var _time_override: float:
+	get:
+		return _instance._time_override
+	set(value):
+		_instance._time_override = value
 
-## Jump the clock *forward* until phase_fraction() == phase. Never rewinds.
-## Use for "respawn at dawn" — we want time to move, not unwind.
-## phase_changed will emit on the next tick if we crossed the day/night boundary.
-func advance_to_phase(phase: float) -> void:
-	var delta_phase := phase - phase_fraction()
-	if delta_phase < 0.0:
-		delta_phase += 1.0  # wrap forward to next cycle
-	_apply_time_delta(delta_phase * Constants.DAY_CYCLE_SECONDS)
+var _time_offset: float:
+	get:
+		return _instance._time_offset
+	set(value):
+		_instance._time_offset = value
 
-## Shifts the active time source by delta_sec. Honours _time_override when set
-## so tests using pinned clocks also see the clock advance.
-func _apply_time_delta(delta_sec: float) -> void:
-	if _time_override >= 0.0:
-		_time_override += delta_sec
-	else:
-		_time_offset += delta_sec
+func _init() -> void:
+	# Create the instance in _init() (not _ready()) so the wrapper is fully
+	# usable as soon as `DayClockScript.new()` returns. The 29 existing
+	# autoload tests construct a wrapper, set _time_override on it, and call
+	# methods *without* ever adding it to the scene tree — _ready() never
+	# fires for them, so the instance must already exist by the time _init()
+	# completes.
+	_instance = DayClockInstanceScript.new()
+	# Re-emit the instance signal so DayClock.phase_changed.connect(...) callers
+	# (NightSpawner, DayNightSystem, NightDarkness, Pale, etc.) keep working
+	# without any code change.
+	_instance.phase_changed.connect(_on_instance_phase_changed)
 
-var _last_is_day: bool = true
+func _on_instance_phase_changed(is_day: bool) -> void:
+	phase_changed.emit(is_day)
 
 func _ready() -> void:
-	_last_is_day = is_daytime()
+	# Preserve the legacy autoload semantics: the original DayClock seeded
+	# _last_is_day in _ready(), i.e. the first time the node entered the
+	# scene tree. Tests construct via `.new()`, then set _time_override on the
+	# wrapper, *then* add_child() — at which point _ready() fires and the
+	# original code re-read is_daytime() from the now-pinned time. We mimic
+	# that here so test_day_clock.gd's signal-transition cases keep working
+	# without modification.
+	_instance.resync_phase()
 
-## Called each frame (or manually via tick() in tests).
+## Called each frame by the engine when this autoload is in the scene tree.
+## When constructed via `.new()` (tests), call tick() manually instead.
 func _process(delta: float) -> void:
 	tick(delta)
 
-func tick(_delta: float) -> void:
-	var now_day := is_daytime()
-	if now_day != _last_is_day:
-		_last_is_day = now_day
-		phase_changed.emit(now_day)
+# --- Forwarded API ---
 
-## Returns position within the full cycle as a value in [0, 1).
+func tick(delta: float) -> void:
+	_instance.tick(delta)
+
+func set_start_phase(phase: float) -> void:
+	_instance.set_start_phase(phase)
+
+func advance_to_phase(phase: float) -> void:
+	_instance.advance_to_phase(phase)
+
 func phase_fraction() -> float:
-	return fmod(_get_unix_time(), Constants.DAY_CYCLE_SECONDS) / Constants.DAY_CYCLE_SECONDS
+	return _instance.phase_fraction()
 
-## Returns true during the daytime half of the cycle (phase_fraction < 0.5).
 func is_daytime() -> bool:
-	return phase_fraction() < 0.5
+	return _instance.is_daytime()
 
-## Returns darkness overlay alpha: 0.0 at midday, 1.0 at midnight.
-## Uses a smooth sinusoidal curve so transitions feel gradual.
 func sky_alpha() -> float:
-	# phase_fraction: 0=dawn, 0.25=midday, 0.5=dusk, 0.75=midnight
-	# Shift cosine by -0.25 so the minimum (cos=1→alpha=0) lands at midday,
-	# and the maximum (cos=-1→alpha=1) lands at midnight.
-	var angle := (phase_fraction() - 0.25) * TAU
-	return clampf((1.0 - cos(angle)) * 0.5, 0.0, 1.0)
+	return _instance.sky_alpha()
 
-# --- Moon phases ---
-#
-# Moon advances one phase per in-game day; 8 phases cycle every ~16 hours real time
-# at DAY_CYCLE_SECONDS=7200. Phase index: 0=new, 4=full; moon_fullness() is symmetric
-# around phase 4 so you get new → waxing → full → waning → new as a triangle wave.
-
-const MOON_PHASE_COUNT := 8
-
-## Integer day count since unix epoch (offset-aware).
 func day_count() -> int:
-	return int(floor(_get_unix_time() / Constants.DAY_CYCLE_SECONDS))
+	return _instance.day_count()
 
-## Current moon phase index. 0=new, 4=full. Advances at each dawn.
 func moon_phase() -> int:
-	var c := day_count() % MOON_PHASE_COUNT
-	if c < 0: c += MOON_PHASE_COUNT
-	return c
+	return _instance.moon_phase()
 
-## Moon "fullness" in [0, 1]. 0 = new moon (pitch dark), 1 = full moon (bright).
-## Symmetric: phases 0..4 rise linearly to full, phases 4..8 fall back to new.
 func moon_fullness() -> float:
-	var p := moon_phase()
-	return 1.0 - abs(p - 4) / 4.0
-
-# --- Internal ---
+	return _instance.moon_fullness()
 
 func _get_unix_time() -> float:
-	if _time_override >= 0.0:
-		return _time_override
-	return Time.get_unix_time_from_system() + _time_offset
+	return _instance._get_unix_time()
