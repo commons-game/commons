@@ -59,7 +59,7 @@ func test_open_menu_with_null_inventory_stays_closed() -> void:
 # ---------------------------------------------------------------------------
 
 func test_affordable_recipes_come_before_unaffordable() -> void:
-	# 3 wood → can afford campfire but not bedroll (4) or workbench (6).
+	# 3 wood → can afford campfire but not workbench (6 wood) or bedroll (4 reeds).
 	_inv.add_to_bag({"id": "wood", "category": "material", "count": 3}, 32)
 	_cs.open_menu()
 	assert_int(_cs._display_recipes.size()).is_greater(0)

@@ -1,8 +1,8 @@
 ## Tests for RecipeRegistry — shapeless recipe matching.
 ##
-## Recipe reference (as of survival spine step 5):
+## Recipe reference (as of survival spine step 5, post-reeds):
 ##   3 wood               → campfire   (hand)
-##   4 wood               → bedroll    (hand)
+##   4 reeds              → bedroll    (hand)   [Phase 1b: was 4 wood]
 ##   6 wood               → workbench  (hand)
 ##   2 stone + 2 wood     → flint_knife (hand)
 ##   3 wood               → wooden_axe (workbench, takes priority over campfire in wb mode)
@@ -52,10 +52,17 @@ func test_campfire_count_is_1() -> void:
 	var out: Dictionary = r.match_recipe({"wood": 3})
 	assert_int(int(out.get("count", 0))).is_equal(1)
 
-func test_four_wood_yields_bedroll() -> void:
+func test_four_reeds_yields_bedroll() -> void:
+	var r = _make()
+	var out: Dictionary = r.match_recipe({"reeds": 4})
+	assert_str(str(out.get("id", ""))).is_equal("bedroll")
+
+func test_four_wood_no_longer_yields_bedroll() -> void:
+	# Phase 1b: bedroll moved from 4 wood to 4 reeds.
+	# 4 wood is no longer a recipe (no other recipe consumes exactly 4 wood).
 	var r = _make()
 	var out: Dictionary = r.match_recipe({"wood": 4})
-	assert_str(str(out.get("id", ""))).is_equal("bedroll")
+	assert_bool(out.is_empty()).is_true()
 
 func test_six_wood_yields_workbench() -> void:
 	var r = _make()
@@ -182,9 +189,9 @@ func test_single_stone_no_match() -> void:
 
 func test_bedroll_also_available_in_workbench_mode() -> void:
 	# Hand-craft recipes are always available, even in workbench mode.
-	# 4 wood → bedroll regardless of workbench mode (no workbench recipe uses 4 wood).
+	# 4 reeds → bedroll regardless of workbench mode (no workbench recipe uses reeds).
 	var r = _make()
-	var out: Dictionary = r.match_recipe({"wood": 4}, true)
+	var out: Dictionary = r.match_recipe({"reeds": 4}, true)
 	assert_str(str(out.get("id", ""))).is_equal("bedroll")
 
 func test_workbench_structure_also_available_in_workbench_mode() -> void:
