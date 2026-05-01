@@ -106,7 +106,7 @@ The day/night cycle is the heartbeat of the game. It creates a natural session r
 
 Night cannot be skipped from within an island. The clock advances in real time — you survive it or you don't. Fresh spawns without a Tether wake at dawn (see *Spawn timing* below), but once you're in the world, time moves at its own pace.
 
-*(Long-term: the clock is scoped per island, not globally — see `Per-island time of day (deferred)` in the Deferred Design section.)*
+*(The clock is scoped per island, not globally — see `Per-island time of day` in the Deferred Design section for how merges blend two island clocks into one.)*
 
 ### Night serves three purposes
 
@@ -393,11 +393,9 @@ The merge is an information asymmetry game. Both players share the same world bu
 
 - **Light mechanics** — how mobs and the world respond to artificial light. Torches, campfires, shrine glow. Does light repel Sprouts? Does it attract Tendrils? Does Still territory extinguish flame? Revisit when mob system is built.
 
-### Per-island time of day *(deferred — do not remove this section)*
+### Per-island time of day
 
-**Status:** Not implemented. Currently `DayClock` is a global autoload — all players on all islands share one clock. Keeping this note because we've decided the direction and the architecture needs to evolve toward it.
-
-**The decision.** Time of day is a **per-island** property, not a global one. Each simulation island advances its own clock, and when islands merge, their clocks blend quickly into one. This makes time of day a *reality dimension* — another axis the multiverse varies along, alongside biome layout, faction, and force.
+Time of day is a **per-island** property, not a global one. Each simulation island advances its own clock; when two islands merge, the lagging clock accelerates to catch the leader and the two merge into a single clock that both peers read identically. Time of day is a *reality dimension* — another axis the multiverse varies along, alongside biome layout, faction, and force.
 
 **Why this is the right direction:**
 
@@ -411,23 +409,21 @@ The merge is an information asymmetry game. Both players share the same world bu
 - The ability to say "everyone faces night together." This was a coordination primitive — all players share a countdown. With per-island time, synchronized events have to be driven by something other than the clock (e.g., merge pressure, in-world signals).
 - Simplicity. One global `DayClock.now()` becomes `island.day_clock.now()`, which means passing an island context into every lighting/mob/weather system that reads the clock.
 
-**What the migration looks like when we eventually do it:**
+**How it works as built:**
 
-1. **Island object gains a `day_clock`.** Every island (including the implicit single-island state today) owns its own `DayClock` instance. The global `DayClock` autoload becomes a shim that resolves to "the current player's island clock" for single-player and solo sessions.
-2. **Time-reading code takes an island context.** Anything that currently calls `DayClock.is_daytime()` has to know *whose* daytime — almost always "the player's current island," which is always resolvable from the player's position. Signal connections have to move from the global autoload to the per-island clock.
-3. **Merges blend clocks.** When two islands merge, the resulting island picks a starting time (probably weighted by population, or the most-advanced clock, or the average — TBD from playtesting). Over a short window (~10 real seconds) the *visual* lighting interpolates from both sources to the merged value. Players cross the seam and see the sky color shift. Mob spawns and day-gated drops switch to the merged clock immediately — only the rendering blends. This is the "fast blend = sign of changing reality" feeling we want.
-4. **Fresh spawns pick an island.** The spawn system already has to pick *where* to place an unanchored player. With per-island time, the picker also prefers islands whose local clock is near dawn, ensuring the fair-start promise without a special case.
-5. **Moon phases go per-island too.** Moon phase is tied to the island's day count, so different islands can genuinely have different skies. This is where the dimension starts feeling thick.
+- **Island is a first-class type.** An `Island` (RefCounted, in `world/Island.gd`) owns one `DayClockInstance` and tracks its members by `session_id`. `IslandRegistry` (autoload) holds every live island and exposes `active_island()` — the one the local session currently inhabits. A peer always has at least one island; the session starts with a single default island.
+- **`DayClock` is a shim.** The autoload no longer owns its clock. Every method (`is_daytime()`, `phase_fraction()`, `sky_alpha()`, `moon_phase()`, etc.) forwards to `IslandRegistry.active_island().clock`. Callsites are unchanged — `DayClock.is_daytime()` still works everywhere — but the answer now depends on which island is active.
+- **Active-island swap.** `IslandRegistry.set_active_island(id)` emits `active_island_changed`; the shim rebinds its `phase_changed` relay to the new clock and calls `resync_phase()` so a stale `_last_is_day` doesn't fire spuriously. If the swap crosses a day/night boundary (old clock said day, new clock says night, or vice versa) the shim emits a synthetic `phase_changed` so `NightDarkness` and `NightSpawner` flip immediately.
+- **Merge transition (the actual mechanic).** When ENet connects two peers, `MergeCoordinator` runs a two-phase handshake: each side fires `_local_merge_ready` locally and RPCs its current `total_phase` to the other side as `_remote_clock_phase`. Whichever event lands second on a peer triggers `IslandRegistry.begin_merge(remote_phase, 10s, merged_id)`. Either order is valid. The lagging peer's clock calls `accelerate_to(target_total_phase, 10s)` — its `_time_offset` ramps forward over 10 wall-seconds so its phase catches the leader. The leading peer's `accelerate_to` is a no-op (target ≤ current; never rewind). During the ramp, `MergeCoordinator._process` calls `IslandRegistry.tick_merge(delta)` so day/night boundaries crossed mid-ramp still emit `phase_changed`. Once the lagging clock reports `is_accelerating() == false` and has caught the target, both peers swap their active island to the merged one.
+- **Deterministic merged-island id.** The merged island's id is `"merge:" + sorted_session_ids.join(":")`, computed identically on both peers. Both create the merged island independently and seed its clock by setting `_time_offset = target_unix_time - wall_now`, so the two freshly-constructed clocks land at observationally identical phases — no clock-object RPC needed.
+- **Split.** When the merge dissolves, each peer calls `IslandRegistry.split_from_merge("solo:" + session_id)`. The session-scoped id is stable across reconnects and never collides with the partner's solo island. The new island's clock is seeded from the current converged total phase — never rewound. After a peer has merged once and split, its active island is its `solo:` island, not the original `default`.
 
-**Interim behavior (what ships now):**
+**What's still deferred** (will land later — not blocking Phase 1):
 
-- Keep `DayClock` global. One clock for the whole session.
-- On fresh spawn without a Tether, **advance the global clock to dawn** if it's currently night. Solo sessions: this is the spec. Multiplayer sessions with other players mid-night: accept that fresh spawn yanks the whole session to dawn for now — it's a real cost but the fair-start promise is more important, and when per-island time lands this edge case vanishes. Document this tradeoff in release notes so multiplayer players know.
-- Moon phase is tracked on the global clock — one phase for everyone until per-island lands.
-
-**When we'd revisit:** when we're actively working on the island/merge system for other reasons. This is a natural graft onto that work — not worth opening up the clock architecture just for this, but very cheap to do *while* we're already in there.
-
-**Do not remove this section when the feature lands.** Convert it to a "how per-island time works" reference once implemented.
+- **Per-chunk visual blend across the merge seam** — the "second sun on the horizon" / sky-gradient effect from the original sketch. The clock data is per-island already, but the lighting pipeline still draws one sky for the local viewport.
+- **Per-island moon phases.** `moon_phase()` works per-clock today, but no system exposes a different moon to a remote-island observer.
+- **Spawn picker preferring near-dawn islands.** Fresh spawns still resolve to whichever island the spawn system picks; the picker doesn't yet weight by clock phase.
+- **Persistence.** Islands and their clocks are ephemeral — created at session start, destroyed at exit. Tying islands to the Tether/home concept (so a peer's solo island survives across sessions) is a later phase.
 
 ---
 
