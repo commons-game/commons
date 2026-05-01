@@ -475,6 +475,23 @@ func _do_place_use() -> void:
 	elif item_cat == "food":
 		_try_eat()
 
+## Predicate: is `item_id` a placeable structure?
+##
+## True iff the id is registered as a tile AND its atlas coord is registered as
+## a structure scene. Both registries must agree — having only a TileRegistry
+## entry (e.g. "grass") or only a StructureRegistry entry (would be a bug) does
+## not qualify. Static so unit tests can call it without instantiating Player.
+##
+## Replaces a hardcoded whitelist that silently dropped any new structure
+## (workbench was the last casualty).
+static func is_structure_item(item_id: String) -> bool:
+	if not TileRegistry.has_tile(item_id):
+		return false
+	var entry: Dictionary = TileRegistry.resolve(item_id)
+	if entry.is_empty():
+		return false
+	return StructureRegistry.is_structure(entry["atlas"])
+
 ## Place a structure one tile in front of the player.
 func _place_structure(item_id: String) -> void:
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
@@ -512,7 +529,11 @@ func _place_structure(item_id: String) -> void:
 		return
 
 	# Persisted structures go through TileMutationBus → CRDT → StructureRegistry.
-	if item_id == "campfire" or item_id == "workbench" or item_id == "bedroll" or item_id == "tether" or item_id == "shrine":
+	# Registry-driven: any item that is a tile AND whose atlas is a registered
+	# structure dispatches here automatically. No hardcoded whitelist — adding a
+	# new structure is one entry in TileRegistry + one in StructureRegistry, and
+	# placement Just Works without touching this file.
+	if is_structure_item(item_id):
 		var bus: Node = get_node_or_null("../TileMutationBus")
 		if bus == null:
 			print("Player: no TileMutationBus — cannot place structure")
