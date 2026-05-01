@@ -138,9 +138,27 @@ func _handle_melee(tile_pos: Vector2i, player: Node,
 		inventory: Object, tool_id: String) -> void:
 	if not _in_range(tile_pos, player):
 		return
+	# Snap player facing toward the click *before* the cooldown gate. Facing
+	# is a UI/orientation concern, not gated on swing cadence — the player
+	# should visibly face what they're trying to hit even while the cooldown
+	# blocks the actual swing. Without this the character keeps whichever
+	# facing the last WASD input set, so you'd visually face UP while
+	# clicking on a tree to the EAST.
+	_face_toward(player, tile_pos)
 	if not player.start_swing():
 		return
 	_swing_tile(tile_pos, inventory, tool_id)
+
+## Snap `player._facing` to the unit vector from the player's tile toward
+## `target_tile`. No-op if the click is on the player's own tile (zero vector
+## would zero out facing and confuse the renderer).
+func _face_toward(player: Node, target_tile: Vector2i) -> void:
+	var pos: Vector2 = (player as Node2D).position
+	var ptile := Vector2i(int(floorf(pos.x / Constants.TILE_SIZE)),
+	                      int(floorf(pos.y / Constants.TILE_SIZE)))
+	var delta := Vector2(target_tile - ptile)
+	if delta.length() > 0.0:
+		player.set("_facing", delta.normalized())
 
 func _swing_tile(tile_pos: Vector2i, inventory: Object,
 		tool_id: String = "") -> void:
