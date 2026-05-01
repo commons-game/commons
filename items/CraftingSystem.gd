@@ -32,16 +32,27 @@ var _vbox: VBoxContainer = null
 var _display_recipes: Array = []
 ## Index of the currently highlighted row.
 var _selected: int = 0
+## True iff the overlay was opened next to a workbench (auto-detected by the
+## caller via Player.is_near_workbench()). Stored on the instance so a later
+## _build_recipe_list() refresh keeps the same filter.
+var _workbench_mode: bool = false
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 ## Build the recipe list, show the overlay, and enter selection mode.
-func open_menu() -> void:
+##
+## workbench_mode: when true, recipes flagged requires_workbench=true (e.g.
+## wooden_axe, stone_pickaxe) are included alongside the hand recipes. When
+## false (the default), workbench recipes are filtered out. Player.gd passes
+## is_near_workbench() so the same key (C or E) opens the right list based on
+## proximity — replacing the legacy two-key C/E split.
+func open_menu(workbench_mode: bool = false) -> void:
 	if inventory == null:
 		push_warning("CraftingSystem: no inventory")
 		return
+	_workbench_mode = workbench_mode
 	_build_recipe_list()
 	if _display_recipes.is_empty():
 		_show_float_text("No recipes known")
@@ -114,7 +125,7 @@ func _build_recipe_list() -> void:
 	var affordable: Array = []
 	var unaffordable: Array = []
 	for recipe in RecipeRegistry.all_recipes():
-		if bool(recipe.get("requires_workbench", false)):
+		if not _workbench_mode and bool(recipe.get("requires_workbench", false)):
 			continue
 		if _can_afford(recipe):
 			affordable.append(recipe)
@@ -188,9 +199,10 @@ func _build_overlay() -> void:
 	_panel.color = Color(0.08, 0.08, 0.08, 0.88)
 	_canvas.add_child(_panel)
 
-	# Title label.
+	# Title label. Suffix " — WORKBENCH" when proximity opened workbench recipes.
 	var title := Label.new()
-	title.text = "CRAFTING  (C/↑↓ cycle · Enter craft · Esc close)"
+	var suffix: String = "  (WORKBENCH)" if _workbench_mode else ""
+	title.text = "CRAFTING%s  (C/↑↓ cycle · Enter craft · Esc close)" % suffix
 	title.add_theme_font_size_override("font_size", 11)
 	title.add_theme_color_override("font_color", Color(0.65, 0.65, 0.65))
 	title.position = Vector2(PADDING, PADDING)

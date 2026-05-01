@@ -759,14 +759,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_F:
 			_do_place_use()
 		KEY_C:
-			# Unified crafting flow: C is the only crafting key. CraftingUI.toggle()
-			# auto-detects workbench mode from is_near_workbench() at open-time,
-			# so the same key opens hand-recipes (2×2) or hand+workbench-recipes
-			# (3×3) depending on where the player is standing — no more
-			# "press E next to a workbench, C otherwise" two-key split.
-			var cui := get_node_or_null("../CraftingUI")
-			if cui != null:
-				cui.call("toggle")
+			# Unified crafting flow: C opens the list-style CraftingSystem
+			# overlay. The workbench_mode argument comes from is_near_workbench()
+			# so the same key shows hand-only recipes by default and includes
+			# workbench recipes (wooden_axe, stone_pickaxe, …) when the player
+			# is standing within WORKBENCH_RANGE of a workbench. Inverts the
+			# previous wiring (commit 3cab918), which routed C to the grid-style
+			# CraftingUI; the user prefers the list overlay.
+			var cs := get_node_or_null("../CraftingSystem")
+			if cs != null:
+				cs.call("open_menu", is_near_workbench())
 		KEY_L:
 			# Toggle lantern — mirrors whether lantern tool is in action bar.
 			if _lantern != null:
@@ -806,13 +808,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			if ui != null:
 				ui.call("toggle")
 		KEY_E:
-			# E aliases C — both go through the unified CraftingUI.toggle()
+			# E aliases C — both go through the unified list-style CraftingSystem
 			# proximity flow. Kept as an alias (not removed) so muscle memory
 			# from the pre-unification "E for workbench" keybind still opens
-			# the same UI; workbench mode is auto-detected.
-			var cui := get_node_or_null("../CraftingUI")
-			if cui != null:
-				cui.call("toggle")
+			# the crafting overlay; workbench mode is auto-detected.
+			var cs := get_node_or_null("../CraftingSystem")
+			if cs != null:
+				cs.call("open_menu", is_near_workbench())
 		KEY_ENTER, KEY_KP_ENTER:
 			# Enter is handled by ChatInput's LineEdit when chat is active.
 			pass
@@ -836,16 +838,16 @@ func _on_talisman_toggled(awakened: bool) -> void:
 	print("Player: talisman %s" % ("awakened" if awakened else "dormant"))
 	# Future: emit signal for HUD, VibeBus, visual effect.
 
-## Chebyshev radius used by the unified crafting UI to decide whether to
+## Chebyshev radius used by the unified crafting overlay to decide whether to
 ## unlock workbench recipes when the player opens it. Public-ish (also read
-## by CraftingUI.toggle via is_near_workbench()) so the constant lives in
-## one place.
+## by the C/E key handlers, which pass is_near_workbench() into
+## CraftingSystem.open_menu) so the constant lives in one place.
 const WORKBENCH_RANGE := 2
 
 ## True iff a workbench tile (atlas 1,2 on the object layer) sits within
-## WORKBENCH_RANGE Chebyshev tiles of the player. Used by CraftingUI.toggle
-## to auto-detect workbench mode at open-time, replacing the old "press E
-## to open workbench, press C for hand" two-key flow.
+## WORKBENCH_RANGE Chebyshev tiles of the player. Used by the C/E key
+## handlers to auto-detect workbench mode at open-time, replacing the old
+## "press E to open workbench, press C for hand" two-key flow.
 func is_near_workbench() -> bool:
 	if chunk_manager == null:
 		return false

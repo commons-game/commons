@@ -44,14 +44,20 @@ func _run(p: Node) -> void:
 	p.check(workbench_scene != null,
 		"no Workbench scene spawned at %s — StructureRegistry likely missing the (1,2) → Workbench.gd mapping" % tile)
 
-	# Step 3: the CraftingUI exists and starts closed (and not in workbench mode).
-	var cui: Node = world.get_node_or_null("CraftingUI")
-	p.check(cui != null, "World has no CraftingUI sibling node")
-	p.check(not bool(cui.visible), "sanity: CraftingUI should start hidden")
-	p.check(not bool(cui._workbench_mode), "sanity: CraftingUI should not start in workbench mode")
+	# Step 3: the CraftingSystem (list-style overlay) exists and starts closed.
+	# Note: CraftingUI (the grid-style overlay) is intentionally not asserted
+	# on here anymore — KEY_E routes to CraftingSystem since the C/E wiring
+	# was inverted (the user prefers the list overlay to the 2×2/3×3 grid).
+	var cs: Node = world.get_node_or_null("CraftingSystem")
+	p.check(cs != null, "World has no CraftingSystem sibling node")
+	p.check(not bool(cs.is_open), "sanity: CraftingSystem should start closed")
 
 	# Step 4: stand the player adjacent to the workbench (within the 2-tile
-	# WORKBENCH_RANGE used by Player._try_open_workbench) and press E.
+	# WORKBENCH_RANGE used by Player.is_near_workbench) and press E. Inventory
+	# needs at least one affordable recipe or open_menu() bails with
+	# "No recipes known" without flipping is_open.
+	var inv0: Object = p.player().inventory
+	inv0.add_to_bag({"id": "wood", "category": "material", "count": 6}, 32)
 	p.teleport(tile + Vector2i(-1, 0))
 	await p.wait_frames(2)
 
@@ -61,10 +67,19 @@ func _run(p: Node) -> void:
 	p.player()._unhandled_input(ev)
 	await p.wait_frames(3)
 
-	# Step 5: the CraftingUI is now open in workbench mode.
-	p.check(bool(cui.visible), "CraftingUI should be visible after pressing E next to workbench")
-	p.check(bool(cui._workbench_mode),
-		"CraftingUI should be in workbench mode after pressing E next to workbench")
+	# Step 5: CraftingSystem is now open and showing workbench recipes
+	# (wooden_axe, requires_workbench=true) because we are in WORKBENCH_RANGE.
+	p.check(bool(cs.is_open), "CraftingSystem should be open after pressing E next to workbench")
+	var has_workbench_recipe := false
+	for recipe in cs._display_recipes:
+		var out: Dictionary = (recipe as Dictionary).get("output", {}) as Dictionary
+		if str(out.get("id", "")) == "wooden_axe":
+			has_workbench_recipe = true
+			break
+	p.check(has_workbench_recipe,
+		"CraftingSystem next to workbench should include wooden_axe in _display_recipes — workbench-mode pass-through broken")
+	cs.close_menu()
+	await p.wait_frames(1)
 
 	# Step 6 (the real "no structure handler" regression): drive the placement
 	# path Player uses when the player right-clicks while holding a workbench.
@@ -89,7 +104,7 @@ func _run(p: Node) -> void:
 	p.check(inv.bag_stack_total("workbench") == 0,
 		"workbench should have been consumed from the bag after _place_structure")
 
-	p.pass_scenario("workbench tile places via bus, scene spawns, E opens CraftingUI in workbench mode, _place_structure handles 'workbench'")
+	p.pass_scenario("workbench tile places via bus, scene spawns, E opens CraftingSystem in workbench mode, _place_structure handles 'workbench'")
 
 ## Walk the chunk children looking for a node whose script path ends with the
 ## given suffix and whose world_tile_pos matches.
