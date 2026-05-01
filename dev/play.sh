@@ -44,6 +44,14 @@ fi
 
 mkdir -p "$LOCAL_DIR"
 
+# Trigger a fresh server-side build before pulling. Without this we'd rsync
+# whatever happens to be in build/ — which might be days old (we ran an
+# Apr-23 binary for a week before noticing). Cheap if the dev server has
+# nothing to rebuild; safe because dev/build.sh's trap reverts the
+# stamped GameVersion.gd whether the export succeeds or fails.
+echo "=> Triggering server-side build ..."
+ssh "$SERVER" "cd '$REMOTE_DIR' && ./dev/build.sh"
+
 echo "=> Pulling latest build from $SERVER ..."
 # Pulls commons.x86_64 and any sibling runtime libs (e.g. libwebrtc_native.so).
 rsync -azh --info=progress2 --delete \

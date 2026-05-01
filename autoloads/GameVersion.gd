@@ -15,3 +15,13 @@ extends Node
 const PROTOCOL_VERSION: int    = 1
 const GAME_VERSION:     String = "dev"
 const CONTRACT_VERSION: int    = 1
+
+## Boot-time stamp into godot.log so playtest sessions can answer
+## "is this binary current?" without re-deriving build provenance.
+##
+## dev/build.sh sed-replaces GAME_VERSION with "<git-sha> <iso-date>" before
+## export, so a stale binary's log shows an older SHA than HEAD on the dev
+## server. Without this print we ran an Apr-23 binary for a week and didn't
+## notice. See dev/build.sh / dev/play.sh for the workflow chain.
+func _ready() -> void:
+	print("[GameVersion] %s (protocol %d)" % [GAME_VERSION, PROTOCOL_VERSION])
