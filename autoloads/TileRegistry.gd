@@ -25,6 +25,7 @@ func _ready() -> void:
 	# StructureRegistry; the atlas entry exists so set_cell() accepts it,
 	# but the tile texture itself is blank — only the scene node renders.
 	register("campfire",  0, Vector2i(0, 3), 0)
+	register("workbench", 0, Vector2i(1, 2), 0)
 	register("bedroll",   0, Vector2i(1, 3), 0)
 	register("tether",    0, Vector2i(2, 3), 0)
 	register("shrine",    0, Vector2i(3, 3), 0)

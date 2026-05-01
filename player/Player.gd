@@ -512,7 +512,7 @@ func _place_structure(item_id: String) -> void:
 		return
 
 	# Persisted structures go through TileMutationBus → CRDT → StructureRegistry.
-	if item_id == "campfire" or item_id == "bedroll" or item_id == "tether" or item_id == "shrine":
+	if item_id == "campfire" or item_id == "workbench" or item_id == "bedroll" or item_id == "tether" or item_id == "shrine":
 		var bus: Node = get_node_or_null("../TileMutationBus")
 		if bus == null:
 			print("Player: no TileMutationBus — cannot place structure")

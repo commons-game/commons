@@ -18,6 +18,7 @@ var _scripts: Dictionary = {}  # Vector2i atlas → GDScript
 
 func _ready() -> void:
 	register(Vector2i(0, 3), preload("res://world/structures/Campfire.gd"))
+	register(Vector2i(1, 2), preload("res://world/structures/Workbench.gd"))
 	register(Vector2i(1, 3), preload("res://world/structures/Bedroll.gd"))
 	register(Vector2i(2, 3), preload("res://world/structures/Tether.gd"))
 	register(Vector2i(3, 3), preload("res://world/structures/Shrine.gd"))
