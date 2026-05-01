@@ -20,6 +20,11 @@ func _ready() -> void:
 	register("water",   0, Vector2i(3, 0), 0)
 	register("tree",    0, Vector2i(0, 1), 0)
 	register("rock",    0, Vector2i(1, 1), 0)
+	# Reeds — water-adjacent harvestable spawned by ProceduralGenerator in
+	# Verdant + Tangle. Bare-hand-harvested; yields the "reeds" material item
+	# (see ItemRegistry). Slot (4,1) is in the row-1 harvestables cluster
+	# alongside tree and rock.
+	register("reeds",   0, Vector2i(4, 1), 0)
 	register("ether_crystal", 0, Vector2i(3, 2), 0)
 	# Structure tiles. The visible scene is spawned by ChunkManager via
 	# StructureRegistry; the atlas entry exists so set_cell() accepts it,

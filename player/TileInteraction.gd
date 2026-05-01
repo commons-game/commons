@@ -53,6 +53,14 @@ const HARVESTABLE_TILES := {
 		"max_hp": 2,
 		"drops": [{"id": "berry", "category": "food", "min": 1, "max": 2}],
 	},
+	# Reeds — bare-hand-harvested. max_hp=1 means a single fist swing
+	# (damage=1, see _tool_damage's fall-through default) breaks the tile.
+	# Yields 1 reeds; the "near water" placement constraint lives in
+	# ProceduralGenerator, not here.
+	Vector2i(4, 1): {
+		"max_hp": 1,
+		"drops": [{"id": "reeds", "category": "material", "min": 1, "max": 1}],
+	},
 }
 
 @onready var _bus       := $"../../TileMutationBus"
@@ -281,6 +289,7 @@ func _spawn_death_particles(tile_pos: Vector2i, atlas: Vector2i) -> void:
 		Vector2i(0, 1): p.color = Color(0.25, 0.55, 0.15)  # tree → leafy green
 		Vector2i(1, 1): p.color = Color(0.50, 0.48, 0.44)  # rock → stone gray
 		Vector2i(2, 2): p.color = Color(0.20, 0.75, 0.20)  # plant → bright green
+		Vector2i(4, 1): p.color = Color(0.40, 0.70, 0.30)  # reeds → mid green
 		_:              p.color = Color(0.65, 0.60, 0.50)
 
 	_world.add_child(p)
@@ -306,6 +315,7 @@ func _atlas_type_name(atlas: Vector2i) -> String:
 		Vector2i(0, 1): return "tree"
 		Vector2i(1, 1): return "rock"
 		Vector2i(2, 2): return "plant"
+		Vector2i(4, 1): return "reeds"
 		_:              return "unknown"
 
 # ---------------------------------------------------------------------------

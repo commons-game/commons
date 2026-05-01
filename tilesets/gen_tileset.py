@@ -4,7 +4,8 @@ Generate placeholder_tileset.png — pure Python stdlib, no Pillow needed.
 
 Tile layout (16×16 px each, 128×128 total):
   Row 0 — ground:  (0,0) grass  (1,0) dirt  (2,0) stone  (3,0) water
-  Row 1 — objects: (0,1) tree   (1,1) rock
+  Row 1 — objects: (0,1) tree   (1,1) rock  (2,1) gravestone  (3,1) loot
+                   (4,1) reeds
   (remaining slots transparent)
 
 Design goals: distinct at a glance, 1-px dark border on every tile so the
@@ -232,11 +233,51 @@ for dy in range(-1, 2):
 border_tile(3, 1)
 
 # ---------------------------------------------------------------------------
+# Reeds (4,1) — cattail / reed silhouette: thin vertical green stalks
+# rooted at the bottom of the tile. Three to four blades at varying heights,
+# darker green at the base fading to lighter green at the tip. No solid base —
+# the grass/water under the tile shows through (placeholder art).
+# ---------------------------------------------------------------------------
+REED_BASE = (0x1c, 0x4a, 0x18, 0xff)   # darker green base
+REED_MID  = (0x33, 0x7a, 0x2c, 0xff)   # mid-stalk green
+REED_TIP  = (0x6c, 0xb0, 0x4c, 0xff)   # bright tip
+REED_HEAD = (0x44, 0x2a, 0x14, 0xff)   # brown cattail head (reed flower)
+
+fill_tile(4, 1, EMPTY)
+# Stalk specs: (x, top_y, head?). Each stalk is 1px wide.
+# top_y is the topmost row the stalk reaches; bottom is always 15.
+# A "head" stalk has a 2-row brown cattail head one row above its top.
+stalks = [
+    (3,  6,  False),
+    (6,  3,  True),    # tallest with cattail head
+    (9,  5,  True),    # middle cattail
+    (11, 7,  False),
+    (13, 9,  False),
+]
+for sx, top, has_head in stalks:
+    # Base 4 rows (12-15) darker green
+    for ty in range(12, 16):
+        put(4 * TILE + sx, 1 * TILE + ty, REED_BASE)
+    # Mid stalk
+    for ty in range(max(top, 7), 12):
+        put(4 * TILE + sx, 1 * TILE + ty, REED_MID)
+    # Tip — top 1-2 rows
+    for ty in range(top, min(top + 2, 7)):
+        put(4 * TILE + sx, 1 * TILE + ty, REED_TIP)
+    # Cattail head: 2 rows tall, 2 px wide, just above the stalk top
+    if has_head:
+        head_y = max(top - 2, 1)
+        for hy in range(head_y, head_y + 2):
+            put(4 * TILE + sx,     1 * TILE + hy, REED_HEAD)
+            put(4 * TILE + sx + 1, 1 * TILE + hy, REED_HEAD)
+border_tile(4, 1)
+
+# ---------------------------------------------------------------------------
 # Remaining tiles — transparent
 # ---------------------------------------------------------------------------
-for tc in range(4, COLS):
+for tc in range(5, COLS):
     fill_tile(tc, 0, EMPTY)
-for tc in range(4, COLS):
+for tc in range(5, COLS):
     fill_tile(tc, 1, EMPTY)
 for tr in range(2, ROWS):
     for tc in range(COLS):
@@ -265,4 +306,4 @@ with open(out, "wb") as f:
 print(f"Written {W}x{H} tileset → {out}")
 print("Tile layout:")
 print("  (0,0) grass   (1,0) dirt   (2,0) stone  (3,0) water")
-print("  (0,1) tree    (1,1) rock   (2,1) gravestone")
+print("  (0,1) tree    (1,1) rock   (2,1) gravestone  (3,1) loot  (4,1) reeds")

@@ -122,6 +122,80 @@ static func _object_atlas(biome: int, ground: int, o: float) -> Vector2i:
 			if ground == 2 and o > 0.50:  return Vector2i(1, 1)  # rock   ~25%
 	return Vector2i(-1, -1)
 
+## Reed atlas — water-adjacent harvestable (Phase 1a of bedroll/reeds).
+const REEDS_ATLAS := Vector2i(4, 1)
+
+## Per-biome reed-spawn threshold on the same object noise channel.
+## Verdant: scattered patches. Tangle: denser (more of the chunk is wet anyway).
+## Other biomes: NaN sentinel meaning "no reeds here".
+##
+## Thresholds chosen against the calibrated noise distribution and against the
+## actual water density per biome (measured empirically — Verdant has ~5% water
+## tiles, not the ~30% the comments in _ground_atlas predict). The water-edge
+## gate already strongly limits where reeds can land, so we use a permissive
+## noise threshold (-0.10 in Verdant) so that water-adjacent walkable cells
+## become reed beds at ~50-60% density — readable as a "reed bed" rather than
+## a single isolated stalk. Tangle is even more permissive (-0.20) since reeds
+## should suit the wetlands palette there.
+static func _reeds_threshold(biome: int) -> float:
+	match biome:
+		Biome.VERDANT: return -0.10
+		Biome.TANGLE:  return -0.20
+		_:             return INF  # never spawns
+
+## Decide whether the cell at world coords (wx, wy) on `ground` should host a
+## reed. Returns the reed atlas or Vector2i(-1, -1).
+##
+## Constraints: biome must be Verdant or Tangle; ground must be a walkable
+## non-water tile (grass=0, dirt=1, stone=2 — water=3 is excluded since reeds
+## render on a dry bank, not on the water surface itself); object noise o must
+## clear the per-biome threshold; AND at least one of the four cardinal
+## neighbours' generated ground tile must be water.
+##
+## The neighbour check has to use the NEIGHBOUR chunk's biome (not the
+## spawning chunk's), because the same noise value classifies to different
+## ground tiles across biome boundaries. Without that the spawner can place a
+## reed whose actual generated 4-neighbours contain no water — a real
+## consistency bug at the seam between Verdant/Tangle and Moraine/Shard.
+##
+## Stateless: re-derives the neighbour chunk coords + neighbour biome each
+## call. The terrain-noise FastNoiseLite is shared across chunks (its seed
+## XORs with chunk coords inside generate_chunk so neighbour-chunk noise has a
+## different seed) — so we have to construct a noise object for the neighbour
+## chunk too. Cheap because it's only invoked on the cells that already
+## cleared the much-rarer threshold check.
+static func _reeds_atlas(biome: int, ground: int, wx: int, wy: int,
+		o: float, world_seed: int, spawn_chunk: Vector2i) -> Vector2i:
+	if ground == 3:
+		return Vector2i(-1, -1)
+	var threshold: float = _reeds_threshold(biome)
+	if is_inf(threshold):
+		return Vector2i(-1, -1)
+	if o <= threshold:
+		return Vector2i(-1, -1)
+	# Cheap adjacency check — water on any cardinal neighbour is enough.
+	# Diagonals deliberately omitted: matches the player's read of "near the
+	# water's edge" and keeps reed patches hugging shorelines rather than
+	# fanning out into corners.
+	for delta in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+		var nwx: int = wx + delta.x
+		var nwy: int = wy + delta.y
+		# Resolve neighbour's chunk coords + biome. Match generate_chunk's
+		# noise seeding so the noise value we sample equals what the neighbour
+		# chunk would actually use to classify its ground.
+		var ncx: int = int(floor(float(nwx) / float(Constants.CHUNK_SIZE)))
+		var ncy: int = int(floor(float(nwy) / float(Constants.CHUNK_SIZE)))
+		var ncoords := Vector2i(ncx, ncy)
+		var nbiome: int = get_biome(ncoords, spawn_chunk, world_seed)
+		var nnoise := FastNoiseLite.new()
+		nnoise.seed = world_seed ^ (ncx * 73856093) ^ (ncy * 19349663)
+		nnoise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		nnoise.frequency = 0.08
+		var nt := nnoise.get_noise_2d(nwx, nwy)
+		if _ground_atlas(nbiome, nt) == 3:
+			return REEDS_ATLAS
+	return Vector2i(-1, -1)
+
 static func generate_chunk(coords: Vector2i, world_seed: int) -> Dictionary:
 	var biome := get_biome(coords, Constants.SPAWN_CHUNK, world_seed)
 
@@ -146,7 +220,14 @@ static func generate_chunk(coords: Vector2i, world_seed: int) -> Dictionary:
 			entries[CoordUtils.make_crdt_key(0, lx, ly)] = {
 				"tile_id": 0, "atlas_x": atlas_x, "atlas_y": 0,
 				"alt_tile": 0, "timestamp": 0.0, "author_id": ""}
-			var obj := _object_atlas(biome, atlas_x, o)
+			# Reeds get FIRST claim on water-adjacent walkable cells — trees
+			# and rocks shouldn't grow in waterlogged soil, so reeds out-prioritise
+			# them along shorelines. Falls through to _object_atlas for any cell
+			# that isn't a reed candidate.
+			var obj := _reeds_atlas(biome, atlas_x, wx, wy, o,
+				world_seed, Constants.SPAWN_CHUNK)
+			if obj == Vector2i(-1, -1):
+				obj = _object_atlas(biome, atlas_x, o)
 			if obj != Vector2i(-1, -1):
 				entries[CoordUtils.make_crdt_key(1, lx, ly)] = {
 					"tile_id": 0, "atlas_x": obj.x, "atlas_y": obj.y, "alt_tile": 0,

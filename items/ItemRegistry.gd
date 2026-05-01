@@ -68,6 +68,7 @@ func _register_builtins() -> void:
 	# Atlas: row 0 = ground, row 1 = objects. wood→tree(0,1), stone→rock(1,1).
 	register(_make("wood",         "material", "Wood",          32, "", Color(0.65, 0.48, 0.25), Vector2i(0, 1)))
 	register(_make("stone",        "material", "Stone",         32, "", Color(0.55, 0.55, 0.55), Vector2i(1, 1)))
+	register(_make("reeds",        "material", "Reeds",         32, "", Color(0.40, 0.70, 0.30), Vector2i(4, 1)))
 	register(_make("ether_crystal","material", "Ether Crystal", 16, "", Color(0.30, 0.80, 0.75), Vector2i(3, 2)))
 	# Tier-3 deep-biome materials (placeholder — Bloom/Still identity colours).
 	register(_make("marrow",       "material", "Marrow",        10, "", Color(0.65, 0.12, 0.18)))  # deep Bloom crimson — drops from Wisp (Bloom night mob)

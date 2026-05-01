@@ -43,6 +43,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(1, 1),  # rock
 		Vector2i(2, 1),  # gravestone
 		Vector2i(3, 1),  # loot_pickup
+		Vector2i(4, 1),  # reeds — water-adjacent harvestable (Verdant + Tangle)
 		Vector2i(3, 2),  # ether_crystal
 		NightSpawnerData.MARROW_DROP_ATLAS,  # marrow_drop — dropped on Wisp death
 		Vector2i(2, 2),  # moonstone_patch
