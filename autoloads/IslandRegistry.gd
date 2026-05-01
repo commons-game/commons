@@ -17,8 +17,18 @@ extends Node
 const IslandScript := preload("res://world/Island.gd")
 const DEFAULT_ISLAND_ID := "default"
 
+## Phase 0c: emitted whenever the active island reference changes. The
+## DayClock shim listens to this so it can rebind its phase_changed relay
+## to the newly-active island's clock. Phase 0d (MergeCoordinator wiring)
+## will be the first place this actually fires in production.
+signal active_island_changed(island)
+
 var _islands: Dictionary = {}  # id (String) -> Island (RefCounted)
 var _default_island: RefCounted
+## Phase 0c: which island the local session currently inhabits. Single-island
+## in 0c (always DEFAULT_ISLAND_ID); Phase 0d wires merge/split events to
+## flip this and emit active_island_changed.
+var _active_island_id: String = DEFAULT_ISLAND_ID
 
 func _ready() -> void:
 	_default_island = IslandScript.new(DEFAULT_ISLAND_ID)
@@ -48,3 +58,29 @@ func register_island(island: RefCounted) -> void:
 func unregister_island(island_id: String) -> void:
 	if island_id != DEFAULT_ISLAND_ID:
 		_islands.erase(island_id)
+
+## Phase 0c: the island the local session is currently part of. The DayClock
+## shim resolves through this instead of holding its own DayClockInstance —
+## so flipping the active island flips which clock DayClock.is_daytime() etc.
+## answer from. Falls back to the default island if the active id has been
+## unregistered out from under us (defensive — shouldn't happen, but a null
+## active island would brick every DayClock callsite).
+func active_island() -> RefCounted:
+	return _islands.get(_active_island_id, _default_island)
+
+## Phase 0c: switch the active island. No-op if the id is already active or
+## unknown — both branches deliberately suppress active_island_changed:
+##   - same id: avoids spurious signal-rebinds in the DayClock shim during
+##     defensive set_active_island() calls that 0d's MergeCoordinator may
+##     emit on every merge step.
+##   - unknown id: keeping the previous active island is safer than nulling
+##     it out (which would brick the shim), and a stale id is a caller bug
+##     we'd rather log loudly than silently honour.
+func set_active_island(island_id: String) -> void:
+	if _active_island_id == island_id:
+		return
+	if not _islands.has(island_id):
+		push_error("IslandRegistry.set_active_island: unknown island '%s'" % island_id)
+		return
+	_active_island_id = island_id
+	active_island_changed.emit(active_island())

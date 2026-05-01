@@ -1,25 +1,27 @@
-## DayClock — autoload. Thin wrapper around a single DayClockInstance.
+## DayClock — autoload. Phase 0c shim that resolves through IslandRegistry.
 ##
-## Phase 0a of the per-island clock refactor: the actual time-of-day logic
-## now lives in res://world/DayClockInstance.gd (a RefCounted value object).
-## This autoload owns one instance and delegates every public call to it.
-## External behaviour is unchanged — every call site can keep using
-## `DayClock.is_daytime()`, `DayClock.phase_changed`, `DayClock._time_override`,
-## etc., exactly as before.
+## Phase 0c of the per-island clock refactor: this autoload no longer owns
+## a DayClockInstance. Every public method, the phase_changed signal, and
+## the _time_override / _time_offset properties forward to whichever
+## DayClockInstance the currently-active island owns
+## (`IslandRegistry.active_island().clock`).
 ##
-## Phase 0b will introduce Island, which owns its own DayClockInstance.
-## Phase 0c turns this autoload into a shim that resolves the active island's
-## clock instead of holding the instance directly.
-##
-## All clients still share the same phase automatically because the underlying
-## instance derives time from the wall clock (no network sync needed).
+## Single-island in 0c: only the default island exists and it's always
+## active, so behaviour is identical to Phase 0a/0b from a caller's
+## perspective. Phase 0d wires MergeCoordinator merge/split events to flip
+## the active island, at which point the signal-rebind logic below starts
+## firing in production.
 ##
 ## Cycle: Constants.DAY_CYCLE_SECONDS (default 7200 = 60 min day + 60 min night)
 ##   Phase 0.00–0.50 = daytime  (phase_fraction 0 = dawn, 0.25 = midday)
 ##   Phase 0.50–1.00 = nighttime (0.50 = dusk, 0.75 = midnight)
 ##
-## Testability: set _time_override >= 0 to pin the clock to a fixed unix time.
-## (Forwards to the wrapped instance.)
+## Testability: set DayClock._time_override >= 0 to pin the active clock to
+## a fixed unix time. (Forwards to the active island's clock.)
+##
+## NOTE on autoload order: this shim depends on IslandRegistry being _ready
+## *before* this script's _ready runs (we read `IslandRegistry.active_island()`
+## there). Project.godot lists IslandRegistry first for that reason.
 extends Node
 
 const DayClockInstanceScript := preload("res://world/DayClockInstance.gd")
@@ -27,59 +29,72 @@ const DayClockInstanceScript := preload("res://world/DayClockInstance.gd")
 ## Re-exported so existing callers reading `DayClock.MOON_PHASE_COUNT` keep working.
 const MOON_PHASE_COUNT := DayClockInstanceScript.MOON_PHASE_COUNT
 
-## Emitted when the phase crosses the day/night boundary.
-## Re-emitted from the wrapped instance — connections established before
-## _ready() ran on this autoload still work because we only forward.
+## Emitted when the active clock crosses the day/night boundary. Relayed
+## from whichever DayClockInstance the active island owns; the connection
+## rebinds when IslandRegistry.active_island_changed fires.
 signal phase_changed(is_day: bool)
 
-## The wrapped instance. Held as Object so callers that import
-## DayClockInstanceScript don't have to (the class is intentionally not
-## globally registered — preload it where needed).
-var _instance: Object = null
+## The clock we're currently relaying phase_changed from. Tracked so we can
+## disconnect cleanly when the active island switches. Held as RefCounted
+## (matching the rest of the codebase — DayClockInstance is intentionally
+## not registered as a globally-typed class).
+var _bound_clock: RefCounted = null
 
 # --- Forwarded mutable state ---
 #
-# Some call sites (e.g. World.gd dev hooks, tests) write _time_override
-# directly. Expose a property that round-trips to the instance so the
-# attribute name stays identical post-extraction.
+# World.gd dev hooks and tests write/read DayClock._time_override and
+# _time_offset directly. Property accessors round-trip them to whichever
+# clock is currently active. Phase 0a's wrapper used the same pattern; the
+# only change in 0c is that the underlying field lives on the active
+# island's clock instead of a wrapper-local _instance.
 
 var _time_override: float:
 	get:
-		return _instance._time_override
+		return IslandRegistry.active_island().clock._time_override
 	set(value):
-		_instance._time_override = value
+		IslandRegistry.active_island().clock._time_override = value
 
 var _time_offset: float:
 	get:
-		return _instance._time_offset
+		return IslandRegistry.active_island().clock._time_offset
 	set(value):
-		_instance._time_offset = value
-
-func _init() -> void:
-	# Create the instance in _init() (not _ready()) so the wrapper is fully
-	# usable as soon as `DayClockScript.new()` returns. The 29 existing
-	# autoload tests construct a wrapper, set _time_override on it, and call
-	# methods *without* ever adding it to the scene tree — _ready() never
-	# fires for them, so the instance must already exist by the time _init()
-	# completes.
-	_instance = DayClockInstanceScript.new()
-	# Re-emit the instance signal so DayClock.phase_changed.connect(...) callers
-	# (NightSpawner, DayNightSystem, NightDarkness, Pale, etc.) keep working
-	# without any code change.
-	_instance.phase_changed.connect(_on_instance_phase_changed)
-
-func _on_instance_phase_changed(is_day: bool) -> void:
-	phase_changed.emit(is_day)
+		IslandRegistry.active_island().clock._time_offset = value
 
 func _ready() -> void:
-	# Preserve the legacy autoload semantics: the original DayClock seeded
-	# _last_is_day in _ready(), i.e. the first time the node entered the
-	# scene tree. Tests construct via `.new()`, then set _time_override on the
-	# wrapper, *then* add_child() — at which point _ready() fires and the
-	# original code re-read is_daytime() from the now-pinned time. We mimic
-	# that here so test_day_clock.gd's signal-transition cases keep working
-	# without modification.
-	_instance.resync_phase()
+	# Bind to the active clock's phase_changed and re-bind whenever the
+	# active island changes. The bind also calls resync_phase() on the new
+	# clock so a stale _last_is_day (e.g. seeded under a different pinned
+	# time) doesn't fire a spurious phase_changed on the next tick.
+	_bind_to_active_clock()
+	IslandRegistry.active_island_changed.connect(_on_active_island_changed)
+
+## Subscribe to the active island's clock.phase_changed signal, dropping any
+## previous subscription first. Also resync the new clock's _last_is_day so
+## the next tick doesn't spuriously emit — same legacy semantic Phase 0a's
+## wrapper preserved by calling resync_phase() in its own _ready().
+func _bind_to_active_clock() -> void:
+	var new_clock: RefCounted = IslandRegistry.active_island().clock
+	if _bound_clock == new_clock:
+		return
+	if _bound_clock != null and _bound_clock.phase_changed.is_connected(_relay_phase_changed):
+		_bound_clock.phase_changed.disconnect(_relay_phase_changed)
+	_bound_clock = new_clock
+	if not _bound_clock.phase_changed.is_connected(_relay_phase_changed):
+		_bound_clock.phase_changed.connect(_relay_phase_changed)
+	# Re-seed _last_is_day from the new clock's current phase so any stale
+	# transition state from when the clock was constructed doesn't spuriously
+	# fire on the next tick. Phase 0d heads-up: when MergeCoordinator switches
+	# active island during a merge, the joining session's clock may have a
+	# very different _last_is_day than the destination island's; the resync
+	# here ensures the *next* tick reflects the destination's reality, not a
+	# spurious cross-island transition.
+	_bound_clock.resync_phase()
+
+func _on_active_island_changed(_island: RefCounted) -> void:
+	_bind_to_active_clock()
+
+func _relay_phase_changed(is_day: bool) -> void:
+	phase_changed.emit(is_day)
 
 ## Called each frame by the engine when this autoload is in the scene tree.
 ## When constructed via `.new()` (tests), call tick() manually instead.
@@ -87,33 +102,37 @@ func _process(delta: float) -> void:
 	tick(delta)
 
 # --- Forwarded API ---
+#
+# Each method resolves the active clock at call time so that switching the
+# active island via IslandRegistry.set_active_island() takes effect
+# immediately for every caller.
 
 func tick(delta: float) -> void:
-	_instance.tick(delta)
+	IslandRegistry.active_island().clock.tick(delta)
 
 func set_start_phase(phase: float) -> void:
-	_instance.set_start_phase(phase)
+	IslandRegistry.active_island().clock.set_start_phase(phase)
 
 func advance_to_phase(phase: float) -> void:
-	_instance.advance_to_phase(phase)
+	IslandRegistry.active_island().clock.advance_to_phase(phase)
 
 func phase_fraction() -> float:
-	return _instance.phase_fraction()
+	return IslandRegistry.active_island().clock.phase_fraction()
 
 func is_daytime() -> bool:
-	return _instance.is_daytime()
+	return IslandRegistry.active_island().clock.is_daytime()
 
 func sky_alpha() -> float:
-	return _instance.sky_alpha()
+	return IslandRegistry.active_island().clock.sky_alpha()
 
 func day_count() -> int:
-	return _instance.day_count()
+	return IslandRegistry.active_island().clock.day_count()
 
 func moon_phase() -> int:
-	return _instance.moon_phase()
+	return IslandRegistry.active_island().clock.moon_phase()
 
 func moon_fullness() -> float:
-	return _instance.moon_fullness()
+	return IslandRegistry.active_island().clock.moon_fullness()
 
 func _get_unix_time() -> float:
-	return _instance._get_unix_time()
+	return IslandRegistry.active_island().clock._get_unix_time()

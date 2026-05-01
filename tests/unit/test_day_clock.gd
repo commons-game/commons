@@ -1,195 +1,203 @@
-## Tests for DayClock — shared real-time day/night cycle.
+## Tests for the DayClock autoload — Phase 0c shim.
 ##
-## Rules:
-##   - DAY_CYCLE_SECONDS = 7200 (60 min day + 60 min night)
-##   - Phase 0-0.5: daytime. Phase 0.5-1.0: nighttime.
-##   - phase_fraction() returns position [0,1] within full cycle.
-##   - is_daytime() returns true when phase_fraction < 0.5.
-##   - sky_alpha() returns 0.0 (full light) during day, 1.0 (full dark) at midnight.
-##   - Supports _time_override so tests don't depend on wall-clock.
-##   - phase_changed(is_day: bool) signal fires on day/night transition.
+## Phase 0c of the per-island clock refactor: the DayClock autoload no longer
+## owns its own DayClockInstance. It's a thin shim that delegates every call
+## to `IslandRegistry.active_island().clock`. This file therefore covers the
+## shim-delegation contract only:
+##
+##   - public methods forward to the active island's clock
+##   - _time_override / _time_offset round-trip to the active clock
+##   - phase_changed signal relays from the active clock
+##   - switching the active island via IslandRegistry.set_active_island()
+##     rebinds the relay so the *new* island's clock drives DayClock
+##
+## Timekeeping logic itself is covered by test_day_clock_instance.gd —
+## those cases construct DayClockInstance directly so they don't depend on
+## the global autoload singleton.
+##
+## These tests use the live IslandRegistry / DayClock autoloads, so each test
+## restores `default` as the active island in its teardown to prevent
+## cross-test pollution.
 extends GdUnitTestSuite
 
-const DayClockScript := preload("res://autoloads/DayClock.gd")
+const IslandScript := preload("res://world/Island.gd")
+const IslandRegistryScript := preload("res://autoloads/IslandRegistry.gd")
 
-func _make_clock(unix_time: float = 0.0) -> Object:
-	var c = DayClockScript.new()
-	c._time_override = unix_time
-	return c
+# Test islands registered during a test, removed in after_test().
+var _test_island_ids: Array[String] = []
 
-# --- Phase fraction ---
+func after_test() -> void:
+	# Always restore default as active so the next test starts clean.
+	IslandRegistry.set_active_island(IslandRegistryScript.DEFAULT_ISLAND_ID)
+	for id in _test_island_ids:
+		IslandRegistry.unregister_island(id)
+	_test_island_ids.clear()
+	# Also reset the default island's clock back to wall-clock-driven so
+	# tests that don't use _time_override aren't poisoned by tests that did.
+	var default_clock = IslandRegistry.get_island(IslandRegistryScript.DEFAULT_ISLAND_ID).clock
+	default_clock._time_override = -1.0
+	default_clock._time_offset = 0.0
+	default_clock.resync_phase()
 
-func test_phase_fraction_zero_at_start_of_cycle() -> void:
-	var c = _make_clock(0.0)
-	assert_float(c.phase_fraction()).is_equal(0.0)
+func _make_test_island(id: String) -> RefCounted:
+	var island = IslandScript.new(id)
+	IslandRegistry.register_island(island)
+	_test_island_ids.append(id)
+	return island
 
-func test_phase_fraction_half_at_3600() -> void:
-	var c = _make_clock(3600.0)
-	assert_float(c.phase_fraction()).is_equal(0.5)
+# --- Constant re-export ---
 
-func test_phase_fraction_wraps_at_cycle_boundary() -> void:
-	var c = _make_clock(7200.0)
-	assert_float(c.phase_fraction()).is_equal(0.0)
+func test_moon_phase_count_constant_still_accessible() -> void:
+	# Several callers reference DayClock.MOON_PHASE_COUNT directly. The shim
+	# must keep re-exporting it.
+	assert_int(DayClock.MOON_PHASE_COUNT).is_equal(8)
 
-func test_phase_fraction_is_normalized_0_to_1() -> void:
-	var c = _make_clock(1800.0)
-	assert_float(c.phase_fraction()).is_greater_equal(0.0)
-	assert_float(c.phase_fraction()).is_less(1.0)
+# --- Method delegation: read paths ---
 
-func test_phase_fraction_large_unix_time_wraps() -> void:
-	# unix time far in the future should still wrap correctly
-	var c = _make_clock(86400.0 + 1800.0)  # 24 hours + 1800 s
-	assert_float(c.phase_fraction()).is_equal_approx(0.25, 0.0001)
+func test_is_daytime_delegates_to_active_clock() -> void:
+	# Pin the default (active) island's clock to midday and verify the
+	# autoload reflects it.
+	var default_clock = IslandRegistry.active_island().clock
+	default_clock._time_override = 1800.0  # midday
+	assert_bool(DayClock.is_daytime()).is_true()
+	default_clock._time_override = 5400.0  # midnight
+	assert_bool(DayClock.is_daytime()).is_false()
 
-# --- is_daytime ---
+func test_phase_fraction_delegates_to_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_override = 3600.0  # dusk
+	assert_float(DayClock.phase_fraction()).is_equal_approx(0.5, 0.001)
 
-func test_is_daytime_at_start_of_cycle() -> void:
-	var c = _make_clock(0.0)
-	assert_bool(c.is_daytime()).is_true()
+func test_sky_alpha_delegates_to_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_override = 1800.0  # midday
+	assert_float(DayClock.sky_alpha()).is_equal_approx(0.0, 0.01)
 
-func test_is_daytime_at_noon() -> void:
-	var c = _make_clock(1800.0)
-	assert_bool(c.is_daytime()).is_true()
+func test_moon_phase_and_fullness_delegate_to_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_override = Constants.DAY_CYCLE_SECONDS * 4.0
+	assert_int(DayClock.moon_phase()).is_equal(4)
+	assert_float(DayClock.moon_fullness()).is_equal_approx(1.0, 0.001)
 
-func test_is_nighttime_at_dusk() -> void:
-	var c = _make_clock(3600.0)
-	assert_bool(c.is_daytime()).is_false()
+# --- Property forwarding: _time_override / _time_offset round-trip ---
 
-func test_is_nighttime_at_midnight() -> void:
-	var c = _make_clock(5400.0)
-	assert_bool(c.is_daytime()).is_false()
+func test_time_override_setter_writes_to_active_clock() -> void:
+	DayClock._time_override = 1234.5
+	assert_float(IslandRegistry.active_island().clock._time_override).is_equal(1234.5)
 
-func test_becomes_day_again_near_cycle_end() -> void:
-	var c = _make_clock(7199.0)
-	assert_bool(c.is_daytime()).is_false()
+func test_time_override_getter_reads_from_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_override = 4321.0
+	assert_float(DayClock._time_override).is_equal(4321.0)
 
-# --- sky_alpha (darkness overlay alpha) ---
-# 0.0 = full daylight (midday), 1.0 = full dark (midnight)
+func test_time_offset_setter_writes_to_active_clock() -> void:
+	DayClock._time_offset = 999.0
+	assert_float(IslandRegistry.active_island().clock._time_offset).is_equal(999.0)
 
-func test_sky_alpha_zero_at_midday() -> void:
-	var c = _make_clock(1800.0)  # midday = 1/4 through cycle
-	assert_float(c.sky_alpha()).is_equal_approx(0.0, 0.01)
+func test_time_offset_getter_reads_from_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_offset = 555.0
+	assert_float(DayClock._time_offset).is_equal(555.0)
 
-func test_sky_alpha_max_at_midnight() -> void:
-	var c = _make_clock(5400.0)  # midnight = 3/4 through cycle
-	assert_float(c.sky_alpha()).is_equal_approx(1.0, 0.01)
+# --- Mutation methods delegate ---
 
-func test_sky_alpha_halfway_at_dusk() -> void:
-	var c = _make_clock(3600.0)  # dusk = halfway
-	# At the exact phase boundary (0.5) alpha should be near 0.5
-	assert_float(c.sky_alpha()).is_greater_equal(0.4)
-	assert_float(c.sky_alpha()).is_less_equal(0.6)
+func test_advance_to_phase_delegates_to_active_clock() -> void:
+	# Pin to midday, advance to dawn — should wrap forward and the active
+	# clock's phase should land on 0.
+	IslandRegistry.active_island().clock._time_override = 1800.0
+	DayClock.advance_to_phase(0.0)
+	assert_float(IslandRegistry.active_island().clock.phase_fraction()).is_equal_approx(0.0, 0.001)
 
-func test_sky_alpha_clamped_0_to_1() -> void:
-	var c = _make_clock(0.0)
-	assert_float(c.sky_alpha()).is_greater_equal(0.0)
-	assert_float(c.sky_alpha()).is_less_equal(1.0)
+func test_set_start_phase_delegates_to_active_clock() -> void:
+	IslandRegistry.active_island().clock._time_override = 1800.0
+	DayClock.set_start_phase(0.5)
+	assert_float(IslandRegistry.active_island().clock.phase_fraction()).is_equal_approx(0.5, 0.001)
 
-# --- phase_changed signal ---
+# --- phase_changed signal relay ---
 
-func test_phase_changed_fires_on_night_transition() -> void:
-	var c = _make_clock(3599.0)  # just before dusk
-	add_child(c)
+func test_phase_changed_signal_relays_from_active_clock() -> void:
+	# Pin just-before-dusk, then advance and tick — DayClock.phase_changed
+	# must fire because the *active* clock fired.
+	var active_clock = IslandRegistry.active_island().clock
+	active_clock._time_override = 3599.0
+	active_clock.resync_phase()
 	var fired: Array = [false]
-	var is_day_value: Array = [true]
-	c.phase_changed.connect(func(is_day: bool):
+	var seen_is_day: Array = [true]
+	var cb := func(is_day: bool):
 		fired[0] = true
-		is_day_value[0] = is_day)
-	# Advance time past dusk
-	c._time_override = 3601.0
-	c.tick(0.1)
+		seen_is_day[0] = is_day
+	DayClock.phase_changed.connect(cb)
+	active_clock._time_override = 3601.0
+	active_clock.tick(0.1)
 	assert_bool(fired[0]).is_true()
-	assert_bool(is_day_value[0]).is_false()
-	remove_child(c)
+	assert_bool(seen_is_day[0]).is_false()
+	DayClock.phase_changed.disconnect(cb)
 
-func test_phase_changed_fires_on_day_transition() -> void:
-	var c = _make_clock(7199.0)  # just before dawn
-	add_child(c)
-	var fired: Array = [false]
-	var is_day_value: Array = [false]
-	c.phase_changed.connect(func(is_day: bool):
-		fired[0] = true
-		is_day_value[0] = is_day)
-	c._time_override = 7201.0  # wraps to early day (7201 % 7200 = 1)
-	c.tick(0.1)
-	assert_bool(fired[0]).is_true()
-	assert_bool(is_day_value[0]).is_true()
-	remove_child(c)
+# --- Active-island switching ---
 
-func test_phase_changed_does_not_fire_when_same_phase() -> void:
-	var c = _make_clock(100.0)  # daytime
-	add_child(c)
+func test_switching_active_island_makes_dayclock_resolve_through_new_island() -> void:
+	# Default island clock pinned to midday (daytime); test island pinned
+	# to midnight (nighttime). Switching active island flips DayClock's
+	# answer to is_daytime() without touching either clock.
+	IslandRegistry.active_island().clock._time_override = 1800.0  # default = day
+	assert_bool(DayClock.is_daytime()).is_true()
+
+	var other = _make_test_island("test-shim-switch")
+	other.clock._time_override = 5400.0  # other = night
+	IslandRegistry.set_active_island("test-shim-switch")
+	assert_bool(DayClock.is_daytime()).is_false()
+
+func test_switching_active_island_relays_new_islands_phase_changed() -> void:
+	# Bind to default island first, switch to a fresh test island, fire
+	# its clock's phase_changed — DayClock.phase_changed must relay it.
+	# Simultaneously the *old* island's signals must NOT relay anymore.
+	var default_clock = IslandRegistry.active_island().clock
+	default_clock._time_override = 1800.0  # daytime
+	default_clock.resync_phase()
+
+	var other = _make_test_island("test-shim-relay")
+	other.clock._time_override = 3599.0  # just before dusk
+	other.clock.resync_phase()
+
+	IslandRegistry.set_active_island("test-shim-relay")
+
 	var calls: Array = [0]
-	c.phase_changed.connect(func(_d): calls[0] += 1)
-	c._time_override = 200.0   # still daytime
-	c.tick(0.1)
+	var seen: Array = [true]
+	var cb := func(is_day: bool):
+		calls[0] += 1
+		seen[0] = is_day
+	DayClock.phase_changed.connect(cb)
+
+	# Fire on the *new* (active) clock — should relay.
+	other.clock._time_override = 3601.0
+	other.clock.tick(0.1)
+	assert_int(calls[0]).is_equal(1)
+	assert_bool(seen[0]).is_false()
+
+	# Fire on the *old* (now-inactive) clock — must NOT relay.
+	default_clock._time_override = 3601.0
+	default_clock.tick(0.1)
+	assert_int(calls[0]).is_equal(1)  # still 1 — no extra relay
+
+	DayClock.phase_changed.disconnect(cb)
+
+func test_switching_active_island_resyncs_new_clock_to_avoid_spurious_emit() -> void:
+	# When the active clock switches mid-night-to-mid-day, the new clock's
+	# _last_is_day might be stale (it was seeded at construction with whatever
+	# the wall clock said). The shim must call resync_phase() on the new
+	# clock so the next tick() doesn't spuriously fire phase_changed.
+	#
+	# Simulate the failure mode: build an island whose clock is pinned to
+	# night but whose _last_is_day is stuck at true (pretend it was seeded
+	# while pinned to day). After switching, ticking the new active clock
+	# with no actual phase change must NOT fire phase_changed.
+	var other = _make_test_island("test-shim-resync")
+	other.clock._time_override = 5400.0  # midnight
+	other.clock._last_is_day = true       # stale (would otherwise fire on first tick)
+
+	IslandRegistry.set_active_island("test-shim-resync")
+
+	# If the shim called resync_phase() on bind, _last_is_day is now false.
+	assert_bool(other.clock._last_is_day).is_false()
+
+	var calls: Array = [0]
+	var cb := func(_d): calls[0] += 1
+	DayClock.phase_changed.connect(cb)
+	other.clock.tick(0.1)
 	assert_int(calls[0]).is_equal(0)
-	remove_child(c)
-
-# --- advance_to_phase ---
-# Always moves the clock FORWARD to the next occurrence of the given phase.
-
-func test_advance_from_night_to_dawn_goes_forward() -> void:
-	# Pinned to 5400 = midnight (phase 0.75). advance_to_phase(0.0) should land at next dawn.
-	var c = _make_clock(5400.0)
-	c.advance_to_phase(0.0)
-	# After advance, current phase should be 0 (dawn). Time override doesn't move but offset does.
-	assert_float(c.phase_fraction()).is_equal_approx(0.0, 0.001)
-	assert_bool(c.is_daytime()).is_true()
-
-func test_advance_from_day_to_later_day_goes_forward() -> void:
-	# From early day (phase 0.1) advance to mid-day (0.25) — simple forward step
-	var c = _make_clock(720.0)  # phase = 0.1
-	c.advance_to_phase(0.25)
-	assert_float(c.phase_fraction()).is_equal_approx(0.25, 0.001)
-
-func test_advance_never_rewinds() -> void:
-	# From noon (0.25) ask for dawn (0.0) — should NOT go back, should wrap forward a full cycle.
-	var c = _make_clock(1800.0)  # phase 0.25
-	var before_time: float = c._get_unix_time()
-	c.advance_to_phase(0.0)
-	var after_time: float = c._get_unix_time()
-	assert_float(after_time).is_greater(before_time)
-	assert_float(c.phase_fraction()).is_equal_approx(0.0, 0.001)
-
-# --- Moon phases ---
-
-func test_moon_phase_zero_at_unix_zero() -> void:
-	var c = _make_clock(0.0)
-	assert_int(c.moon_phase()).is_equal(0)
-
-func test_moon_phase_advances_one_per_cycle() -> void:
-	# After one full day cycle we should be on moon phase 1.
-	var c = _make_clock(Constants.DAY_CYCLE_SECONDS)
-	assert_int(c.moon_phase()).is_equal(1)
-
-func test_moon_phase_cycles_every_8_days() -> void:
-	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 8.0)
-	assert_int(c.moon_phase()).is_equal(0)
-
-func test_moon_phase_four_is_full_moon() -> void:
-	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 4.0)
-	assert_int(c.moon_phase()).is_equal(4)
-
-func test_moon_fullness_zero_at_new_moon() -> void:
-	var c = _make_clock(0.0)
-	assert_float(c.moon_fullness()).is_equal_approx(0.0, 0.001)
-
-func test_moon_fullness_one_at_full_moon() -> void:
-	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 4.0)
-	assert_float(c.moon_fullness()).is_equal_approx(1.0, 0.001)
-
-func test_moon_fullness_symmetric_around_full() -> void:
-	# Phase 2 (waxing) and phase 6 (waning) should have equal fullness.
-	var c2 = _make_clock(Constants.DAY_CYCLE_SECONDS * 2.0)
-	var c6 = _make_clock(Constants.DAY_CYCLE_SECONDS * 6.0)
-	assert_float(c2.moon_fullness()).is_equal_approx(c6.moon_fullness(), 0.001)
-	assert_float(c2.moon_fullness()).is_equal_approx(0.5, 0.001)
-
-func test_day_count_zero_at_unix_zero() -> void:
-	var c = _make_clock(0.0)
-	assert_int(c.day_count()).is_equal(0)
-
-func test_day_count_advances_with_time() -> void:
-	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 3.5)
-	assert_int(c.day_count()).is_equal(3)
+	DayClock.phase_changed.disconnect(cb)

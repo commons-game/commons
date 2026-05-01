@@ -83,3 +83,53 @@ func test_unregister_default_island_is_a_noop() -> void:
 func test_get_island_returns_null_for_unknown_id() -> void:
 	var r = _make_registry()
 	assert_object(r.get_island("nonexistent")).is_null()
+
+# --- active island (Phase 0c) ---
+#
+# Phase 0c lets the registry track which island is "active" — the one the
+# DayClock shim resolves through. Phase 0c is still single-island (the
+# default island is always active), but the API needs to exist so 0d can
+# wire MergeCoordinator to switch active island during merge transitions.
+
+func test_active_island_defaults_to_default() -> void:
+	var r = _make_registry()
+	var default_island = r.get_island(IslandRegistryScript.DEFAULT_ISLAND_ID)
+	assert_object(r.active_island()).is_same(default_island)
+
+func test_set_active_island_switches_active() -> void:
+	var r = _make_registry()
+	var extra = IslandScript.new("extra")
+	r.register_island(extra)
+	r.set_active_island("extra")
+	assert_object(r.active_island()).is_same(extra)
+
+func test_set_active_island_emits_active_island_changed() -> void:
+	var r = _make_registry()
+	var extra = IslandScript.new("extra")
+	r.register_island(extra)
+	var fired: Array = [false]
+	var emitted_island: Array = [null]
+	r.active_island_changed.connect(func(island):
+		fired[0] = true
+		emitted_island[0] = island)
+	r.set_active_island("extra")
+	assert_bool(fired[0]).is_true()
+	assert_object(emitted_island[0]).is_same(extra)
+
+func test_set_active_island_to_same_id_is_a_noop() -> void:
+	# Switching to the already-active island must not re-emit — Phase 0d's
+	# MergeCoordinator will likely call set_active_island() defensively on
+	# every merge step and we don't want spurious clock-rebinds.
+	var r = _make_registry()
+	var calls: Array = [0]
+	r.active_island_changed.connect(func(_island): calls[0] += 1)
+	r.set_active_island(IslandRegistryScript.DEFAULT_ISLAND_ID)
+	assert_int(calls[0]).is_equal(0)
+
+func test_set_active_island_unknown_id_is_a_noop() -> void:
+	# Defensive: if a stale island id is passed, keep the previous active
+	# island rather than silently nulling out the active reference.
+	var r = _make_registry()
+	var default_island = r.get_island(IslandRegistryScript.DEFAULT_ISLAND_ID)
+	r.set_active_island("nonexistent")
+	assert_object(r.active_island()).is_same(default_island)
