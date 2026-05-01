@@ -222,3 +222,177 @@ func test_instance_day_count_zero_at_unix_zero() -> void:
 func test_instance_day_count_advances_with_time() -> void:
 	var c = _make_clock(Constants.DAY_CYCLE_SECONDS * 3.5)
 	assert_int(c.day_count()).is_equal(3)
+
+# ---------------------------------------------------------------------------
+# Phase 0d-i: accelerate_to() — clock acceleration primitive.
+#
+# `accelerate_to(target_total_phase, duration_seconds)` makes the clock run
+# faster than wall time so that after `duration_seconds` real seconds, the
+# clock's total phase (day_count + phase_fraction) equals
+# `target_total_phase`. After the ramp the clock returns to wall-time pace
+# but its `_time_offset` is permanently advanced (monotonic — no rewind).
+#
+# Implementation is driverless: the ramp resolves on every read via
+# `_effective_offset()`. To make this testable without sleeping on the wall
+# clock, the instance carries a `_wall_time_override` field — set it >= 0 to
+# pin "now" for both the ramp and the wall-time-derived `_get_unix_time()`
+# path. (Distinct from `_time_override`, which short-circuits the whole
+# clock and is therefore incompatible with offset arithmetic.)
+# ---------------------------------------------------------------------------
+
+## Build a clock that uses the wall-time mock instead of `_time_override`.
+## With `_wall_time_override` set, `_get_unix_time()` returns
+## `_wall_time_override + _effective_offset()`, so we can simulate both wall
+## time advancing and the acceleration ramp resolving against it.
+func _make_wall_clock(wall_time: float):
+	var c = DayClockInstanceScript.new()
+	c._wall_time_override = wall_time
+	c.resync_phase()
+	return c
+
+# --- baseline plumbing ---
+
+func test_instance_wall_time_override_drives_unix_time() -> void:
+	# Sanity: with _wall_time_override set, _get_unix_time() reflects it.
+	var c = _make_wall_clock(1800.0)
+	assert_float(c._get_unix_time()).is_equal_approx(1800.0, 0.001)
+	assert_float(c.phase_fraction()).is_equal_approx(0.25, 0.001)
+
+func test_instance_is_accelerating_false_by_default() -> void:
+	var c = _make_wall_clock(0.0)
+	assert_bool(c.is_accelerating()).is_false()
+
+# --- accelerate_to: the ramp lands at the target ---
+
+func test_accelerate_to_advances_phase_at_target_time() -> void:
+	# Start at unix 0 (phase 0.0, day 0). Ask the clock to advance to
+	# total_phase = 0.5 (i.e. dusk of day 0) over 1.0 seconds of wall time.
+	# After 1.0 wall seconds elapse, phase_fraction() must be ~0.5.
+	var c = _make_wall_clock(0.0)
+	c.accelerate_to(0.5, 1.0)
+	# Halfway through the ramp the helper is_accelerating() should still be true.
+	assert_bool(c.is_accelerating()).is_true()
+	# Advance wall time to the end of the ramp.
+	c._wall_time_override = 1.0
+	assert_float(c.phase_fraction()).is_equal_approx(0.5, 0.001)
+	# After the ramp commits, is_accelerating() flips to false.
+	assert_bool(c.is_accelerating()).is_false()
+
+func test_accelerate_to_partial_at_halfway() -> void:
+	# Linear ramp: at 50% of duration we should have applied 50% of the
+	# extra offset, i.e. phase 0.0 -> target 0.5 -> halfway = 0.25.
+	var c = _make_wall_clock(0.0)
+	c.accelerate_to(0.5, 1.0)
+	c._wall_time_override = 0.5
+	assert_float(c.phase_fraction()).is_equal_approx(0.25, 0.001)
+	# Ramp is still active (haven't crossed the duration boundary yet).
+	assert_bool(c.is_accelerating()).is_true()
+
+func test_accelerate_to_commits_offset_after_duration() -> void:
+	# After the ramp ends, the extra offset must be permanently committed to
+	# `_time_offset` so subsequent reads don't depend on `_accel_*` state.
+	var c = _make_wall_clock(0.0)
+	c.accelerate_to(0.5, 1.0)
+	# Advance past the end of the ramp, triggering the commit on read.
+	c._wall_time_override = 1.5
+	var phase_at_15 := c.phase_fraction()
+	# 1.5 wall seconds + committed offset of (0.5 cycles = 3600s) = 3601.5
+	# unix; phase_fraction = (3601.5 mod 7200) / 7200 = 0.50020833...
+	assert_float(phase_at_15).is_equal_approx(0.5002, 0.001)
+	# After commit: is_accelerating() is false and `_time_offset` carries
+	# the full extra offset (3600 seconds = 0.5 of a cycle).
+	assert_bool(c.is_accelerating()).is_false()
+	assert_float(c._time_offset).is_equal_approx(3600.0, 0.001)
+	# Advance wall time further; the clock should track wall time 1:1 again
+	# (no extra ramp contribution beyond the committed offset).
+	c._wall_time_override = 1000.0
+	# unix = 1000 + 3600 = 4600; phase = 4600/7200 ≈ 0.6388...
+	assert_float(c.phase_fraction()).is_equal_approx(4600.0 / 7200.0, 0.001)
+
+func test_accelerate_to_target_in_past_is_noop() -> void:
+	# A target phase that's <= the current phase must not rewind the clock.
+	# Phase 0d use-case: the *leading* clock should never accelerate to match
+	# a *lagging* clock (only the lagging side accelerates forward).
+	var c = _make_wall_clock(3600.0)  # phase 0.5 (dusk), day 0
+	# Current total_phase = 0 + 0.5 = 0.5. Asking for 0.25 (in the past) is a no-op.
+	c.accelerate_to(0.25, 1.0)
+	assert_bool(c.is_accelerating()).is_false()
+	assert_float(c._time_offset).is_equal_approx(0.0, 0.001)
+	# Asking for exactly the current total_phase is also a no-op.
+	c.accelerate_to(0.5, 1.0)
+	assert_bool(c.is_accelerating()).is_false()
+	assert_float(c._time_offset).is_equal_approx(0.0, 0.001)
+
+func test_accelerate_to_does_not_break_advance_to_phase() -> void:
+	# advance_to_phase must remain monotonic-forward both during and after a
+	# ramp. After the ramp commits, calling advance_to_phase should still
+	# only ever move forward.
+	var c = _make_wall_clock(0.0)
+	c.accelerate_to(0.5, 1.0)
+	c._wall_time_override = 1.0  # ramp completes on next read
+	var phase_after_ramp := c.phase_fraction()
+	assert_float(phase_after_ramp).is_equal_approx(0.5, 0.001)
+	# Now ask advance_to_phase to land at 0.75 — should advance forward.
+	c.advance_to_phase(0.75)
+	assert_float(c.phase_fraction()).is_equal_approx(0.75, 0.001)
+	# And asking for 0.0 should wrap forward to the next dawn, never rewind.
+	var unix_before: float = c._get_unix_time()
+	c.advance_to_phase(0.0)
+	var unix_after: float = c._get_unix_time()
+	assert_float(unix_after).is_greater(unix_before)
+	assert_float(c.phase_fraction()).is_equal_approx(0.0, 0.001)
+
+func test_accelerate_to_crosses_multi_day_target() -> void:
+	# Target several days in the future to confirm the math handles
+	# total_phase > 1.0 cleanly (not just intra-day fractions).
+	var c = _make_wall_clock(0.0)
+	# Start: day 0, phase 0.0 → total_phase 0.0.
+	# Target: total_phase 2.5 (day 2, midnight) over 2.0 wall seconds.
+	c.accelerate_to(2.5, 2.0)
+	c._wall_time_override = 2.0
+	# After commit: unix_time = 2.0 + (2.5 * 7200) = 18002.0
+	assert_int(c.day_count()).is_equal(2)
+	assert_float(c.phase_fraction()).is_equal_approx(0.5, 0.001)
+
+# --- phase_changed during acceleration ---
+#
+# DayClockInstance is driverless: phase_changed only emits when somebody
+# calls tick(). So the *exact wall-time* boundary crossing isn't observable.
+# What we *can* guarantee: if the ramp crosses the day/night boundary and
+# tick() is called after the ramp commits, phase_changed fires reflecting
+# the post-ramp phase. The signal does NOT fire mid-ramp without a tick().
+#
+# This is the documented limitation: phase_changed-during-acceleration
+# requires polling. Phase 0d-ii can wire MergeCoordinator to tick the
+# accelerating clock if continuous boundary observation matters.
+
+func test_phase_changed_fires_after_ramp_crosses_boundary() -> void:
+	# Start at midday (phase 0.25, daytime), accelerate to past dusk.
+	# After the ramp, tick() must observe the day→night transition.
+	var c = _make_wall_clock(1800.0)  # phase 0.25, daytime
+	var fired: Array = [false]
+	var seen_is_day: Array = [true]
+	c.phase_changed.connect(func(is_day: bool):
+		fired[0] = true
+		seen_is_day[0] = is_day)
+	c.accelerate_to(0.6, 1.0)  # cross dusk into night
+	# Advance wall time past the ramp end.
+	c._wall_time_override = 1801.0
+	c.tick(0.1)
+	assert_bool(fired[0]).is_true()
+	assert_bool(seen_is_day[0]).is_false()
+
+# --- multi-instance independence ---
+
+func test_accelerate_to_does_not_affect_other_instances() -> void:
+	# The whole point of per-island clocks: accelerating one must not touch
+	# another. This is the Phase 0d use-case in miniature.
+	var a = _make_wall_clock(0.0)
+	var b = _make_wall_clock(0.0)
+	a.accelerate_to(0.5, 1.0)
+	a._wall_time_override = 1.0
+	# Force a's ramp to commit by reading its phase.
+	var _drain = a.phase_fraction()
+	# b is unchanged.
+	assert_float(b._time_offset).is_equal_approx(0.0, 0.001)
+	assert_bool(b.is_accelerating()).is_false()

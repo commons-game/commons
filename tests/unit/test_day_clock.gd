@@ -201,3 +201,28 @@ func test_switching_active_island_resyncs_new_clock_to_avoid_spurious_emit() -> 
 	other.clock.tick(0.1)
 	assert_int(calls[0]).is_equal(0)
 	DayClock.phase_changed.disconnect(cb)
+
+# --- Phase 0d-i: accelerate_to / is_accelerating delegate through the shim ---
+
+func test_accelerate_to_delegates_to_active_island_clock() -> void:
+	# Two islands with their own clocks. Calling DayClock.accelerate_to()
+	# must touch ONLY the active island's clock — the other island's clock
+	# stays unchanged. This is the Phase 0d-ii contract: MergeCoordinator
+	# will set the lagging island active just long enough to call
+	# accelerate_to on it.
+	var leader = _make_test_island("test-accel-leader")
+	leader.clock._wall_time_override = 0.0
+	# The default island is currently active; verify shim sees that clock.
+	assert_bool(DayClock.is_accelerating()).is_false()
+	# Switch active to the leader and accelerate it.
+	IslandRegistry.set_active_island("test-accel-leader")
+	DayClock.accelerate_to(0.5, 1.0)
+	# The active (leader) clock now reports accelerating; the other does not.
+	assert_bool(DayClock.is_accelerating()).is_true()
+	assert_bool(leader.clock.is_accelerating()).is_true()
+	var default_clock = IslandRegistry.get_island(IslandRegistryScript.DEFAULT_ISLAND_ID).clock
+	assert_bool(default_clock.is_accelerating()).is_false()
+	# Switching active back to default flips DayClock.is_accelerating() too —
+	# proves the shim is resolving at call time, not caching.
+	IslandRegistry.set_active_island(IslandRegistryScript.DEFAULT_ISLAND_ID)
+	assert_bool(DayClock.is_accelerating()).is_false()

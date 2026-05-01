@@ -116,6 +116,19 @@ func set_start_phase(phase: float) -> void:
 func advance_to_phase(phase: float) -> void:
 	IslandRegistry.active_island().clock.advance_to_phase(phase)
 
+## Phase 0d-i: forward to the active island's clock. Phase 0d-ii will wire
+## MergeCoordinator merge events to call this on the lagging clock with a
+## ~10s transition. Forwarding through the shim means callers don't need
+## to know which DayClockInstance is currently active.
+func accelerate_to(target_total_phase: float, duration_seconds: float) -> void:
+	IslandRegistry.active_island().clock.accelerate_to(target_total_phase, duration_seconds)
+
+## Phase 0d-i: poll-style "is the active clock currently in a transition?"
+## Phase 0d-ii's MergeCoordinator will check this each frame to know when
+## the merge transition is complete and the active island can be swapped.
+func is_accelerating() -> bool:
+	return IslandRegistry.active_island().clock.is_accelerating()
+
 func phase_fraction() -> float:
 	return IslandRegistry.active_island().clock.phase_fraction()
 
