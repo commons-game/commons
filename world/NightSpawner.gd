@@ -17,6 +17,15 @@ const SproutScene := preload("res://world/mobs/Sprout.tscn")
 const WispScript  := preload("res://world/mobs/Wisp.gd")
 const PaleScript  := preload("res://world/mobs/Pale.gd")
 
+## Atlas slot for marrow_drop tiles dropped on Wisp death. Single source of
+## truth — ChunkManager._ensure_tileset_atlas_registered() reads this so the
+## tileset is primed for the same coord NightSpawner places at.
+##
+## Was (1, 2) until the workbench landed there; the two tiles silently
+## overwrote each other visually whenever a wisp died near a workbench.
+## Moved to the lowest free atlas slot — row 4 was untouched.
+const MARROW_DROP_ATLAS := Vector2i(0, 4)
+
 ## Set by World before add_child.
 var player: Node = null
 var chunk_manager: ChunkManager = null
@@ -183,4 +192,4 @@ func _on_sprout_died(tile_pos: Vector2i, sprout: Node) -> void:
 func _on_wisp_died(tile_pos: Vector2i, _wisp: Node) -> void:
 	# Drop a Marrow tile — the night-gated Tether ingredient.
 	if chunk_manager != null:
-		chunk_manager.place_tile(tile_pos, 1, 0, Vector2i(1, 2), 0, "marrow_drop")
+		chunk_manager.place_tile(tile_pos, 1, 0, MARROW_DROP_ATLAS, 0, "marrow_drop")

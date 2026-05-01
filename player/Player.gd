@@ -57,6 +57,9 @@ const CharacterRendererScript      := preload("res://player/CharacterRenderer.gd
 const AssetPackScript              := preload("res://player/AssetPack.gd")
 const InventoryScript              := preload("res://items/Inventory.gd")
 const EquipmentInventoryScript     := preload("res://items/EquipmentInventory.gd")
+## Used only to read MARROW_DROP_ATLAS so the pickup check stays in sync with
+## the spawn coord. Avoids a hardcoded duplicate that drifted last time.
+const NightSpawnerScript           := preload("res://world/NightSpawner.gd")
 # Structure scenes are no longer preloaded here — they're instantiated by
 # ChunkManager via StructureRegistry after their CRDT tiles are placed.
 
@@ -862,8 +865,9 @@ func _check_item_pickup(tile_pos: Vector2i) -> void:
 		if inventory != null:
 			inventory.add_to_bag({"id": "ether_crystal", "category": "material", "count": 1}, 16)
 			print("Player: picked up ether_crystal")
-	elif ax == 1 and ay == 2:
-		# marrow_drop — dropped by Wisp on death
+	elif Vector2i(ax, ay) == NightSpawnerScript.MARROW_DROP_ATLAS:
+		# marrow_drop — dropped by Wisp on death. Atlas slot lives on
+		# NightSpawner so spawn + pickup can never drift apart again.
 		chunk_manager.remove_tile(tile_pos, 1, "pickup")
 		_pickup_flash_timer = PICKUP_FLASH_DURATION
 		if inventory != null:

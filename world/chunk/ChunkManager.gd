@@ -4,8 +4,9 @@
 class_name ChunkManager
 extends Node
 
-const CHUNK_SCENE  := preload("res://world/chunk/Chunk.tscn")
-const MAIN_TILESET := preload("res://tilesets/MainTileSet.tres")
+const CHUNK_SCENE      := preload("res://world/chunk/Chunk.tscn")
+const MAIN_TILESET     := preload("res://tilesets/MainTileSet.tres")
+const NightSpawnerData := preload("res://world/NightSpawner.gd")
 
 var _loaded_chunks: Dictionary = {}  # Vector2i -> ChunkData
 var _player_chunk: Vector2i = Vector2i(-9999, -9999)  # sentinel: forces load on first call
@@ -43,7 +44,7 @@ func _ensure_tileset_atlas_registered() -> void:
 		Vector2i(2, 1),  # gravestone
 		Vector2i(3, 1),  # loot_pickup
 		Vector2i(3, 2),  # ether_crystal
-		Vector2i(1, 2),  # marrow_drop
+		NightSpawnerData.MARROW_DROP_ATLAS,  # marrow_drop — dropped on Wisp death
 		Vector2i(2, 2),  # moonstone_patch
 	]
 	# Row 3 is reserved for structure tiles. StructureRegistry owns the
