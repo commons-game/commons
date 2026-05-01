@@ -202,6 +202,76 @@ func test_switching_active_island_resyncs_new_clock_to_avoid_spurious_emit() -> 
 	assert_int(calls[0]).is_equal(0)
 	DayClock.phase_changed.disconnect(cb)
 
+# --- Phase 0d-ii: synthetic phase_changed on active-island swap ---
+#
+# When MergeCoordinator swaps the active island mid-merge (or on split), the
+# new island's clock may be on the OTHER side of the day/night boundary from
+# the previous island's. Consumers like NightDarkness listen for phase_changed
+# to flip; without a synthetic emit on swap, they'd never see the change
+# (the new clock's resync_phase() suppresses its own next-tick emit).
+
+func test_active_island_swap_across_boundary_emits_synthetic_phase_changed() -> void:
+	# Default island pinned to day, test island pinned to night → swap → expect
+	# phase_changed(false).
+	IslandRegistry.active_island().clock._time_override = 1800.0  # midday
+	IslandRegistry.active_island().clock.resync_phase()
+
+	var night_island = _make_test_island("test-synth-day-to-night")
+	night_island.clock._time_override = 5400.0  # midnight
+	night_island.clock.resync_phase()
+
+	var fired: Array = [false]
+	var seen: Array = [true]
+	var cb := func(is_day: bool):
+		fired[0] = true
+		seen[0] = is_day
+	DayClock.phase_changed.connect(cb)
+
+	IslandRegistry.set_active_island("test-synth-day-to-night")
+	assert_bool(fired[0]).is_true()
+	assert_bool(seen[0]).is_false()
+	DayClock.phase_changed.disconnect(cb)
+
+func test_active_island_swap_within_same_phase_does_not_emit() -> void:
+	# Both islands pinned to daytime — swap should NOT fire phase_changed.
+	# (The cross-island change in phase fraction is real, but the day/night
+	# boolean didn't flip; consumers care only about the boolean.)
+	IslandRegistry.active_island().clock._time_override = 1800.0  # midday
+	IslandRegistry.active_island().clock.resync_phase()
+
+	var dawn_island = _make_test_island("test-synth-day-to-day")
+	dawn_island.clock._time_override = 100.0  # early dawn — still daytime
+	dawn_island.clock.resync_phase()
+
+	var calls: Array = [0]
+	var cb := func(_d): calls[0] += 1
+	DayClock.phase_changed.connect(cb)
+
+	IslandRegistry.set_active_island("test-synth-day-to-day")
+	assert_int(calls[0]).is_equal(0)
+	DayClock.phase_changed.disconnect(cb)
+
+func test_active_island_swap_night_to_day_emits_synthetic_phase_changed() -> void:
+	# Symmetric to the day→night case, just to prove direction-agnostic.
+	IslandRegistry.active_island().clock._time_override = 5400.0  # midnight
+	IslandRegistry.active_island().clock.resync_phase()
+
+	var day_island = _make_test_island("test-synth-night-to-day")
+	day_island.clock._time_override = 1800.0  # midday
+	day_island.clock.resync_phase()
+
+	var fired: Array = [false]
+	var seen: Array = [false]
+	var cb := func(is_day: bool):
+		fired[0] = true
+		seen[0] = is_day
+	DayClock.phase_changed.connect(cb)
+
+	IslandRegistry.set_active_island("test-synth-night-to-day")
+	assert_bool(fired[0]).is_true()
+	assert_bool(seen[0]).is_true()
+	DayClock.phase_changed.disconnect(cb)
+
 # --- Phase 0d-i: accelerate_to / is_accelerating delegate through the shim ---
 
 func test_accelerate_to_delegates_to_active_island_clock() -> void:

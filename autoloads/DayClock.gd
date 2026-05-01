@@ -72,10 +72,22 @@ func _ready() -> void:
 ## previous subscription first. Also resync the new clock's _last_is_day so
 ## the next tick doesn't spuriously emit — same legacy semantic Phase 0a's
 ## wrapper preserved by calling resync_phase() in its own _ready().
+##
+## Phase 0d-ii: if the swap crosses a day/night boundary (the OLD clock said
+## daytime and the NEW clock says night, or vice-versa), emit a synthetic
+## phase_changed AFTER the rebind so consumers (NightDarkness, NightSpawner,
+## MoonHUD) flip correctly. This is necessary because resync_phase() on the
+## new clock seeds _last_is_day from the new phase, which suppresses the new
+## clock's own next-tick emit even though, from the local DayClock consumer's
+## perspective, the day/night state just changed instantaneously.
 func _bind_to_active_clock() -> void:
 	var new_clock: RefCounted = IslandRegistry.active_island().clock
 	if _bound_clock == new_clock:
 		return
+	# Capture the pre-swap day/night state so we can detect a boundary cross.
+	# When _bound_clock is null (very first bind during _ready), default to
+	# the new clock's reading so no synthetic emit fires at startup.
+	var pre_is_day: bool = _bound_clock.is_daytime() if _bound_clock != null else new_clock.is_daytime()
 	if _bound_clock != null and _bound_clock.phase_changed.is_connected(_relay_phase_changed):
 		_bound_clock.phase_changed.disconnect(_relay_phase_changed)
 	_bound_clock = new_clock
@@ -89,6 +101,13 @@ func _bind_to_active_clock() -> void:
 	# here ensures the *next* tick reflects the destination's reality, not a
 	# spurious cross-island transition.
 	_bound_clock.resync_phase()
+	# Phase 0d-ii: synthetic phase_changed if the swap crossed the boundary.
+	# Without this, NightDarkness / NightSpawner would never know they need to
+	# flip — they listen to phase_changed, and the resync above suppresses the
+	# new clock's own emit on the next tick.
+	var post_is_day: bool = new_clock.is_daytime()
+	if post_is_day != pre_is_day:
+		phase_changed.emit(post_is_day)
 
 func _on_active_island_changed(_island: RefCounted) -> void:
 	_bind_to_active_clock()
