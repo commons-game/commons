@@ -445,10 +445,11 @@ func _show_harvest_fail(msg: String) -> void:
 	print("Player: %s" % msg)
 
 ## Handle place_use action.
-## - If active hotbar slot contains a structure: place it in front of the player.
+## - If active hotbar slot contains a structure: place it at `target_tile` if
+##   provided (right-click cursor coord), else one tile ahead (F-key flow).
 ## - If active hotbar slot is a consumable: use it.
 ## - Also check for bedrolls in range to activate home-set.
-func _do_place_use() -> void:
+func _do_place_use(target_tile: Vector2i = PLACE_NO_TARGET) -> void:
 	# Check for a bedroll in range first (walk onto / activate).
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
@@ -474,7 +475,7 @@ func _do_place_use() -> void:
 	var item_cat: String = str(active_stack.get("category", ""))
 
 	if item_cat == "structure":
-		_place_structure(item_id)
+		_place_structure(item_id, target_tile)
 	elif item_cat == "food":
 		_try_eat()
 
@@ -495,13 +496,48 @@ static func is_structure_item(item_id: String) -> bool:
 		return false
 	return StructureRegistry.is_structure(entry["atlas"])
 
-## Place a structure one tile in front of the player.
-func _place_structure(item_id: String) -> void:
+## Maximum Chebyshev distance from the player tile at which a right-click
+## placement is allowed. Larger than the harvest range (1.5) so the player
+## can drop a campfire a couple of tiles away without having to walk into
+## the spot first. Out-of-range right-clicks are silent no-ops.
+const PLACEMENT_RANGE := 4
+
+## Sentinel returned by callers that don't have a target tile in mind (e.g.
+## the F-key place/use path, which still places one tile ahead of the
+## player). Picked deep in negative-i32 territory so it can't collide with
+## any reasonable world tile.
+const PLACE_NO_TARGET := Vector2i(-2147483647, -2147483647)
+
+## Place a structure at `target_tile`, or — if `target_tile` is the
+## PLACE_NO_TARGET sentinel — one tile in front of the player (legacy F-key
+## flow). Right-click goes through here with the cursor's tile coord; the
+## range check (Chebyshev ≤ PLACEMENT_RANGE) silently rejects out-of-range
+## clicks so misaimed cursor placements don't waste inventory.
+##
+## Player facing snaps toward the placement tile so the character visibly
+## orients to what they just dropped — same effect for both code paths.
+func _place_structure(item_id: String, target_tile: Vector2i = PLACE_NO_TARGET) -> void:
 	var tile_pos := Vector2i(int(floorf(position.x / Constants.TILE_SIZE)),
 	                         int(floorf(position.y / Constants.TILE_SIZE)))
-	var place_tile_pos := tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
-	# Snap facing toward the placement tile.
-	_facing = Vector2(place_tile_pos - tile_pos).normalized()
+	var place_tile_pos: Vector2i
+	if target_tile == PLACE_NO_TARGET:
+		# Legacy: one tile ahead of the player in the facing direction.
+		place_tile_pos = tile_pos + Vector2i(int(round(_facing.x)), int(round(_facing.y)))
+	else:
+		# Right-click: respect the cursor coord, but silently no-op if it's
+		# beyond reach. Chebyshev so 4 tiles N and 4 tiles NE are both in
+		# range (matches how a player visually estimates "throwing distance").
+		var dx: int = abs(target_tile.x - tile_pos.x)
+		var dy: int = abs(target_tile.y - tile_pos.y)
+		if max(dx, dy) > PLACEMENT_RANGE:
+			print("Player: %s placement at %s out of range (max %d tiles)" \
+				% [item_id, target_tile, PLACEMENT_RANGE])
+			return
+		place_tile_pos = target_tile
+	# Snap facing toward the placement tile (zero-vector guard for in-place clicks).
+	var face_delta := Vector2(place_tile_pos - tile_pos)
+	if face_delta.length() > 0.0:
+		_facing = face_delta.normalized()
 
 	# Don't stack on water or existing object tiles.
 	if chunk_manager != null:
@@ -707,10 +743,13 @@ func _physics_process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _dead:
 		return
-	# Handle right-click place/use (mouse button events bypass the key filter below)
+	# Handle right-click place/use (mouse button events bypass the key filter below).
+	# Convert the cursor position to a world tile so the placement lands where the
+	# player actually clicked (subject to PLACEMENT_RANGE), not at the facing tile.
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
-			_do_place_use()
+			var target_tile := _mouse_world_tile()
+			_do_place_use(target_tile)
 			return
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
@@ -776,6 +815,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_ENTER, KEY_KP_ENTER:
 			# Enter is handled by ChatInput's LineEdit when chat is active.
 			pass
+
+## Returns the world tile under the current mouse cursor. Mirrors the
+## viewport-transform inversion used by TileInteraction so right-click
+## placement and left-click harvest agree on which tile is "under the cursor."
+func _mouse_world_tile() -> Vector2i:
+	var vp := get_viewport()
+	if vp == null:
+		return PLACE_NO_TARGET
+	var world_px: Vector2 = vp.get_canvas_transform().affine_inverse() \
+			* vp.get_mouse_position()
+	return Vector2i(int(floor(world_px.x / Constants.TILE_SIZE)),
+	                int(floor(world_px.y / Constants.TILE_SIZE)))
 
 func _on_talisman_toggled(awakened: bool) -> void:
 	# Notify coordinator so the reputation gate reflects talisman state.
